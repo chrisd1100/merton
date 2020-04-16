@@ -163,7 +163,8 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	sd.Flags = WINDOW_SWAP_CHAIN_FLAGS;
 
 	D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
-	HRESULT e = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, levels,
+	UINT flags = D3D11_CREATE_DEVICE_SINGLETHREADED;
+	HRESULT e = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, flags, levels,
 		sizeof(levels) / sizeof(D3D_FEATURE_LEVEL), D3D11_SDK_VERSION, &ctx->device, NULL, &ctx->context);
 	if (e != S_OK) {r = LIB_ERR; goto except;}
 
