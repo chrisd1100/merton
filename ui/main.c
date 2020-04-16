@@ -158,11 +158,11 @@ static void main_audio_adjustment(struct main *ctx)
 	if (queued == 0 && audio_playing(ctx->audio))
 		audio_stop(ctx->audio);
 
-	if (++ctx->frames % 60 == 0) {
+	if (++ctx->frames % 120 == 0) {
 		int64_t now = time_stamp();
 
 		if (ctx->ts != 0) {
-			uint32_t cycles_sec = lrint((double) ctx->cycles / (1000.0 / time_diff(ctx->ts, now)));
+			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
 			NES_SetAPUClock(ctx->nes, cycles_sec + (queued >= AUDIO_BUFFER ? CLOCK_UP : CLOCK_DOWN));
 		}
 
@@ -257,6 +257,9 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 	freopen_s(&f, "CONOUT$", "w", stdout);
 
 	timeBeginPeriod(1);
+
+	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 	int32_t r = main(__argc, __argv);
 
