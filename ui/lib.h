@@ -21,6 +21,7 @@ enum window_msg_type {
 
 enum scancode {
 	SCANCODE_NONE      = 0x0000,
+	SCANCODE_ESCAPE    = 0x0001,
 	SCANCODE_W         = 0x0011,
 	SCANCODE_R         = 0x0013,
 	SCANCODE_A         = 0x001E,

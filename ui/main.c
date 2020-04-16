@@ -94,11 +94,17 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 			ctx->running = false;
 			break;
 		case WINDOW_MSG_KEYBOARD: {
-			printf("%x\n", wmsg->keyboard.scancode);
-
-			NES_Button button = NES_BUTTON_MAP[wmsg->keyboard.scancode];
-			if (button != 0)
-				NES_Controller(ctx->nes, 0, button, wmsg->keyboard.pressed);
+			switch (wmsg->keyboard.scancode) {
+				case SCANCODE_ESCAPE:
+					NES_Reset(ctx->nes, false);
+					break;
+				default: {
+					NES_Button button = NES_BUTTON_MAP[wmsg->keyboard.scancode];
+					if (button != 0)
+						NES_Controller(ctx->nes, 0, button, wmsg->keyboard.pressed);
+					break;
+				}
+			}
 			break;
 		}
 		default:
