@@ -83,8 +83,10 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 
 			if (GetRawInputData((HRAWINPUT) lparam, RID_INPUT, ri, &size, sizeof(RAWINPUTHEADER))) {
 				if (ri->header.dwType == RIM_TYPEHID && ri->data.hid.dwCount == 1 && ri->data.hid.dwSizeHid >= 8) {
-					uint8_t *hid = ri->data.hid.bRawData;
+					if (GetCursor())
+						SetCursor(NULL);
 
+					uint8_t *hid = ri->data.hid.bRawData;
 					wmsg.type = WINDOW_MSG_GAMEPAD;
 
 					// Buttons
