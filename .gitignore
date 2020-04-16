@@ -1,0 +1,10 @@
+*.obj
+*.pdb
+*.ilk
+*.res
+*.o
+*.sav
+.vs/
+rom/
+merton
+merton.exe
