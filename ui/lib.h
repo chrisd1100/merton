@@ -17,6 +17,7 @@ enum window_msg_type {
 	WINDOW_MSG_NONE     = 0,
 	WINDOW_MSG_CLOSE    = 1,
 	WINDOW_MSG_KEYBOARD = 2,
+	WINDOW_MSG_GAMEPAD  = 3,
 };
 
 enum scancode {
@@ -43,6 +44,30 @@ struct window_msg {
 			bool pressed;
 			enum scancode scancode;
 		} keyboard;
+
+		struct {
+			int8_t leftThumbX;
+			int8_t leftThumbY;
+			int8_t rightThumbX;
+			int8_t rightThumbY;
+			int8_t leftTrigger;
+			int8_t rightTrigger;
+			bool a;
+			bool b;
+			bool x;
+			bool y;
+			bool back;
+			bool start;
+			bool guide;
+			bool leftShoulder;
+			bool rightShoulder;
+			bool leftThumb;
+			bool rightThumb;
+			bool up;
+			bool right;
+			bool down;
+			bool left;
+		} gamepad;
 	};
 };
 

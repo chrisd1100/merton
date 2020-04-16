@@ -64,6 +64,23 @@ static void ctrl_set_state(struct ctrl *ctrl, uint8_t player, uint8_t state)
 	}
 }
 
+static void ctrl_set_safe_state(struct ctrl *ctrl, uint8_t player)
+{
+	uint8_t prev_state = ctrl->safe_buttons[player];
+	ctrl->safe_buttons[player] = ctrl->buttons[player];
+
+	// cancel out up + down
+	if ((ctrl->safe_buttons[player] & 0x30) == 0x30)
+		ctrl->safe_buttons[player] &= 0xCF;
+
+	// cancel out left + right
+	if ((ctrl->safe_buttons[player] & 0xC0) == 0xC0)
+		ctrl->safe_buttons[player] &= 0x3F;
+
+	if (prev_state != ctrl->safe_buttons[player])
+		ctrl_set_state(ctrl, player, ctrl->safe_buttons[player]);
+}
+
 static uint8_t ctrl_read(struct ctrl *ctrl, uint8_t n)
 {
 	if (ctrl->strobe)
@@ -260,30 +277,26 @@ uint32_t NES_NextFrame(NES *ctx)
 	return (uint32_t) (ctx->sys.cycle - cycles);
 }
 
-void NES_Controller(NES *nes, uint8_t player, NES_Button button, bool down)
+void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pressed)
 {
 	struct ctrl *ctrl = &nes->ctrl;
 
-	if (down) {
+	if (pressed) {
 		ctrl->buttons[player] |= button;
 
 	} else {
 		ctrl->buttons[player] &= ~button;
 	}
 
-	uint8_t prev_state = ctrl->safe_buttons[player];
-	ctrl->safe_buttons[player] = ctrl->buttons[player];
+	ctrl_set_safe_state(ctrl, player);
+}
 
-	// cancel out up + down
-	if ((ctrl->safe_buttons[player] & 0x30) == 0x30)
-		ctrl->safe_buttons[player] &= 0xCF;
+void NES_ControllerState(NES *nes, uint8_t player, uint8_t state)
+{
+	struct ctrl *ctrl = &nes->ctrl;
 
-	// cancel out left + right
-	if ((ctrl->safe_buttons[player] & 0xC0) == 0xC0)
-		ctrl->safe_buttons[player] &= 0x3F;
-
-	if (prev_state != ctrl->safe_buttons[player])
-		ctrl_set_state(ctrl, player, ctrl->safe_buttons[player]);
+	ctrl->buttons[player] = state;
+	ctrl_set_safe_state(ctrl, player);
 }
 
 void NES_Reset(NES *ctx, bool hard)

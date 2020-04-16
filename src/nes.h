@@ -69,7 +69,8 @@ void NES_Create(NES_VideoCallback videoCallback, NES_AudioCallback audioCallback
 	uint32_t sampleRate, bool stereo, NES **nes);
 void NES_LoadCart(NES *ctx, const void *rom, size_t romSize, const void *sram, size_t sramSize, const NES_CartDesc *hdr);
 uint32_t NES_NextFrame(NES *ctx);
-void NES_Controller(NES *ctx, uint8_t player, NES_Button button, bool down);
+void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pressed);
+void NES_ControllerState(NES *nes, uint8_t player, uint8_t state);
 void NES_Reset(NES *ctx, bool hard);
 void NES_SetStereo(NES *ctx, bool stereo);
 void NES_SetAPUClock(NES *ctx, uint32_t hz);

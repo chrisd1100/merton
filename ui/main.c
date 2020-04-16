@@ -43,7 +43,7 @@ const uint8_t PATTERN_100[] = {1, 2, 2};
 const uint8_t PATTERN_120[] = {2};
 const uint8_t PATTERN_144[] = {2, 3, 2, 3, 2};
 
-static NES_Button NES_BUTTON_MAP[SCANCODE_MAX] = {
+static NES_Button NES_KEYBOARD_MAP[SCANCODE_MAX] = {
 	[SCANCODE_SEMICOLON] = NES_BUTTON_A,
 	[SCANCODE_L]         = NES_BUTTON_B,
 	[SCANCODE_LSHIFT]    = NES_BUTTON_SELECT,
@@ -99,12 +99,31 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 					NES_Reset(ctx->nes, false);
 					break;
 				default: {
-					NES_Button button = NES_BUTTON_MAP[wmsg->keyboard.scancode];
+					NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 					if (button != 0)
-						NES_Controller(ctx->nes, 0, button, wmsg->keyboard.pressed);
+						NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
 					break;
 				}
 			}
+			break;
+		}
+		case WINDOW_MSG_GAMEPAD: {
+			uint8_t state = 0;
+			state |= wmsg->gamepad.a     ? NES_BUTTON_A : 0;
+			state |= wmsg->gamepad.b     ? NES_BUTTON_B : 0;
+			state |= wmsg->gamepad.back  ? NES_BUTTON_SELECT : 0;
+			state |= wmsg->gamepad.start ? NES_BUTTON_START : 0;
+			state |= wmsg->gamepad.up    ? NES_BUTTON_UP : 0;
+			state |= wmsg->gamepad.down  ? NES_BUTTON_DOWN : 0;
+			state |= wmsg->gamepad.left  ? NES_BUTTON_LEFT : 0;
+			state |= wmsg->gamepad.right ? NES_BUTTON_RIGHT : 0;
+
+			state |= wmsg->gamepad.leftThumbX < -50 ? NES_BUTTON_LEFT : 0;
+			state |= wmsg->gamepad.leftThumbX > 50  ? NES_BUTTON_RIGHT : 0;
+			state |= wmsg->gamepad.leftThumbY < -50 ? NES_BUTTON_UP : 0;
+			state |= wmsg->gamepad.leftThumbY > 50  ? NES_BUTTON_DOWN : 0;
+
+			NES_ControllerState(ctx->nes, 0, state);
 			break;
 		}
 		default:

@@ -36,6 +36,8 @@ struct window {
 static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	struct window_msg wmsg = {0};
+	bool custom_return = false;
+	LRESULT r = 0;
 
 	switch (msg) {
 		case WM_NCCREATE:
@@ -73,6 +75,38 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 			if (!GetCursor())
 				SetCursor(LoadCursor(NULL, IDC_ARROW));
 			break;
+		case WM_INPUT:
+			UINT size = 0;
+
+			GetRawInputData((HRAWINPUT) lparam, RID_INPUT, NULL, &size, sizeof(RAWINPUTHEADER));
+			RAWINPUT *ri = malloc(size);
+
+			if (GetRawInputData((HRAWINPUT) lparam, RID_INPUT, ri, &size, sizeof(RAWINPUTHEADER))) {
+				if (ri->header.dwType == RIM_TYPEHID && ri->data.hid.dwCount == 1 && ri->data.hid.dwSizeHid >= 8) {
+					uint8_t *hid = ri->data.hid.bRawData;
+
+					wmsg.type = WINDOW_MSG_GAMEPAD;
+
+					// Buttons
+					wmsg.gamepad.a             = hid[5] & 0x10;
+					wmsg.gamepad.b             = hid[5] & 0x20;
+					wmsg.gamepad.x             = hid[5] & 0x80;
+					wmsg.gamepad.y             = hid[6] & 0x01;
+					wmsg.gamepad.leftShoulder  = hid[6] & 0x04;
+					wmsg.gamepad.rightShoulder = hid[6] & 0x08;
+					wmsg.gamepad.back          = hid[6] & 0x40;
+					wmsg.gamepad.start         = hid[6] & 0x80;
+
+					// Axis
+					wmsg.gamepad.leftThumbX = hid[1] - 0x80;
+					wmsg.gamepad.leftThumbY = hid[2] - 0x80;
+				}
+			}
+
+			free(ri);
+			custom_return = true;
+			r = DefRawInputProc(&ri, 1, sizeof(RAWINPUTHEADER));
+			break;
 		default:
 			break;
 	}
@@ -86,7 +120,7 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 		return 0;
 	}
 
-	return DefWindowProc(hwnd, msg, wparam, lparam);
+	return custom_return ? r : DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
 static void window_utf8_to_wchar(const char *src, WCHAR *dst, size_t dst_len)
@@ -153,6 +187,24 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	ctx->hwnd = CreateWindowEx(0, WINDOW_CLASS_NAME, titlew, WS_OVERLAPPEDWINDOW | WS_VISIBLE,
 		x, y, width, height, NULL, NULL, ctx->instance, ctx);
 	if (!ctx->hwnd) {r = LIB_ERR; goto except;}
+
+	RAWINPUTDEVICE rid[3] = {0};
+	// Joystick
+	rid[0].usUsagePage = 0x01;
+	rid[0].usUsage = 0x04;
+	rid[0].hwndTarget = ctx->hwnd;
+
+	// Gamepad
+	rid[1].usUsagePage = 0x01;
+	rid[1].usUsage = 0x05;
+	rid[1].hwndTarget = ctx->hwnd;
+
+	// Multi Axis
+	rid[2].usUsagePage = 0x01;
+	rid[2].usUsage = 0x08;
+	rid[2].hwndTarget = ctx->hwnd;
+
+	if (!RegisterRawInputDevices(rid, 3, sizeof(RAWINPUTDEVICE))) {r = LIB_ERR; goto except;}
 
 	DXGI_SWAP_CHAIN_DESC1 sd = {0};
 	sd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
