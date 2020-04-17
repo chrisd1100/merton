@@ -33,6 +33,7 @@ CFLAGS = \
 	-DUNICODE \
 	/nologo \
 	/wd4201 \
+	/Gw \
 	/GS- \
 	/W4 \
 	/O2 \

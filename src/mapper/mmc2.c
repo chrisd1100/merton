@@ -3,6 +3,9 @@
 
 static void mmc2_create(struct cart *cart)
 {
+	cart->REG[4] = 0xFD; // Latch 0
+	cart->REG[5] = 0xFD; // Latch 1
+
 	if (cart->hdr.mapper == 9) {
 		uint16_t last_bank = (uint16_t) (cart->prg.rom.size / 0x2000) - 1;
 
@@ -21,7 +24,7 @@ static void mmc2_create(struct cart *cart)
 	}
 }
 
-static void mmc2_chr_read(struct cart *cart, uint16_t addr)
+static uint8_t mmc2_chr_read(struct cart *cart, uint16_t addr)
 {
 	uint16_t u0 = 0x0FD8;
 	uint16_t u1 = 0x0FE8;
@@ -31,15 +34,23 @@ static void mmc2_chr_read(struct cart *cart, uint16_t addr)
 		u1 = 0x0FEF;
 	}
 
+	// Fetch takes place BEFORE latch is updated
+	uint8_t v =  map_read(&cart->chr, 0, addr, NULL);
+
 	if (addr >= 0x0FD8 && addr <= u0) {
-		cart_map(&cart->chr, ROM, 0x0000, cart->REG[0], 4);
+		cart->REG[4] = 0xFD;
 	} else if (addr >= 0x0FE8 && addr <= u1) {
-		cart_map(&cart->chr, ROM, 0x0000, cart->REG[1], 4);
+		cart->REG[4] = 0xFE;
 	} else if (addr >= 0x1FD8 && addr <= 0x1FDF) {
-		cart_map(&cart->chr, ROM, 0x1000, cart->REG[2], 4);
+		cart->REG[5] = 0xFD;
 	} else if (addr >= 0x1FE8 && addr <= 0x1FEF) {
-		cart_map(&cart->chr, ROM, 0x1000, cart->REG[3], 4);
+		cart->REG[5] = 0xFE;
 	}
+
+	cart_map(&cart->chr, ROM, 0x0000, cart->REG[4] == 0xFD ? cart->REG[0] : cart->REG[1], 4);
+	cart_map(&cart->chr, ROM, 0x1000, cart->REG[5] == 0xFD ? cart->REG[2] : cart->REG[3], 4);
+
+	return v;
 }
 
 static void mmc2_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
@@ -55,19 +66,15 @@ static void mmc2_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 				break;
 			case 0xB000:
 				cart->REG[0] = v & 0x1F;
-				cart_map(&cart->chr, ROM, 0x0000, cart->REG[0], 4);
 				break;
 			case 0xC000:
 				cart->REG[1] = v & 0x1F;
-				cart_map(&cart->chr, ROM, 0x0000, cart->REG[1], 4);
 				break;
 			case 0xD000:
 				cart->REG[2] = v & 0x1F;
-				cart_map(&cart->chr, ROM, 0x1000, cart->REG[2], 4);
 				break;
 			case 0xE000:
 				cart->REG[3] = v & 0x1F;
-				cart_map(&cart->chr, ROM, 0x1000, cart->REG[3], 4);
 				break;
 			case 0xF000:
 				cart_map_ciram(&cart->chr, (v & 0x01) ? NES_MIRROR_HORIZONTAL : NES_MIRROR_VERTICAL);

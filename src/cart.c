@@ -278,7 +278,7 @@ uint8_t cart_chr_read(struct cart *cart, uint16_t addr, enum mem type, bool nt)
 		switch (cart->hdr.mapper) {
 			case 5:  return mmc5_chr_read(cart, addr, type);
 			case 9:
-			case 10: mmc2_chr_read(cart, addr); break;
+			case 10: return mmc2_chr_read(cart, addr);
 		}
 
 	} else {

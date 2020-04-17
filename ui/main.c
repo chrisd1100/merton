@@ -12,8 +12,6 @@
 #define WINDOW_W     (NES_FRAME_WIDTH * 3)
 #define WINDOW_H     (NES_FRAME_HEIGHT * 3)
 
-#define WAIT_INPUT   10
-
 #define SAMPLE_RATE  44100
 #define AUDIO_START  (100 * (SAMPLE_RATE / 1000)) // 100ms
 #define AUDIO_BUFFER (50 * (SAMPLE_RATE / 1000))  // 50ms
@@ -245,7 +243,7 @@ int32_t main(int32_t argc, char **argv)
 
 		} else {
 			ctx.ts = 0;
-			time_sleep(1);
+			time_sleep(16);
 		}
 	}
 

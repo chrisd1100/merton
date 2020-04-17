@@ -25,7 +25,6 @@ struct window {
 	ID3D11DeviceContext *context;
 	IDXGISwapChain2 *swap_chain2;
 	HANDLE waitable;
-	bool first;
 
 	struct window_quad *quad;
 };
@@ -141,7 +140,6 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	struct window *ctx = *window = calloc(1, sizeof(struct window));
 	ctx->msg_func = msg_func;
 	ctx->opaque = opaque;
-	ctx->first = true;
 
 	IDXGIDevice2 *device2 = NULL;
 	IUnknown *unknown = NULL;
@@ -307,15 +305,8 @@ bool window_is_foreground(struct window *ctx)
 
 void window_present(struct window *ctx, uint32_t num_frames)
 {
-	// Microsoft says this needs to be called in advance of the first frame
-	// https://docs.microsoft.com/en-us/windows/uwp/gaming/reduce-latency-with-dxgi-1-3-swap-chains
-	if (ctx->first) {
-		WaitForSingleObjectEx(ctx->waitable, INFINITE, TRUE);
-		ctx->first = false;
-	}
-
-	IDXGISwapChain2_Present(ctx->swap_chain2, num_frames, 0);
-	WaitForSingleObjectEx(ctx->waitable, INFINITE, TRUE);
+	if (WaitForSingleObjectEx(ctx->waitable, INFINITE, TRUE) == WAIT_OBJECT_0)
+		IDXGISwapChain2_Present(ctx->swap_chain2, num_frames, 0);
 }
 
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
