@@ -1,0 +1,24 @@
+#include <winver.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,0,0,0
+PRODUCTVERSION  0,0,0,0
+
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904E4"
+		BEGIN
+			VALUE "ProductName",     "Merton\000"
+			VALUE "LegalCopyright",  "\251 Christopher Dickson\000"
+			VALUE "FileDescription", "Merton\000"
+			VALUE "FileVersion",     "0.0.0.0\000"
+			VALUE "ProductVersion",  "0.0.0.0\000"
+		END
+	END
+
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1252
+	END
+END

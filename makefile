@@ -22,7 +22,8 @@ OBJS = \
 	ui\windows\fs.obj
 
 RESOURCES = \
-	ui\assets\windows\icon.res
+	ui\assets\windows\icon.res \
+	ui\assets\windows\versioninfo.res
 
 RFLAGS = \
 	/nologo
@@ -64,6 +65,8 @@ LIBS = \
 LD_FLAGS = \
 	/subsystem:windows \
 	/nodefaultlib \
+	/manifest:embed \
+	/manifestinput:ui\assets\windows\embed.manifest \
 	/nologo
 
 !IFDEF DEBUG
