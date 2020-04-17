@@ -936,14 +936,14 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 		apu_dmc_step_timer(&apu->d, nes, cpu);
 	}
 
+	//triangle & noise step every clock
+	apu_triangle_step_timer(&apu->t);
+	apu_noise_step_timer(&apu->n);
+
 	//vrc6
 	apu_vrc6_pulse_step_timer(&apu->vrc6[0]);
 	apu_vrc6_pulse_step_timer(&apu->vrc6[1]);
 	apu_vrc6_saw_step_timer(&apu->vrc6[2]);
-
-	//triangle & noise step every clock
-	apu_triangle_step_timer(&apu->t);
-	apu_noise_step_timer(&apu->n);
 
 	//sample
 	int16_t l = 0, r = 0;
