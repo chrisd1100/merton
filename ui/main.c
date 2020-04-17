@@ -207,9 +207,6 @@ int32_t main(int32_t argc, char **argv)
 	struct main ctx = {0};
 	ctx.running = true;
 
-	if (argc < 2)
-		goto except;
-
 	int32_t r = window_create("Merton", main_window_msg_func, &ctx, WINDOW_W, WINDOW_H, &ctx.window);
 	if (r != LIB_OK) goto except;
 
@@ -219,19 +216,23 @@ int32_t main(int32_t argc, char **argv)
 	NES_Create(main_nes_video, main_nes_audio, &ctx, SAMPLE_RATE, true, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
 
-	size_t rom_size = 0;
-	void *rom = fs_read(argv[1], &rom_size);
-	if (!rom) goto except;
+	char sram_file[16] = {0};
 
-	uint32_t crc32 = crypto_crc32(rom, rom_size);
-	char sram_file[16];
-	snprintf(sram_file, 16, "%02X.sav", crc32);
+	if (argc >= 2) {
+		size_t rom_size = 0;
+		void *rom = fs_read(argv[1], &rom_size);
 
-	size_t sram_size = 0;
-	void *sram = fs_read(fs_path("save", sram_file), &sram_size);
-	NES_LoadCart(ctx.nes, rom, rom_size, sram, sram_size, NULL);
-	free(sram);
-	free(rom);
+		if (rom) {
+			uint32_t crc32 = crypto_crc32(rom, rom_size);
+			snprintf(sram_file, 16, "%02X.sav", crc32);
+
+			size_t sram_size = 0;
+			void *sram = fs_read(fs_path("save", sram_file), &sram_size);
+			NES_LoadCart(ctx.nes, rom, rom_size, sram, sram_size, NULL);
+			free(sram);
+			free(rom);
+		}
+	}
 
 	while (ctx.running) {
 		window_poll(ctx.window);
@@ -247,7 +248,8 @@ int32_t main(int32_t argc, char **argv)
 		}
 	}
 
-	main_save_sram(ctx.nes, sram_file);
+	if (sram_file[0])
+		main_save_sram(ctx.nes, sram_file);
 
 	except:
 

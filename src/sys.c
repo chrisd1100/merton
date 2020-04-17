@@ -270,6 +270,9 @@ void NES_LoadCart(NES *ctx, const void *rom, size_t romSize, const void *sram, s
 
 uint32_t NES_NextFrame(NES *ctx)
 {
+	if (!ctx->cart)
+		return 0;
+
 	uint64_t cycles = ctx->sys.cycle;
 
 	for (uint32_t frame = ctx->sys.frame; frame == ctx->sys.frame; cpu_step(ctx->cpu, ctx));
@@ -301,6 +304,9 @@ void NES_ControllerState(NES *nes, uint8_t player, uint8_t state)
 
 void NES_Reset(NES *ctx, bool hard)
 {
+	if (!ctx->cart)
+		return;
+
 	sys_reset(&ctx->sys, hard);
 	ppu_reset(ctx->ppu);
 	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
@@ -326,12 +332,13 @@ void NES_ToggleChannel(NES *ctx, NES_Channel channel)
 
 size_t NES_SRAMDirty(NES *ctx)
 {
-	return cart_sram_dirty(ctx->cart);
+	return ctx->cart ? cart_sram_dirty(ctx->cart) : 0;
 }
 
 void NES_GetSRAM(NES *ctx, void *sram, size_t size)
 {
-	cart_sram_get(ctx->cart, sram, size);
+	if (ctx->cart)
+		cart_sram_get(ctx->cart, sram, size);
 }
 
 void NES_Destroy(NES **nes)
