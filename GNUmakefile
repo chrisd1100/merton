@@ -10,13 +10,14 @@ OBJS = \
 	src/sys.o \
 	src/cpu.o \
 	src/ppu.o \
-	ui/main.o \
-	ui/crypto.o \
-	ui/unix/fs.o \
-	ui/unix/time.o
+	app/main.o \
+	app/crypto.o \
+	app/unix/fs.o \
+	app/unix/time.o \
+	app/deps/imgui.o
 
 CFLAGS = \
-	-Iui \
+	-Iapp \
 	-Wall \
 	-Wextra \
 	-std=c99 \
@@ -32,9 +33,9 @@ CXXFLAGS = \
 ifeq ($(UNAME), Linux)
 
 OBJS := $(OBJS) \
-	ui/unix/linux/window.o \
-	ui/unix/linux/window-quad.o \
-	ui/unix/linux/audio.o
+	app/unix/linux/window.o \
+	app/unix/linux/window-quad.o \
+	app/unix/linux/audio.o
 
 LIBS = \
 	-lm
@@ -46,9 +47,9 @@ ifeq ($(UNAME), Darwin)
 export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
 
 OBJS := $(OBJS) \
-	ui/unix/macos/window.o \
-	ui/unix/macos/window-quad.o \
-	ui/unix/macos/audio.o
+	app/unix/macos/window.o \
+	app/unix/macos/window-quad.o \
+	app/unix/macos/audio.o
 
 LIBS = \
 	-framework AppKit \

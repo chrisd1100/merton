@@ -13,23 +13,24 @@ OBJS = \
 	src\cpu.obj \
 	src\sys.obj \
 	src\ppu.obj \
-	ui\main.obj \
-	ui\crypto.obj \
-	ui\windows\window.obj \
-	ui\windows\window-quad.obj \
-	ui\windows\audio.obj \
-	ui\windows\time.obj \
-	ui\windows\fs.obj
+	app\main.obj \
+	app\ui.obj \
+	app\crypto.obj \
+	app\windows\window.obj \
+	app\windows\window-quad.obj \
+	app\windows\audio.obj \
+	app\windows\time.obj \
+	app\windows\fs.obj
 
 RESOURCES = \
-	ui\assets\windows\icon.res \
-	ui\assets\windows\versioninfo.res
+	app\assets\windows\icon.res \
+	app\assets\windows\versioninfo.res
 
 RFLAGS = \
 	/nologo
 
 CFLAGS = \
-	-Iui \
+	-Iapp \
 	-DWIN32_LEAN_AND_MEAN \
 	-DUNICODE \
 	/nologo \
@@ -66,7 +67,7 @@ LD_FLAGS = \
 	/subsystem:windows \
 	/nodefaultlib \
 	/manifest:embed \
-	/manifestinput:ui\assets\windows\embed.manifest \
+	/manifestinput:app\assets\windows\embed.manifest \
 	/nologo
 
 !IFDEF DEBUG

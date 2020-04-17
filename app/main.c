@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "lib.h"
+#include "ui.h"
 
 #include "../src/nes.h"
 
@@ -20,8 +21,8 @@
 
 struct main {
 	NES *nes;
-	struct audio *audio;
 	struct window *window;
+	struct audio *audio;
 	bool running;
 
 	// Video
@@ -86,6 +87,8 @@ static void main_nes_log(const char *str)
 static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
+
+	ui_input(wmsg);
 
 	switch (wmsg->type) {
 		case WINDOW_MSG_CLOSE:
@@ -202,6 +205,16 @@ static void main_save_sram(NES *nes, const char *sram_file)
 	}
 }
 
+static void main_ui_root(void *opaque)
+{
+	struct main *ctx = (struct main *) opaque;
+
+	struct ui_args args = {0};
+	args.nes = ctx->nes;
+
+	ui_root(&args);
+}
+
 int32_t main(int32_t argc, char **argv)
 {
 	struct main ctx = {0};
@@ -215,6 +228,8 @@ int32_t main(int32_t argc, char **argv)
 
 	NES_Create(main_nes_video, main_nes_audio, &ctx, SAMPLE_RATE, true, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
+
+	ui_create();
 
 	char sram_file[16] = {0};
 
@@ -240,6 +255,16 @@ int32_t main(int32_t argc, char **argv)
 		if (window_is_foreground(ctx.window)) {
 			main_audio_adjustment(&ctx);
 			ctx.cycles += NES_NextFrame(ctx.nes);
+
+			OpaqueDevice *device = window_get_device(ctx.window);
+			OpaqueContext *context = window_get_context(ctx.window);
+			OpaqueTexture *back_buffer = window_get_back_buffer(ctx.window);
+
+			ui_begin(device, context, back_buffer);
+			ui_draw(main_ui_root, &ctx);
+			ui_render(ctx.cycles == 0);
+
+			window_release_back_buffer(back_buffer);
 			window_present(ctx.window, main_sync_to_60(&ctx));
 
 		} else {
@@ -253,6 +278,7 @@ int32_t main(int32_t argc, char **argv)
 
 	except:
 
+	ui_destroy();
 	NES_Destroy(&ctx.nes);
 	audio_destroy(&ctx.audio);
 	window_destroy(&ctx.window);

@@ -9,6 +9,10 @@
 #define NES_FRAME_HEIGHT 240
 #define NES_CLOCK        1789773
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
 	NES_BUTTON_A       = 0x01,
 	NES_BUTTON_B       = 0x02,
@@ -84,3 +88,7 @@ void NES_Destroy(NES **nes);
 
 void NES_SetLogCallback(NES_LogCallback logCallback);
 void NES_Log(const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif

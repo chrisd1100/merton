@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include <windows.h>
+#include <windowsx.h>
 #include <shellapi.h>
 
 #define COBJMACROS
@@ -73,6 +74,34 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 		case WM_MOUSEMOVE:
 			if (!GetCursor())
 				SetCursor(LoadCursor(NULL, IDC_ARROW));
+
+			wmsg.type = WINDOW_MSG_MOUSE_MOTION;
+			wmsg.mouseMotion.relative = false;
+			wmsg.mouseMotion.x = GET_X_LPARAM(lparam);
+			wmsg.mouseMotion.y = GET_Y_LPARAM(lparam);
+			break;
+		case WM_LBUTTONDOWN:
+		case WM_LBUTTONUP:
+			wmsg.type = WINDOW_MSG_MOUSE_BUTTON;
+			wmsg.mouseButton.button = MOUSE_L;
+			wmsg.mouseButton.pressed = msg == WM_LBUTTONDOWN;
+			break;
+		case WM_RBUTTONDOWN:
+		case WM_RBUTTONUP:
+			wmsg.type = WINDOW_MSG_MOUSE_BUTTON;
+			wmsg.mouseButton.button = MOUSE_R;
+			wmsg.mouseButton.pressed = msg == WM_RBUTTONDOWN;
+			break;
+		case WM_MBUTTONDOWN:
+		case WM_MBUTTONUP:
+			wmsg.type = WINDOW_MSG_MOUSE_BUTTON;
+			wmsg.mouseButton.button = MOUSE_MIDDLE;
+			wmsg.mouseButton.pressed = msg == WM_MBUTTONDOWN;
+			break;
+		case WM_MOUSEWHEEL:
+			wmsg.type = WINDOW_MSG_MOUSE_WHEEL;
+			wmsg.mouseWheel.x = 0;
+			wmsg.mouseWheel.y = GET_WHEEL_DELTA_WPARAM(wparam);
 			break;
 		case WM_INPUT:
 			UINT size = 0;
@@ -307,6 +336,35 @@ void window_present(struct window *ctx, uint32_t num_frames)
 {
 	if (WaitForSingleObjectEx(ctx->waitable, INFINITE, TRUE) == WAIT_OBJECT_0)
 		IDXGISwapChain2_Present(ctx->swap_chain2, num_frames, 0);
+}
+
+OpaqueDevice *window_get_device(struct window *ctx)
+{
+	return ctx->device;
+}
+
+OpaqueContext *window_get_context(struct window *ctx)
+{
+	return ctx->context;
+}
+
+OpaqueTexture *window_get_back_buffer(struct window *ctx)
+{
+	ID3D11Texture2D *back_buffer = NULL;
+	HRESULT e = IDXGISwapChain2_GetBuffer(ctx->swap_chain2, 0, &IID_ID3D11Texture2D, &back_buffer);
+
+	if (e == S_OK)
+		return back_buffer;
+
+	return NULL;
+}
+
+void window_release_back_buffer(OpaqueTexture *texture)
+{
+	if (!texture)
+		return;
+
+	ID3D11Texture2D_Release((ID3D11Texture2D *) texture);
 }
 
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
