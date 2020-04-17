@@ -82,24 +82,24 @@ static void mmc5_create(struct cart *cart)
 		cart_map(&cart->prg, RAM, 0x6000, 0, 8);
 }
 
-static void mmc5_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
+static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x5C00 && addr < 0x6000) {
 		cart->mmc5.exram[addr - 0x5C00] = v;
 
 	} else if (addr < 0x6000) {
 		switch (addr) {
-			case 0x5000: //MMC5 audio
-			case 0x5001:
+			case 0x5000: //MMC5 audio pulse, status
 			case 0x5002:
 			case 0x5003:
 			case 0x5004:
-			case 0x5005:
 			case 0x5006:
 			case 0x5007:
-			case 0x5010:
-			case 0x5011:
 			case 0x5015:
+				apu_write(apu, NULL, NULL, addr - 0x1000, v, EXT_MMC5);
+				break;
+			case 0x5010: //MMC5 audio PCM
+			case 0x5011:
 				break;
 			case 0x5100: //PRG mode
 				cart->prg_mode = v & 0x03;
@@ -197,7 +197,7 @@ static void mmc5_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 	}
 }
 
-static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, uint16_t addr, bool *mem_hit)
+static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, bool *mem_hit)
 {
 	*mem_hit = true;
 
@@ -209,14 +209,17 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, uint16_t addr, 
 
 	} else {
 		switch (addr) {
-			case 0x5000: //MMC5 audio
-			case 0x5001:
+			case 0x5000: //MMC5 audio pulse
 			case 0x5002:
 			case 0x5003:
 			case 0x5004:
-			case 0x5005:
 			case 0x5006:
 			case 0x5007:
+				break;
+			case 0x5015: //MMC5 audio status
+				return apu_read_status(apu, NULL, EXT_MMC5);
+			case 0x5010: //MMC5 audio PCM
+			case 0x5011:
 				break;
 			case 0x5113: //PRG bankswitch
 			case 0x5114:

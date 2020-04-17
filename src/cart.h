@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "cpu.h"
+#include "apu.h"
 
 enum mem {
 	RAM        = 0x10,
@@ -16,8 +17,8 @@ enum mem {
 struct cart;
 
 /*** READ & WRITE ***/
-uint8_t cart_prg_read(struct cart *cart, struct cpu *cpu, uint16_t addr, bool *mem_hit);
-void cart_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v);
+uint8_t cart_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, bool *mem_hit);
+void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, uint8_t v);
 uint8_t cart_chr_read(struct cart *cart, uint16_t addr, enum mem type, bool nt);
 void cart_chr_write(struct cart *cart, uint16_t addr, uint8_t v);
 

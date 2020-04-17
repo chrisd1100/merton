@@ -104,16 +104,16 @@ static const uint8_t DUTY_TABLE[4][8] = {
 	{1, 0, 0, 1, 1, 1, 1, 1},
 };
 
-static bool apu_sweep_mute(struct pulse *p)
+static bool apu_sweep_mute(struct pulse *p, enum extaudio ext)
 {
 	return
-		p->timer.period < 8 ||
+		(ext == EXT_NONE && p->timer.period < 8) ||
 		(!p->sweep.negate && ((p->timer.period + (p->timer.period >> p->sweep.shift)) & 0x0800));
 }
 
-static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel)
+static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel, enum extaudio ext)
 {
-	if (p->sweep.value == 0 && p->sweep.enabled && !apu_sweep_mute(p) && p->sweep.shift > 0) {
+	if (p->sweep.value == 0 && p->sweep.enabled && !apu_sweep_mute(p, ext) && p->sweep.shift > 0) {
 		int32_t delta = p->timer.period >> p->sweep.shift;
 
 		if (p->sweep.negate) {
@@ -135,22 +135,22 @@ static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel)
 	}
 }
 
-static void apu_pulse_output(struct pulse *p)
+static void apu_pulse_output(struct pulse *p, enum extaudio ext)
 {
-	uint8_t level = (p->len.value == 0 || apu_sweep_mute(p) ||
+	uint8_t level = (p->len.value == 0 || apu_sweep_mute(p, ext) ||
 		DUTY_TABLE[p->duty_mode][p->duty_value] == 0) ? 0 :
 		p->env.constant_volume ? p->env.v : p->env.decay_level;
 
 	p->output = PULSE_TABLE[level];
 }
 
-static void apu_pulse_step_timer(struct pulse *p)
+static void apu_pulse_step_timer(struct pulse *p, enum extaudio ext)
 {
 	if (p->timer.value == 0) {
 		p->timer.value = p->timer.period;
 		p->duty_value = (p->duty_value + 1) % 8;
 
-		apu_pulse_output(p);
+		apu_pulse_output(p, ext);
 
 	} else {
 		p->timer.value--;
@@ -559,6 +559,7 @@ struct apu {
 	int64_t frame_counter;
 
 	struct pulse p[2];
+	struct pulse mmc5[2];
 	struct triangle t;
 	struct noise n;
 	struct dmc d;
@@ -583,63 +584,69 @@ static void apu_set_frame_irq(struct apu *apu, struct cpu *cpu, bool enabled)
 	cpu_irq(cpu, IRQ_APU, enabled);
 }
 
-uint8_t apu_read_status(struct apu *apu, struct cpu *cpu)
+uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 {
 	uint8_t r = 0;
+	struct pulse *p = ext == EXT_MMC5 ? apu->mmc5 : apu->p;
 
-	if (apu->p[0].len.value > 0)   r |= 0x01;
-	if (apu->p[1].len.value > 0)   r |= 0x02;
-	if (apu->t.len.value > 0)      r |= 0x04;
-	if (apu->n.len.value > 0)      r |= 0x08;
-	if (apu->d.current_length > 0) r |= 0x10;
-	if (apu->frame_irq)            r |= 0x40;
-	if (apu->d.irq_flag)           r |= 0x80;
+	if (p[0].len.value > 0) r |= 0x01;
+	if (p[1].len.value > 0) r |= 0x02;
 
-	apu_set_frame_irq(apu, cpu, false);
+	if (ext == EXT_NONE) {
+		if (apu->t.len.value > 0)      r |= 0x04;
+		if (apu->n.len.value > 0)      r |= 0x08;
+		if (apu->d.current_length > 0) r |= 0x10;
+		if (apu->frame_irq)            r |= 0x40;
+		if (apu->d.irq_flag)           r |= 0x80;
+
+		apu_set_frame_irq(apu, cpu, false);
+	}
 
 	return r;
 }
 
-void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v)
+void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext)
 {
+	struct pulse *p = ext == EXT_MMC5 ? apu->mmc5 : apu->p;
+
 	switch (addr) {
 		case 0x4000: // Pulse
 		case 0x4004: {
-			uint8_t p = addr == 0x4000 ? 0 : 1;
+			uint8_t i = addr == 0x4000 ? 0 : 1;
 
-			apu->p[p].duty_mode = v >> 6;
-			apu->p[p].len.next_enabled = !(v & 0x20);
-			apu->p[p].env.loop = v & 0x20;
-			apu->p[p].env.constant_volume = v & 0x10;
-			apu->p[p].env.v = v & 0x0F;
+			p[i].duty_mode = v >> 6;
+			p[i].len.next_enabled = !(v & 0x20);
+			p[i].env.loop = v & 0x20;
+			p[i].env.constant_volume = v & 0x10;
+			p[i].env.v = v & 0x0F;
 			break;
 		}
 		case 0x4001:
 		case 0x4005: {
-			uint8_t p = addr == 0x4001 ? 0 : 1;
+			uint8_t i = addr == 0x4001 ? 0 : 1;
 
-			apu->p[p].sweep.enabled = v & 0x80;
-			apu->p[p].sweep.period = (v >> 4) & 0x07;
-			apu->p[p].sweep.negate = v & 0x08;
-			apu->p[p].sweep.shift = v & 0x07;
-			apu->p[p].sweep.reload = true;
+			p[i].sweep.enabled = v & 0x80;
+			p[i].sweep.period = (v >> 4) & 0x07;
+			p[i].sweep.negate = v & 0x08;
+			p[i].sweep.shift = v & 0x07;
+			p[i].sweep.reload = true;
 			break;
 		}
 		case 0x4002:
 		case 0x4006: {
-			uint8_t p = addr == 0x4002 ? 0 : 1;
+			uint8_t i = addr == 0x4002 ? 0 : 1;
 
-			apu->p[p].timer.period = (apu->p[p].timer.period & 0xFF00) | (uint16_t) v;
+			p[i].timer.period = (p[i].timer.period & 0xFF00) | (uint16_t) v;
 			break;
 		}
 		case 0x4003:
 		case 0x4007: {
-			uint8_t p = addr == 0x4003 ? 0 : 1;
+			uint8_t i = addr == 0x4003 ? 0 : 1;
 
-			apu_reload_length(apu, &apu->p[p].len, apu->p[p].enabled, v);
-			apu->p[p].timer.period = (apu->p[p].timer.period & 0x00FF) | ((uint16_t) (v & 0x07) << 8);
-			apu->p[p].env.start = true;
-			apu->p[p].duty_value = 0;
+			apu_reload_length(apu, &p[i].len, p[i].enabled, v);
+			p[i].timer.period = (p[i].timer.period & 0x00FF) | ((uint16_t) (v & 0x07) << 8);
+			p[i].env.start = true;
+			p[i].duty_value = 0;
 			break;
 		}
 		case 0x4008: // Triangle
@@ -694,35 +701,38 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 			apu->d.sample_length = ((uint16_t) v << 4) | 0x0001;
 			break;
 		case 0x4015: // Status
-			apu->p[0].enabled = v & 0x01;
-			apu->p[1].enabled = v & 0x02;
-			apu->t.enabled = v & 0x04;
-			apu->n.enabled = v & 0x08;
-			apu->d.enabled = v & 0x10;
+			p[0].enabled = v & 0x01;
+			p[1].enabled = v & 0x02;
 
-			apu->d.irq_flag = false;
-			cpu_irq(cpu, IRQ_DMC, false);
+			if (!p[0].enabled)
+				p[0].len.value = 0;
 
-			if (!apu->p[0].enabled)
-				apu->p[0].len.value = 0;
+			if (!p[1].enabled)
+				p[1].len.value = 0;
 
-			if (!apu->p[1].enabled)
-				apu->p[1].len.value = 0;
+			if (ext == EXT_NONE) {
+				apu->t.enabled = v & 0x04;
+				apu->n.enabled = v & 0x08;
+				apu->d.enabled = v & 0x10;
 
-			if (!apu->t.enabled)
-				apu->t.len.value = 0;
+				apu->d.irq_flag = false;
+				cpu_irq(cpu, IRQ_DMC, false);
 
-			if (!apu->n.enabled)
-				apu->n.len.value = 0;
+				if (!apu->t.enabled)
+					apu->t.len.value = 0;
 
-			if (!apu->d.enabled) {
-				apu->d.current_length = 0;
+				if (!apu->n.enabled)
+					apu->n.len.value = 0;
 
-			} else {
-				if (apu->d.current_length == 0)
-					apu_dmc_restart(&apu->d);
+				if (!apu->d.enabled) {
+					apu->d.current_length = 0;
 
-				apu_dmc_fill_sample_buffer(&apu->d, nes, cpu);
+				} else {
+					if (apu->d.current_length == 0)
+						apu_dmc_restart(&apu->d);
+
+					apu_dmc_fill_sample_buffer(&apu->d, nes, cpu);
+				}
 			}
 			break;
 		case 0x4017: // Frame Counter
@@ -746,16 +756,16 @@ static void apu_step_all_envelope(struct apu *apu)
 	apu_triangle_step_counter(&apu->t);
 	apu_step_envelope(&apu->n.env);
 
-	apu_pulse_output(&apu->p[0]);
-	apu_pulse_output(&apu->p[1]);
+	apu_pulse_output(&apu->p[0], EXT_NONE);
+	apu_pulse_output(&apu->p[1], EXT_NONE);
 	apu_triangle_output(&apu->t);
 	apu_noise_output(&apu->n);
 }
 
 static void apu_step_all_sweep_and_length(struct apu *apu)
 {
-	apu_pulse_step_sweep(&apu->p[0], 0);
-	apu_pulse_step_sweep(&apu->p[1], 1);
+	apu_pulse_step_sweep(&apu->p[0], 0, EXT_NONE);
+	apu_pulse_step_sweep(&apu->p[1], 1, EXT_NONE);
 
 	apu_step_length(&apu->p[0].len);
 	apu_step_length(&apu->p[1].len);
@@ -763,68 +773,74 @@ static void apu_step_all_sweep_and_length(struct apu *apu)
 	apu_step_length(&apu->n.len);
 }
 
+static void apu_step_mmc5(struct apu *apu)
+{
+	apu_step_envelope(&apu->mmc5[0].env);
+	apu_step_envelope(&apu->mmc5[1].env);
+	apu_step_length(&apu->mmc5[0].len);
+	apu_step_length(&apu->mmc5[1].len);
+	apu_pulse_output(&apu->mmc5[0], EXT_MMC5);
+	apu_pulse_output(&apu->mmc5[1], EXT_MMC5);
+}
+
 static void apu_delayed_length_enabled(struct apu *apu)
 {
 	apu->p[0].len.enabled = apu->p[0].len.next_enabled;
 	apu->p[1].len.enabled = apu->p[1].len.next_enabled;
+	apu->mmc5[0].len.enabled = apu->mmc5[0].len.next_enabled;
+	apu->mmc5[1].len.enabled = apu->mmc5[1].len.next_enabled;
 	apu->t.len.enabled = apu->t.len.next_enabled;
 	apu->n.len.enabled = apu->n.len.next_enabled;
 }
 
 static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
 {
-	if (apu->mode) {
-		switch (apu->frame_counter) {
-			case 7457:
-				apu_step_all_envelope(apu);
-				break;
-			case 14913:
-				apu_step_all_sweep_and_length(apu);
-				apu_step_all_envelope(apu);
-				break;
-			case 22371:
-				apu_step_all_envelope(apu);
-				break;
-			case 29829:
-				break;
-			case 37281:
-				apu_step_all_sweep_and_length(apu);
-				apu_step_all_envelope(apu);
-				break;
-			case 37282:
-				apu->frame_counter = 0;
-				break;
-		}
-	} else {
-		switch (apu->frame_counter) {
-			case 7457:
-				apu_step_all_envelope(apu);
-				break;
-			case 14913:
-				apu_step_all_sweep_and_length(apu);
-				apu_step_all_envelope(apu);
-				break;
-			case 22371:
-				apu_step_all_envelope(apu);
-				break;
-			case 29828:
-				if (!apu->irq_disabled)
-					apu_set_frame_irq(apu, cpu, true);
-				break;
-			case 29829:
+	switch (apu->frame_counter) {
+		case 7457:
+			apu_step_all_envelope(apu);
+			apu_step_mmc5(apu);
+			break;
+		case 14913:
+			apu_step_all_sweep_and_length(apu);
+			apu_step_all_envelope(apu);
+			apu_step_mmc5(apu);
+			break;
+		case 22371:
+			apu_step_all_envelope(apu);
+			apu_step_mmc5(apu);
+			break;
+		case 29828:
+			if (!apu->mode && !apu->irq_disabled)
+				apu_set_frame_irq(apu, cpu, true);
+			break;
+		case 29829:
+			if (!apu->mode) {
 				if (!apu->irq_disabled)
 					apu_set_frame_irq(apu, cpu, true);
 
 				apu_step_all_sweep_and_length(apu);
 				apu_step_all_envelope(apu);
-				break;
-			case 29830:
+			}
+			apu_step_mmc5(apu);
+			break;
+		case 29830:
+			if (!apu->mode) {
 				if (!apu->irq_disabled)
 					apu_set_frame_irq(apu, cpu, true);
 
 				apu->frame_counter = 0;
-				break;
-		}
+			}
+			break;
+		case 37281:
+			if (apu->mode) {
+				apu_step_all_sweep_and_length(apu);
+				apu_step_all_envelope(apu);
+			}
+			break;
+		case 37282:
+			if (apu->mode)
+				apu->frame_counter = 0;
+			break;
 	}
 }
 
@@ -836,8 +852,10 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 
 	//pulse & dmc step every other clock
 	if (apu->cpu_cycle & 1) {
-		apu_pulse_step_timer(&apu->p[0]);
-		apu_pulse_step_timer(&apu->p[1]);
+		apu_pulse_step_timer(&apu->p[0], EXT_NONE);
+		apu_pulse_step_timer(&apu->p[1], EXT_NONE);
+		apu_pulse_step_timer(&apu->mmc5[0], EXT_MMC5);
+		apu_pulse_step_timer(&apu->mmc5[1], EXT_MMC5);
 		apu_dmc_step_timer(&apu->d, nes, cpu);
 	}
 
@@ -848,11 +866,17 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	//sample
 	int16_t l = 0, r = 0;
 
-	if (apu->channels & NES_CHANNEL_PULSE0)
+	if (apu->channels & NES_CHANNEL_PULSE_0)
 		l += apu->p[0].output;
 
-	if (apu->channels & NES_CHANNEL_PULSE1)
+	if (apu->channels & NES_CHANNEL_PULSE_1)
 		r += apu->p[1].output;
+
+	if (apu->channels & NES_CHANNEL_MMC5_0)
+		l += apu->mmc5[0].output;
+
+	if (apu->channels & NES_CHANNEL_MMC5_1)
+		r += apu->mmc5[1].output;
 
 	if (apu->channels & NES_CHANNEL_TRIANGLE)
 		l += apu->t.output;
@@ -934,6 +958,7 @@ void apu_destroy(struct apu **apu)
 void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 {
 	memset(apu->p, 0, sizeof(struct pulse) * 2);
+	memset(apu->mmc5, 0, sizeof(struct pulse) * 2);
 	memset(&apu->t, 0, sizeof(struct triangle));
 	memset(&apu->n, 0, sizeof(struct noise));
 	memset(&apu->d, 0, sizeof(struct dmc));
@@ -941,18 +966,20 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 	apu->n.shift_register = 1;
 	apu->p[0].len.enabled = apu->p[0].len.next_enabled = true;
 	apu->p[1].len.enabled = apu->p[1].len.next_enabled = true;
+	apu->mmc5[0].len.enabled = apu->mmc5[0].len.next_enabled = true;
+	apu->mmc5[1].len.enabled = apu->mmc5[1].len.next_enabled = true;
 	apu->n.len.enabled = apu->n.len.next_enabled = true;
 	apu->cpu_cycle = 0;
 	apu->t.pop = false;
 	apu->frame_irq = false;
 
-	apu_write(apu, nes, cpu, 0x4015, 0x00);
+	apu_write(apu, nes, cpu, 0x4015, 0x00, EXT_NONE);
 
 	if (hard) {
 		apu->mode = apu->next_mode = false;
 		apu->irq_disabled = false;
 		apu->t.len.enabled = apu->t.len.next_enabled = true;
-		apu_write(apu, nes, cpu, 0x4017, 0x00);
+		apu_write(apu, nes, cpu, 0x4017, 0x00, EXT_NONE);
 	}
 
 	apu->delayed_reset = 0;

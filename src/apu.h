@@ -6,11 +6,16 @@
 #include "sys.h"
 #include "cpu.h"
 
+enum extaudio {
+	EXT_NONE = 0,
+	EXT_MMC5 = 1,
+};
+
 struct apu;
 
 /*** READ & WRITE ***/
-uint8_t apu_read_status(struct apu *apu, struct cpu *cpu);
-void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v);
+uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext);
+void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext);
 
 /*** RUN ***/
 void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,

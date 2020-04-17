@@ -204,22 +204,22 @@ struct cart {
 
 /*** READ & WRITE ***/
 
-uint8_t cart_prg_read(struct cart *cart, struct cpu *cpu, uint16_t addr, bool *mem_hit)
+uint8_t cart_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, bool *mem_hit)
 {
 	switch (cart->hdr.mapper) {
-		case 5:  return mmc5_prg_read(cart, cpu, addr, mem_hit);
+		case 5:  return mmc5_prg_read(cart, cpu, apu, addr, mem_hit);
 		case 19: return namco_prg_read(cart, addr, mem_hit);
 		default:
 			return map_read(&cart->prg, 0, addr, mem_hit);
 	}
 }
 
-void cart_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, uint8_t v)
 {
 	switch (cart->hdr.mapper) {
 		case 1:  mmc1_prg_write(cart, addr, v);       break;
 		case 4:  mmc3_prg_write(cart, cpu, addr, v);  break;
-		case 5:  mmc5_prg_write(cart, addr, v);       break;
+		case 5:  mmc5_prg_write(cart, apu, addr, v);  break;
 		case 9:  mmc2_prg_write(cart, addr, v);       break;
 		case 10: mmc2_prg_write(cart, addr, v);       break;
 		case 19: namco_prg_write(cart, cpu, addr, v); break;

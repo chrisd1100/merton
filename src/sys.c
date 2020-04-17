@@ -123,7 +123,7 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 		return ppu_read(nes->ppu, nes->cpu, nes->cart, addr);
 
 	} else if (addr == 0x4015) {
-		nes->sys.io_open_bus = apu_read_status(nes->apu, nes->cpu);
+		nes->sys.io_open_bus = apu_read_status(nes->apu, nes->cpu, EXT_NONE);
 		return nes->sys.io_open_bus;
 
 	} else if (addr == 0x4016 || addr == 0x4017) {
@@ -132,7 +132,7 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 
 	} else if (addr >= 0x4020) {
 		bool mem_hit = false;
-		uint8_t v = cart_prg_read(nes->cart, nes->cpu, addr, &mem_hit);
+		uint8_t v = cart_prg_read(nes->cart, nes->cpu, nes->apu, addr, &mem_hit);
 
 		if (mem_hit) return v;
 	}
@@ -166,7 +166,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 
 	} else if (addr < 0x4014 || addr == 0x4015 || addr == 0x4017) {
 		nes->sys.io_open_bus = v;
-		apu_write(nes->apu, nes, nes->cpu, addr, v);
+		apu_write(nes->apu, nes, nes->cpu, addr, v, EXT_NONE);
 
 	} else if (addr == 0x4014) {
 		nes->sys.io_open_bus = v;
@@ -180,7 +180,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 		nes->sys.io_open_bus = v;
 
 	} else {
-		cart_prg_write(nes->cart, nes->cpu, addr, v);
+		cart_prg_write(nes->cart, nes->cpu, nes->apu, addr, v);
 	}
 }
 
