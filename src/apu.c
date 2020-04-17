@@ -372,6 +372,49 @@ static void apu_dmc_step_timer(struct dmc *d, NES *nes, struct cpu *cpu)
 }
 
 
+/*** VRC6 ***/
+
+static void apu_vrc6_pulse_step_timer(struct pulse *p)
+{
+	if (p->timer.value == 0) {
+		p->timer.value = p->timer.period;
+
+		if (p->duty_value == 0) {
+			p->duty_value = 15;
+		} else {
+			p->duty_value--;
+		}
+
+		p->output = p->enabled && (p->duty_value <= p->env.decay_level || p->duty_mode) ?
+			PULSE_TABLE[p->env.v] : 0;
+
+	} else {
+		p->timer.value--;
+	}
+}
+
+static void apu_vrc6_saw_step_timer(struct pulse *p)
+{
+	if (p->timer.value == 0) {
+		p->timer.value = p->timer.period;
+
+		if (p->duty_value == 0) {
+			p->env.v = 0;
+
+		} else if ((p->duty_value & 1) == 0) {
+			p->env.v += p->env.decay_level;
+			p->output = p->enabled ? PULSE_TABLE[(p->env.v & 0xF8) >> 3] : 0;
+		}
+
+		if (++p->duty_value == 14)
+			p->duty_value = 0;
+
+	} else {
+		p->timer.value--;
+	}
+}
+
+
 /*** DAC (SAMPLING) ***/
 
 #define TIME_BITS     20
@@ -560,6 +603,7 @@ struct apu {
 
 	struct pulse p[2];
 	struct pulse mmc5[2];
+	struct pulse vrc6[3];
 	struct triangle t;
 	struct noise n;
 	struct dmc d;
@@ -608,6 +652,9 @@ uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext)
 {
 	struct pulse *p = ext == EXT_MMC5 ? apu->mmc5 : apu->p;
+
+	if (ext != EXT_VRC6 && addr > 0x4017)
+		return;
 
 	switch (addr) {
 		case 0x4000: // Pulse
@@ -743,6 +790,36 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 			if (apu->irq_disabled)
 				apu_set_frame_irq(apu, cpu, false);
 			break;
+		case 0x9000: // VRC6 Pulse
+		case 0xA000: {
+			uint8_t i = (addr >> 12) - 0x9;
+			apu->vrc6[i].env.v = v & 0x0F;
+			apu->vrc6[i].env.decay_level = (v & 0x70) >> 4;
+			apu->vrc6[i].duty_mode = v >> 7;
+			break;
+		}
+		case 0x9001: // VRC6 Pulse, Sawtooth
+		case 0xA001:
+		case 0xB001: {
+			uint8_t i = (addr >> 12) - 0x9;
+			apu->vrc6[i].timer.period &= 0xFF00;
+			apu->vrc6[i].timer.period |= v;
+			break;
+		}
+		case 0x9002:
+		case 0xA002:
+		case 0xB002: {
+			uint8_t i = (addr >> 12) - 0x9;
+			apu->vrc6[i].timer.period &= 0xF0FF;
+			apu->vrc6[i].timer.period |= (uint16_t) (v & 0x0F) << 8;
+			apu->vrc6[i].enabled = v & 0x80;
+			break;
+		}
+		case 0x9003:
+			break;
+		case 0xB000: // VRC6 Sawtooth
+			apu->vrc6[2].env.decay_level = v & 0x3F;
+			break;
 	}
 }
 
@@ -859,6 +936,11 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 		apu_dmc_step_timer(&apu->d, nes, cpu);
 	}
 
+	//vrc6
+	apu_vrc6_pulse_step_timer(&apu->vrc6[0]);
+	apu_vrc6_pulse_step_timer(&apu->vrc6[1]);
+	apu_vrc6_saw_step_timer(&apu->vrc6[2]);
+
 	//triangle & noise step every clock
 	apu_triangle_step_timer(&apu->t);
 	apu_noise_step_timer(&apu->n);
@@ -872,11 +954,14 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	if (apu->channels & NES_CHANNEL_PULSE_1)
 		r += apu->p[1].output;
 
-	if (apu->channels & NES_CHANNEL_MMC5_0)
-		l += apu->mmc5[0].output;
+	if (apu->channels & NES_CHANNEL_EXT_0)
+		l += apu->mmc5[0].output + apu->vrc6[0].output;
 
-	if (apu->channels & NES_CHANNEL_MMC5_1)
-		r += apu->mmc5[1].output;
+	if (apu->channels & NES_CHANNEL_EXT_1)
+		r += apu->mmc5[1].output + apu->vrc6[1].output;
+
+	if (apu->channels & NES_CHANNEL_EXT_2)
+		r += apu->vrc6[2].output;
 
 	if (apu->channels & NES_CHANNEL_TRIANGLE)
 		l += apu->t.output;
@@ -959,6 +1044,7 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 {
 	memset(apu->p, 0, sizeof(struct pulse) * 2);
 	memset(apu->mmc5, 0, sizeof(struct pulse) * 2);
+	memset(apu->vrc6, 0, sizeof(struct pulse) * 3);
 	memset(&apu->t, 0, sizeof(struct triangle));
 	memset(&apu->n, 0, sizeof(struct noise));
 	memset(&apu->d, 0, sizeof(struct dmc));
