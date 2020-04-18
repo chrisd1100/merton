@@ -320,6 +320,25 @@ void ui_root(struct ui_args *args)
 			if (MenuItem("Power Cycle", "Ctrl+T"))
 				NES_Reset(args->nes, true);
 
+			MenuItem("Eject Cart");
+
+			ImGui::EndMenu();
+		}
+
+		if (BeginMenu("Video", true)) {
+			MenuItem("Filter");
+			MenuItem("Shader");
+			MenuItem("Crop Overscan");
+			MenuItem("Aspect Ratio");
+			MenuItem("Size");
+			ImGui::EndMenu();
+		}
+
+		if (BeginMenu("Audio", true)) {
+			MenuItem("Sample Rate");
+			MenuItem("Buffer");
+			MenuItem("Stereo");
+			MenuItem("Channels");
 			ImGui::EndMenu();
 		}
 
