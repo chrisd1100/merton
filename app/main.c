@@ -260,7 +260,7 @@ int32_t main(int32_t argc, char **argv)
 			OpaqueContext *context = window_get_context(ctx.window);
 			OpaqueTexture *back_buffer = window_get_back_buffer(ctx.window);
 
-			ui_begin(device, context, back_buffer);
+			ui_begin(window_get_dpi_scale(ctx.window), device, context, back_buffer);
 			ui_draw(main_ui_root, &ctx);
 			ui_render(ctx.cycles == 0);
 

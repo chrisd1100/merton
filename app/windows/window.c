@@ -2,11 +2,11 @@
 
 #include <stdlib.h>
 
+#define COBJMACROS
 #include <windows.h>
 #include <windowsx.h>
 #include <shellapi.h>
-
-#define COBJMACROS
+#include <shellscalingapi.h>
 #include <d3d11.h>
 #include <dxgi1_3.h>
 
@@ -325,6 +325,21 @@ uint32_t window_refresh_rate(struct window *ctx)
 	}
 
 	return 60;
+}
+
+float window_get_dpi_scale(struct window *ctx)
+{
+	HMONITOR mon = MonitorFromWindow(ctx->hwnd, MONITOR_DEFAULTTONEAREST);
+
+	if (mon) {
+		UINT x = 0;
+		UINT y = 0;
+
+		if ( GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y) == S_OK)
+			return (float) x / 96.0f;
+	}
+
+	return 1.0f;
 }
 
 bool window_is_foreground(struct window *ctx)

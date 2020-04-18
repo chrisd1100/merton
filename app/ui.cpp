@@ -15,6 +15,9 @@ using namespace ImGui;
 
 /*** FRAMEWORK ***/
 
+#define X(v) (UI.dpi_scale * (float) (v))
+#define VEC(x, y) ImVec2(X(x), X(y))
+
 struct ui {
 	bool init;
 	bool impl_init;
@@ -23,6 +26,7 @@ struct ui {
 	OpaqueDevice *device;
 	OpaqueContext *context;
 	OpaqueTexture *texture;
+	float dpi_scale;
 	float width;
 	float height;
 	bool mouse[3];
@@ -90,7 +94,7 @@ void ui_input(struct window_msg *wmsg)
 
 		case WINDOW_MSG_MOUSE_MOTION:
 			if (!wmsg->mouseMotion.relative)
-				io.MousePos = ImVec2((float) wmsg->mouseMotion.x * 1.0f, (float) wmsg->mouseMotion.y * 1.0f);
+				io.MousePos = ImVec2((float) wmsg->mouseMotion.x, (float) wmsg->mouseMotion.y);
 			break;
 	}
 }
@@ -114,20 +118,22 @@ static bool ui_impl_init(OpaqueDevice *device, OpaqueContext *context)
 	return r;
 }
 
-bool ui_begin(OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture)
+bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture)
 {
-	if (device != UI.device || context != UI.context) {
+	if (device != UI.device || context != UI.context || dpi_scale != UI.dpi_scale) {
 		if (UI.impl_init) {
 			ui_impl_destroy();
 			UI.impl_init = false;
 		}
+
+		UI.dpi_scale = dpi_scale;
 
 		UI.device = NULL;
 		UI.context = NULL;
 
 		ImGuiIO &io = GetIO();
 		io.Fonts->AddFontFromMemoryCompressedTTF(retro_gaming_compressed_data,
-			retro_gaming_compressed_size, 24.0f);
+			retro_gaming_compressed_size, X(20));
 
 		if (!ui_impl_init(device, context))
 			return false;
@@ -211,10 +217,11 @@ void ui_destroy(void)
 
 /*** COMPONENTS ***/
 
-#define WINDOW_MARGIN_L   30.0f
-#define WINDOW_MARGIN_TOP 70.0f
-#define POPUP_MARGIN_TOP  30.0f
-#define POPUP_MESSAGE_LEN 1024
+#define COLOR_TEXT    0xFFDDDDDD
+#define COLOR_BUTTON  0xFF444444
+#define COLOR_BORDER  0xF6444444
+#define COLOR_DARK_BG 0xF6222222
+#define COLOR_HOVER   0xF6666666
 
 enum nav {
 	NAV_NONE     = 0,
@@ -229,8 +236,8 @@ static void ui_open_rom(struct ui_args *args)
 {
 	args;
 
-	SetNextWindowPos(ImVec2(WINDOW_MARGIN_L, WINDOW_MARGIN_TOP));
-	SetNextWindowSize(ImVec2(400.0f, 550.0f));
+	SetNextWindowPos(VEC(30, 40));
+	SetNextWindowSize(VEC(400, 550));
 
 	if (Begin("OPEN_ROM", NULL, ImGuiWindowFlags_NoMove |
 		ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
@@ -266,22 +273,23 @@ static void ui_open_rom(struct ui_args *args)
 
 void ui_root(struct ui_args *args)
 {
-	args;
-
-	//PushStyleColor(ImGuiCol_Separator, WHITE15);
-	//PushStyleColor(ImGuiCol_SeparatorActive, WHITE15);
-	//PushStyleColor(ImGuiCol_SeparatorHovered, WHITE15);
-	//PushStyleColor(ImGuiCol_ScrollbarGrab, mobile ? TRANS : WHITE15);
-	//PushStyleColor(ImGuiCol_ScrollbarGrabHovered, mobile ? TRANS : WHITE15);
-	//PushStyleColor(ImGuiCol_ScrollbarGrabActive, mobile ? TRANS : WHITE15);
-	//PushStyleColor(ImGuiCol_ScrollbarBg, TRANS);
-	PushStyleColor(ImGuiCol_Text, 0xFFDDDDDD);
-	PushStyleColor(ImGuiCol_WindowBg, 0xFF333333);
-	PushStyleColor(ImGuiCol_MenuBarBg, 0xFF333333);
-	PushStyleColor(ImGuiCol_FrameBg, 0xFF333333);
-	PushStyleColor(ImGuiCol_Header, 0xFF333333);
-	PushStyleColor(ImGuiCol_HeaderHovered, 0xFF333333);
-	PushStyleColor(ImGuiCol_HeaderActive, 0xFF333333);
+	PushStyleColor(ImGuiCol_Separator,        COLOR_BORDER);
+	PushStyleColor(ImGuiCol_SeparatorActive,  COLOR_BORDER);
+	PushStyleColor(ImGuiCol_SeparatorHovered, COLOR_BORDER);
+	PushStyleColor(ImGuiCol_Border,           COLOR_BORDER);
+	PushStyleColor(ImGuiCol_Text,             COLOR_TEXT);
+	PushStyleColor(ImGuiCol_WindowBg,         COLOR_DARK_BG);
+	PushStyleColor(ImGuiCol_PopupBg,          COLOR_DARK_BG);
+	PushStyleColor(ImGuiCol_MenuBarBg,        COLOR_DARK_BG);
+	PushStyleColor(ImGuiCol_FrameBg,          COLOR_DARK_BG);
+	PushStyleColor(ImGuiCol_FrameBgHovered,   COLOR_HOVER);
+	PushStyleColor(ImGuiCol_FrameBgActive,    COLOR_DARK_BG);
+	PushStyleColor(ImGuiCol_Header,           COLOR_DARK_BG);
+	PushStyleColor(ImGuiCol_HeaderHovered,    COLOR_HOVER);
+	PushStyleColor(ImGuiCol_HeaderActive,     COLOR_DARK_BG);
+	PushStyleColor(ImGuiCol_Button,           COLOR_BUTTON);
+	PushStyleColor(ImGuiCol_ButtonHovered,    COLOR_HOVER);
+	PushStyleColor(ImGuiCol_ButtonActive,     COLOR_BUTTON);
 	//PushStyleVar(ImGuiStyleVar_ScrollbarSize, mobile ? 1.0f : X(12));
 	//PushStyleVar(ImGuiStyleVar_ScrollbarRounding, X(4));
 	PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
@@ -305,7 +313,7 @@ void ui_root(struct ui_args *args)
 			ImGui::EndMenu();
 		}
 
-		if (BeginMenu("Console", true)) {
+		if (BeginMenu("NES", true)) {
 			if (MenuItem("Reset", "Ctrl+R"))
 				NES_Reset(args->nes, false);
 
@@ -322,5 +330,5 @@ void ui_root(struct ui_args *args)
 		ui_open_rom(args);
 
 	PopStyleVar(4);
-	PopStyleColor(7);
+	PopStyleColor(17);
 }

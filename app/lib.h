@@ -132,6 +132,7 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 void window_poll(struct window *ctx);
 bool window_is_foreground(struct window *ctx);
 uint32_t window_refresh_rate(struct window *ctx);
+float window_get_dpi_scale(struct window *ctx);
 void window_present(struct window *ctx, uint32_t num_frames);
 OpaqueDevice *window_get_device(struct window *ctx);
 OpaqueContext *window_get_context(struct window *ctx);

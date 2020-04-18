@@ -61,7 +61,8 @@ LIBS = \
 	dxguid.lib \
 	ole32.lib \
 	uuid.lib \
-	winmm.lib
+	winmm.lib \
+	shcore.lib
 
 LD_FLAGS = \
 	/subsystem:windows \

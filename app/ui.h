@@ -15,7 +15,7 @@ struct ui_args {
 void ui_create(void);
 void ui_destroy(void);
 void ui_input(struct window_msg *wmsg);
-bool ui_begin(OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture);
+bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture);
 void ui_draw(void (*callback)(void *opaque), const void *opaque);
 void ui_render(bool clear);
 
