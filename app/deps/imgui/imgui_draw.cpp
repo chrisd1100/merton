@@ -2271,7 +2271,7 @@ void ImFontAtlasBuildFinish(ImFontAtlas* atlas)
 }
 
 // Retrieve list of range (2 int per range, values are inclusive)
-static const ImWchar*   ImFontAtlas::GetGlyphRangesDefault()
+const ImWchar*   ImFontAtlas::GetGlyphRangesDefault()
 {
     static const ImWchar ranges[] =
     {
