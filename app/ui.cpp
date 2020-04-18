@@ -326,9 +326,22 @@ void ui_root(struct ui_args *args)
 		}
 
 		if (BeginMenu("Video", true)) {
-			MenuItem("Filter");
-			MenuItem("Shader");
-			MenuItem("Crop Overscan");
+			if (BeginMenu("Filter", true)) {
+				MenuItem("Nearest", "", true, true);
+				MenuItem("Bilinear", "", false, true);
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Shader", true)) {
+				MenuItem("None", "", true, true);
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Clear Overscan", true)) {
+				MenuItem("Top", "", true, true);
+				MenuItem("Right", "", false, true);
+				MenuItem("Bottom", "", true, true);
+				MenuItem("Left", "", false, true);
+				ImGui::EndMenu();
+			}
 			MenuItem("Aspect Ratio");
 			MenuItem("Size");
 			ImGui::EndMenu();
