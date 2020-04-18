@@ -342,8 +342,19 @@ void ui_root(struct ui_args *args)
 				MenuItem("Left", "", false, true);
 				ImGui::EndMenu();
 			}
+			if (BeginMenu("Size", true)) {
+				MenuItem("2x", "", false, true);
+				MenuItem("3x", "", false, true);
+				MenuItem("4x", "", false, true);
+				MenuItem("Fill", "", false, true);
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Window", true)) {
+				MenuItem("Fullscreen", "", false, true);
+				MenuItem("Reset Window Size");
+				ImGui::EndMenu();
+			}
 			MenuItem("Aspect Ratio");
-			MenuItem("Size");
 			ImGui::EndMenu();
 		}
 
