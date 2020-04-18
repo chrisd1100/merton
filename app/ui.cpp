@@ -8,6 +8,8 @@
 	#include "deps/imgui/imgui_impl_dx11.cpp"
 #endif
 
+#include "assets/font/retro-gaming.h"
+
 using namespace ImGui;
 
 
@@ -123,10 +125,14 @@ bool ui_begin(OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *textu
 		UI.device = NULL;
 		UI.context = NULL;
 
+		ImGuiIO &io = GetIO();
+		io.Fonts->AddFontFromMemoryCompressedTTF(retro_gaming_compressed_data,
+			retro_gaming_compressed_size, 24.0f);
+
 		if (!ui_impl_init(device, context))
 			return false;
 
-		GetIO().Fonts->ClearTexData();
+		io.Fonts->ClearTexData();
 		UI.impl_init = true;
 		UI.device = device;
 		UI.context = context;
@@ -230,7 +236,7 @@ static void ui_open_rom(struct ui_args *args)
 		ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
 		ImGuiWindowFlags_NoSavedSettings)) {
 
-		if (Button("CLOSE DIALOG"))
+		if (Button("Close Dialog"))
 			CMP.nav = NAV_NONE;
 
 		/*
@@ -287,23 +293,23 @@ void ui_root(struct ui_args *args)
 	//PushStyleVar(ImGuiStyleVar_IndentSpacing, 0);
 
 	if (BeginMainMenuBar()) {
-		if (BeginMenu("FILE", true)) {
-			if (MenuItem("OPEN ROM", "CTRL+O"))
+		if (BeginMenu("File", true)) {
+			if (MenuItem("Open ROM", "Ctrl+O"))
 				CMP.nav = NAV_OPEN_ROM;
 
 			Separator();
 
-			if (MenuItem("QUIT"))
-				printf("QUIT\n");
+			if (MenuItem("Quit"))
+				printf("Quit\n");
 
 			ImGui::EndMenu();
 		}
 
-		if (BeginMenu("CONSOLE", true)) {
-			if (MenuItem("RESET", "CTRL+R"))
+		if (BeginMenu("Console", true)) {
+			if (MenuItem("Reset", "Ctrl+R"))
 				NES_Reset(args->nes, false);
 
-			if (MenuItem("POWER CYCLE", "CTRL+T"))
+			if (MenuItem("Power Cycle", "Ctrl+T"))
 				NES_Reset(args->nes, true);
 
 			ImGui::EndMenu();
