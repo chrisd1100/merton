@@ -3,26 +3,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_cdd_sdl.h"
-#include "imgui/imgui_impl_opengl3.h"
-
-#if defined(_WIN32)
-	#include <d3d9.h>
-	#include <d3d11.h>
-	#include "imgui/imgui_impl_dx9.h"
-	#include "imgui/imgui_impl_dx11.h"
-	#if defined(__x86_64__)
-	#include "ui-d3d12-shim.h"
-	#endif
-
-#elif defined(__APPLE__)
-	#include "ui-metal-shim.h"
-#endif
-
-#include "../fs.h"
-#include "../api.h"
-
 #define WINDOW_MARGIN_L   30.0f
 #define WINDOW_MARGIN_TOP 70.0f
 #define POPUP_MARGIN_TOP  30.0f
@@ -78,36 +58,6 @@ void ui_set_popup(struct ui *ctx, const char *message, int32_t timeout)
 	ctx->popup_start = SDL_GetTicks();
 	ctx->popup_timeout = timeout;
 	ctx->popup = true;
-}
-
-void ui_sdl_input(struct ui *ctx, SDL_Event *event)
-{
-	ImGui_ImplcddSDL_ProcessEvent(event);
-
-	// Hotkeys
-	if (event->type == SDL_KEYDOWN) {
-		ImGuiIO &io = ImGui::GetIO();
-		bool ctrl = io.KeysDown[SDL_SCANCODE_LCTRL] || io.KeysDown[SDL_SCANCODE_RCTRL];
-
-		// Toggle Menu
-		if (io.KeysDown[SDL_SCANCODE_ESCAPE]) {
-			if (ctx->share || ctx->open_rom || ctx->login) {
-				ctx->share = ctx->open_rom = ctx->login = ctx->have_code = false;
-			} else {
-				ctx->menu = !ctx->menu;
-			}
-		}
-
-		// Open ROM
-		if (ctrl && io.KeysDown[SDL_SCANCODE_O]) {
-			ctx->refresh_dir = true;
-			ctx->open_rom = !ctx->open_rom;
-		}
-
-		// NES Reset
-		if (ctrl && io.KeysDown[SDL_SCANCODE_R])
-			ctx->cbs.reset(ctx->opaque);
-	}
 }
 
 bool ui_block_keyboard(struct ui *ctx)
