@@ -8,7 +8,7 @@
 	#include "deps/imgui/imgui_impl_dx11.cpp"
 #endif
 
-#include "assets/font/retro-gaming.h"
+#include "assets/font/ponderosa.h"
 
 using namespace ImGui;
 
@@ -132,8 +132,8 @@ bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 		UI.context = NULL;
 
 		ImGuiIO &io = GetIO();
-		io.Fonts->AddFontFromMemoryCompressedTTF(retro_gaming_compressed_data,
-			retro_gaming_compressed_size, X(20));
+		io.Fonts->AddFontFromMemoryCompressedTTF(ponderosa_compressed_data,
+			ponderosa_compressed_size, X(14));
 
 		if (!ui_impl_init(device, context))
 			return false;
@@ -218,10 +218,13 @@ void ui_destroy(void)
 /*** COMPONENTS ***/
 
 #define COLOR_TEXT    0xFFDDDDDD
+#define COLOR_LABEL   0xFF999999
 #define COLOR_BUTTON  0xFF444444
-#define COLOR_BORDER  0xF6444444
+#define COLOR_BORDER  0xF6333333
 #define COLOR_DARK_BG 0xF6222222
 #define COLOR_HOVER   0xF6666666
+
+#define PACK_ASPECT(x, y) (((x) << 8) | (y))
 
 enum nav {
 	NAV_NONE     = 0,
@@ -232,7 +235,7 @@ struct {
 	enum nav nav;
 } CMP;
 
-static void ui_open_rom(struct ui_args *args)
+static void ui_open_rom(const struct ui_args *args)
 {
 	args;
 
@@ -243,7 +246,7 @@ static void ui_open_rom(struct ui_args *args)
 		ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
 		ImGuiWindowFlags_NoSavedSettings)) {
 
-		if (Button("Close Dialog"))
+		if (Button("Close"))
 			CMP.nav = NAV_NONE;
 
 		/*
@@ -271,13 +274,14 @@ static void ui_open_rom(struct ui_args *args)
 	}
 }
 
-void ui_root(struct ui_args *args)
+void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
 {
 	PushStyleColor(ImGuiCol_Separator,        COLOR_BORDER);
 	PushStyleColor(ImGuiCol_SeparatorActive,  COLOR_BORDER);
 	PushStyleColor(ImGuiCol_SeparatorHovered, COLOR_BORDER);
 	PushStyleColor(ImGuiCol_Border,           COLOR_BORDER);
 	PushStyleColor(ImGuiCol_Text,             COLOR_TEXT);
+	PushStyleColor(ImGuiCol_TextDisabled,     COLOR_LABEL);
 	PushStyleColor(ImGuiCol_WindowBg,         COLOR_DARK_BG);
 	PushStyleColor(ImGuiCol_PopupBg,          COLOR_DARK_BG);
 	PushStyleColor(ImGuiCol_MenuBarBg,        COLOR_DARK_BG);
@@ -290,20 +294,31 @@ void ui_root(struct ui_args *args)
 	PushStyleColor(ImGuiCol_Button,           COLOR_BUTTON);
 	PushStyleColor(ImGuiCol_ButtonHovered,    COLOR_HOVER);
 	PushStyleColor(ImGuiCol_ButtonActive,     COLOR_BUTTON);
-	//PushStyleVar(ImGuiStyleVar_ScrollbarSize, mobile ? 1.0f : X(12));
-	//PushStyleVar(ImGuiStyleVar_ScrollbarRounding, X(4));
-	PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
-	PushStyleVar(ImGuiStyleVar_PopupBorderSize, 0);
-	PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-	//PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-	//PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(0, 0));
-	//PushStyleVar(ImGuiStyleVar_IndentSpacing, 0);
+
+	PushStyleVar(ImGuiStyleVar_ScrollbarSize,    X(12));
+	PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
+	PushStyleVar(ImGuiStyleVar_ChildBorderSize,  1);
+	PushStyleVar(ImGuiStyleVar_PopupBorderSize,  1);
+	PushStyleVar(ImGuiStyleVar_WindowRounding,   0);
+	PushStyleVar(ImGuiStyleVar_ItemSpacing,      VEC(10, 8));
+
+	struct ui_event event = {0};
+	event.cfg = *args->cfg;
 
 	if (BeginMainMenuBar()) {
-		if (BeginMenu("File", true)) {
-			if (MenuItem("Open ROM", "Ctrl+O"))
+		if (BeginMenu("System", true)) {
+			if (MenuItem("Load ROM", "Ctrl+O"))
 				CMP.nav = NAV_OPEN_ROM;
+
+			MenuItem("Unload ROM");
+
+			Separator();
+
+			if (MenuItem("Reset", "Ctrl+R"))
+				NES_Reset(args->nes, false);
+
+			if (MenuItem("Power Cycle", "Ctrl+T"))
+				NES_Reset(args->nes, true);
 
 			Separator();
 
@@ -313,22 +328,10 @@ void ui_root(struct ui_args *args)
 			ImGui::EndMenu();
 		}
 
-		if (BeginMenu("NES", true)) {
-			if (MenuItem("Reset", "Ctrl+R"))
-				NES_Reset(args->nes, false);
-
-			if (MenuItem("Power Cycle", "Ctrl+T"))
-				NES_Reset(args->nes, true);
-
-			MenuItem("Eject Cart");
-
-			ImGui::EndMenu();
-		}
-
 		if (BeginMenu("Video", true)) {
 			if (BeginMenu("Window", true)) {
 				MenuItem("Fullscreen", "", false, true);
-				MenuItem("Reset Window Size");
+				MenuItem("Reset Size");
 				ImGui::EndMenu();
 			}
 			if (BeginMenu("Frame Size", true)) {
@@ -338,9 +341,22 @@ void ui_root(struct ui_args *args)
 				MenuItem("Fill", "", false, true);
 				ImGui::EndMenu();
 			}
+
+			uint32_t aspect = PACK_ASPECT(args->cfg->aspect_ratio.x, args->cfg->aspect_ratio.y);
+
 			if (BeginMenu("Aspect Ratio", true)) {
-				MenuItem("16:15", "", true, true);
-				MenuItem("8:7", "", false, true);
+				if (MenuItem("127:105", "", aspect == PACK_ASPECT(127, 105), true))
+					event.cfg.aspect_ratio.x = 127, event.cfg.aspect_ratio.y = 105;
+
+				if (MenuItem("16:15", "", aspect == PACK_ASPECT(16, 15), true))
+					event.cfg.aspect_ratio.x = 16, event.cfg.aspect_ratio.y = 15;
+
+				if (MenuItem("8:7", "", aspect == PACK_ASPECT(8, 7), true))
+					event.cfg.aspect_ratio.x = 8, event.cfg.aspect_ratio.y = 7;
+
+				if (MenuItem("4:3", "", aspect == PACK_ASPECT(4, 3), true))
+					event.cfg.aspect_ratio.x = 4, event.cfg.aspect_ratio.y = 3;
+
 				ImGui::EndMenu();
 			}
 			if (BeginMenu("Filter", true)) {
@@ -353,29 +369,64 @@ void ui_root(struct ui_args *args)
 				ImGui::EndMenu();
 			}
 			if (BeginMenu("Clear Overscan", true)) {
-				MenuItem("Top", "", true, true);
-				MenuItem("Right", "", false, true);
-				MenuItem("Bottom", "", true, true);
-				MenuItem("Left", "", false, true);
+				if (MenuItem("Top", "", args->cfg->overscan.top, true))
+					event.cfg.overscan.top = !event.cfg.overscan.top;
+
+				if (MenuItem("Right", "", args->cfg->overscan.right, true))
+					event.cfg.overscan.right = !event.cfg.overscan.right;
+
+				if (MenuItem("Bottom", "", args->cfg->overscan.bottom, true))
+					event.cfg.overscan.bottom = !event.cfg.overscan.bottom;
+
+				if (MenuItem("Left", "", args->cfg->overscan.left, true))
+					event.cfg.overscan.left = !event.cfg.overscan.left;
+
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenu();
 		}
 
 		if (BeginMenu("Audio", true)) {
-			MenuItem("Sample Rate");
-			MenuItem("Buffer");
-			MenuItem("Stereo");
-			MenuItem("Channels");
+			if (MenuItem("Stereo", "", args->cfg->stereo, true)) {
+				event.cfg.stereo = !event.cfg.stereo;
+				NES_SetStereo(args->nes, event.cfg.stereo);
+			}
+
+			if (BeginMenu("Sample Rate", true)) {
+				MenuItem("48000", "", false, true);
+				MenuItem("44100", "", true, true);
+				MenuItem("22050", "", false, true);
+				MenuItem("16000", "", false, true);
+				MenuItem("11025", "", false, true);
+				MenuItem("8000", "", false, true);
+				ImGui::EndMenu();
+			}
+
+			if (BeginMenu("Channels", true)) {
+				MenuItem("Square 1", "", true, true);
+				MenuItem("Square 2", "", true, true);
+				MenuItem("Triangle", "", true, true);
+				MenuItem("Noise", "", true, true);
+				MenuItem("DMC", "", true, true);
+				MenuItem("Mapper 1", "", true, true);
+				MenuItem("Mapper 2", "", true, true);
+				MenuItem("Mapper 3", "", true, true);
+				ImGui::EndMenu();
+			}
 			ImGui::EndMenu();
 		}
 
 		EndMainMenuBar();
 	}
 
+	if (memcmp(args->cfg, &event.cfg, sizeof(struct config))) {
+		event.type = UI_EVENT_CONFIG;
+		event_callback(&event, (void *) opaque);
+	}
+
 	if (CMP.nav == NAV_OPEN_ROM)
 		ui_open_rom(args);
 
-	PopStyleVar(4);
-	PopStyleColor(17);
+	PopStyleVar(6);
+	PopStyleColor(18);
 }

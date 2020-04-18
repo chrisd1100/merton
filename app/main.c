@@ -7,15 +7,10 @@
 
 #include "lib.h"
 #include "ui.h"
+#include "config.h"
 
 #include "../src/nes.h"
 
-#define WINDOW_W     (NES_FRAME_WIDTH * 3)
-#define WINDOW_H     (NES_FRAME_HEIGHT * 3)
-
-#define SAMPLE_RATE  44100
-#define AUDIO_START  (100 * (SAMPLE_RATE / 1000)) // 100ms
-#define AUDIO_BUFFER (50 * (SAMPLE_RATE / 1000))  // 50ms
 #define CLOCK_UP     1000
 #define CLOCK_DOWN   -1000
 
@@ -23,6 +18,7 @@ struct main {
 	NES *nes;
 	struct window *window;
 	struct audio *audio;
+	struct config cfg;
 	bool running;
 
 	// Video
@@ -35,14 +31,14 @@ struct main {
 	int64_t ts;
 };
 
-const uint8_t PATTERN_60[]  = {1};
-const uint8_t PATTERN_75[]  = {1, 1, 1, 2, 1, 1, 1, 2};
-const uint8_t PATTERN_85[]  = {1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1};
-const uint8_t PATTERN_100[] = {1, 2, 2};
-const uint8_t PATTERN_120[] = {2};
-const uint8_t PATTERN_144[] = {2, 3, 2, 3, 2};
+static const uint8_t PATTERN_60[]  = {1};
+static const uint8_t PATTERN_75[]  = {1, 1, 1, 2, 1, 1, 1, 2};
+static const uint8_t PATTERN_85[]  = {1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1};
+static const uint8_t PATTERN_100[] = {1, 2, 2};
+static const uint8_t PATTERN_120[] = {2};
+static const uint8_t PATTERN_144[] = {2, 3, 2, 3, 2};
 
-static NES_Button NES_KEYBOARD_MAP[SCANCODE_MAX] = {
+static const NES_Button NES_KEYBOARD_MAP[SCANCODE_MAX] = {
 	[SCANCODE_SEMICOLON] = NES_BUTTON_A,
 	[SCANCODE_L]         = NES_BUTTON_B,
 	[SCANCODE_LSHIFT]    = NES_BUTTON_SELECT,
@@ -68,8 +64,11 @@ static void main_nes_video(const uint32_t *frame, void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
-	main_crop_copy(ctx->cropped, frame, 8, 0, 8, 0);
-	window_render_quad(ctx->window, ctx->cropped, NES_FRAME_WIDTH, NES_FRAME_HEIGHT, 16.0f / 15.0f);
+	main_crop_copy(ctx->cropped, frame, ctx->cfg.overscan.top ? 8 : 0, ctx->cfg.overscan.right ? 8 : 0,
+		ctx->cfg.overscan.bottom ? 8 : 0, ctx->cfg.overscan.left ? 8 : 0);
+
+	window_render_quad(ctx->window, ctx->cropped, NES_FRAME_WIDTH, NES_FRAME_HEIGHT,
+		(float) ctx->cfg.aspect_ratio.x / (float) ctx->cfg.aspect_ratio.y);
 }
 
 static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)
@@ -172,7 +171,10 @@ static void main_audio_adjustment(struct main *ctx)
 {
 	uint32_t queued = audio_queued_frames(ctx->audio);
 
-	if (queued >= AUDIO_START && !audio_playing(ctx->audio))
+	uint32_t audio_start = 100 * (ctx->cfg.sample_rate / 1000);
+	uint32_t audio_buffer = 50 * (ctx->cfg.sample_rate / 1000);
+
+	if (queued >= audio_start && !audio_playing(ctx->audio))
 		audio_play(ctx->audio);
 
 	if (queued == 0 && audio_playing(ctx->audio))
@@ -183,7 +185,7 @@ static void main_audio_adjustment(struct main *ctx)
 
 		if (ctx->ts != 0) {
 			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
-			NES_SetAPUClock(ctx->nes, cycles_sec + (queued >= AUDIO_BUFFER ? CLOCK_UP : CLOCK_DOWN));
+			NES_SetAPUClock(ctx->nes, cycles_sec + (queued >= audio_buffer ? CLOCK_UP : CLOCK_DOWN));
 		}
 
 		ctx->cycles = 0;
@@ -205,28 +207,44 @@ static void main_save_sram(NES *nes, const char *sram_file)
 	}
 }
 
+static void main_ui_event(struct ui_event *event, void *opaque)
+{
+	struct main *ctx = (struct main *) opaque;
+
+	switch (event->type) {
+		case UI_EVENT_CONFIG:
+			ctx->cfg = event->cfg;
+			break;
+		default:
+			break;
+	}
+}
+
 static void main_ui_root(void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
 	struct ui_args args = {0};
 	args.nes = ctx->nes;
+	args.cfg = &ctx->cfg;
 
-	ui_root(&args);
+	ui_root(&args, main_ui_event, ctx);
 }
 
 int32_t main(int32_t argc, char **argv)
 {
 	struct main ctx = {0};
+	ctx.cfg = (struct config) CONFIG_DEFAULTS;
 	ctx.running = true;
 
-	int32_t r = window_create("Merton", main_window_msg_func, &ctx, WINDOW_W, WINDOW_H, &ctx.window);
+	int32_t r = window_create("Merton", main_window_msg_func, &ctx,
+		ctx.cfg.frame_size * NES_FRAME_WIDTH, ctx.cfg.frame_size * NES_FRAME_HEIGHT, &ctx.window);
 	if (r != LIB_OK) goto except;
 
-	r = audio_create(&ctx.audio, SAMPLE_RATE);
+	r = audio_create(&ctx.audio, ctx.cfg.sample_rate);
 	if (r != LIB_OK) goto except;
 
-	NES_Create(main_nes_video, main_nes_audio, &ctx, SAMPLE_RATE, true, &ctx.nes);
+	NES_Create(main_nes_video, main_nes_audio, &ctx, ctx.cfg.sample_rate, ctx.cfg.stereo, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
 
 	ui_create();
