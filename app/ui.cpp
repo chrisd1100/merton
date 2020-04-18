@@ -326,6 +326,23 @@ void ui_root(struct ui_args *args)
 		}
 
 		if (BeginMenu("Video", true)) {
+			if (BeginMenu("Window", true)) {
+				MenuItem("Fullscreen", "", false, true);
+				MenuItem("Reset Window Size");
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Frame Size", true)) {
+				MenuItem("2x", "", false, true);
+				MenuItem("3x", "", false, true);
+				MenuItem("4x", "", false, true);
+				MenuItem("Fill", "", false, true);
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Aspect Ratio", true)) {
+				MenuItem("16:15", "", true, true);
+				MenuItem("8:7", "", false, true);
+				ImGui::EndMenu();
+			}
 			if (BeginMenu("Filter", true)) {
 				MenuItem("Nearest", "", true, true);
 				MenuItem("Bilinear", "", false, true);
@@ -342,19 +359,6 @@ void ui_root(struct ui_args *args)
 				MenuItem("Left", "", false, true);
 				ImGui::EndMenu();
 			}
-			if (BeginMenu("Size", true)) {
-				MenuItem("2x", "", false, true);
-				MenuItem("3x", "", false, true);
-				MenuItem("4x", "", false, true);
-				MenuItem("Fill", "", false, true);
-				ImGui::EndMenu();
-			}
-			if (BeginMenu("Window", true)) {
-				MenuItem("Fullscreen", "", false, true);
-				MenuItem("Reset Window Size");
-				ImGui::EndMenu();
-			}
-			MenuItem("Aspect Ratio");
 			ImGui::EndMenu();
 		}
 
