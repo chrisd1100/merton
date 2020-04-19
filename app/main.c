@@ -303,10 +303,9 @@ int32_t main(int32_t argc, char **argv)
 	ctx.running = true;
 
 	int32_t r = window_create("Merton", main_window_msg_func, &ctx,
-		ctx.cfg.frame_size * NES_FRAME_WIDTH, ctx.cfg.frame_size * NES_FRAME_HEIGHT, &ctx.window);
+		ctx.cfg.frame_size * NES_FRAME_WIDTH, ctx.cfg.frame_size * NES_FRAME_HEIGHT,
+		ctx.cfg.fullscreen, &ctx.window);
 	if (r != LIB_OK) goto except;
-
-	ctx.cfg.fullscreen = window_is_fullscreen(ctx.window);
 
 	r = audio_create(&ctx.audio, ctx.cfg.sample_rate);
 	if (r != LIB_OK) goto except;

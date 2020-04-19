@@ -133,7 +133,7 @@ typedef void OpaqueContext;
 typedef void OpaqueTexture;
 
 enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const void *opaque,
-	uint32_t width, uint32_t height, struct window **window);
+	uint32_t width, uint32_t height, bool fullscreen, struct window **window);
 void window_poll(struct window *ctx);
 bool window_is_foreground(struct window *ctx);
 uint32_t window_refresh_rate(struct window *ctx);

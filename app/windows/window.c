@@ -51,13 +51,11 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 			break;
 		case WM_NCCALCSIZE:
 		case WM_SIZE:
-			if (lparam > 0) {
-				struct window *ctx = (struct window *) GetWindowLongPtr(hwnd, 0);
+			struct window *ctx = (struct window *) GetWindowLongPtr(hwnd, 0);
 
-				if (ctx && ctx->swap_chain2)
-					IDXGISwapChain2_ResizeBuffers(ctx->swap_chain2, 0, 0, 0, DXGI_FORMAT_UNKNOWN,
-						WINDOW_SWAP_CHAIN_FLAGS);
-			}
+			if (ctx && ctx->swap_chain2)
+				IDXGISwapChain2_ResizeBuffers(ctx->swap_chain2, 0, 0, 0, DXGI_FORMAT_UNKNOWN,
+					WINDOW_SWAP_CHAIN_FLAGS);
 			break;
 		case WM_KEYUP:
 		case WM_KEYDOWN:
@@ -174,7 +172,7 @@ static void window_calc_client_area(uint32_t *width, uint32_t *height)
 }
 
 enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const void *opaque,
-	uint32_t width, uint32_t height, struct window **window)
+	uint32_t width, uint32_t height, bool fullscreen, struct window **window)
 {
 	enum lib_status r = LIB_OK;
 
@@ -206,21 +204,34 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	ctx->class = RegisterClassEx(&wc);
 	if (ctx->class == 0) {r = LIB_ERR; goto except;}
 
-	window_calc_client_area(&width, &height);
-
 	RECT rect = {0};
+	DWORD style = WS_OVERLAPPEDWINDOW;
 	HWND desktop = GetDesktopWindow();
 	int32_t x = CW_USEDEFAULT;
 	int32_t y = CW_USEDEFAULT;
-	if (desktop && GetWindowRect(desktop, &rect)) {
-		x = (rect.right - width) / 2;
-		y = (rect.bottom - height) / 2;
+
+	if (fullscreen) {
+		style = WS_POPUP;
+
+		if (desktop && GetWindowRect(desktop, &rect)) {
+			x = rect.left;
+			y = rect.top;
+			width = rect.right - rect.left;
+			height = rect.bottom - rect.top;
+		}
+	} else {
+		window_calc_client_area(&width, &height);
+
+		if (desktop && GetWindowRect(desktop, &rect)) {
+			x = (rect.right - width) / 2;
+			y = (rect.bottom - height) / 2;
+		}
 	}
 
 	WCHAR titlew[TITLE_MAX];
 	window_utf8_to_wchar(title, titlew, TITLE_MAX);
 
-	ctx->hwnd = CreateWindowEx(0, WINDOW_CLASS_NAME, titlew, WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+	ctx->hwnd = CreateWindowEx(0, WINDOW_CLASS_NAME, titlew, WS_VISIBLE | style,
 		x, y, width, height, NULL, NULL, ctx->instance, ctx);
 	if (!ctx->hwnd) {r = LIB_ERR; goto except;}
 
