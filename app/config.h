@@ -43,7 +43,7 @@ struct config {
 
 #define CONFIG_DEFAULTS { \
 	true, \
-	true, \
+	false, \
 	3, \
 	FILTER_NEAREST, \
 	CONFIG_SHADER_NONE, \
