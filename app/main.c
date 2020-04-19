@@ -185,11 +185,29 @@ static void main_audio_adjustment(struct main *ctx)
 
 		if (ctx->ts != 0) {
 			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
-			NES_SetAPUClock(ctx->nes, cycles_sec + (queued >= audio_buffer ? CLOCK_UP : CLOCK_DOWN));
+			if (abs(cycles_sec - NES_CLOCK) < 5000)
+				NES_SetAPUClock(ctx->nes, cycles_sec + (queued >= audio_buffer ? CLOCK_UP : CLOCK_DOWN));
 		}
 
 		ctx->cycles = 0;
 		ctx->ts = now;
+	}
+}
+
+static void main_load_rom(NES *nes, const char *name, char *sram_file, size_t len)
+{
+	size_t rom_size = 0;
+	void *rom = fs_read(name, &rom_size);
+
+	if (rom) {
+		uint32_t crc32 = crypto_crc32(rom, rom_size);
+		snprintf(sram_file, len, "%02X.sav", crc32);
+
+		size_t sram_size = 0;
+		void *sram = fs_read(fs_path("save", sram_file), &sram_size);
+		NES_LoadCart(nes, rom, rom_size, sram, sram_size, NULL);
+		free(sram);
+		free(rom);
 	}
 }
 
@@ -213,7 +231,19 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 
 	switch (event->type) {
 		case UI_EVENT_CONFIG:
-			memset(ctx->cropped, 0, sizeof(ctx->cropped));
+			// Zero cropped buffer on overscan changes
+			if (event->cfg.overscan.top != ctx->cfg.overscan.top ||
+				event->cfg.overscan.right != ctx->cfg.overscan.right ||
+				event->cfg.overscan.bottom != ctx->cfg.overscan.bottom ||
+				event->cfg.overscan.left != ctx->cfg.overscan.left)
+					memset(ctx->cropped, 0, sizeof(ctx->cropped));
+
+			// Audio device must be reset on sample rate changes
+			if (event->cfg.sample_rate != ctx->cfg.sample_rate) {
+				audio_destroy(&ctx->audio);
+				audio_create(&ctx->audio, event->cfg.sample_rate);
+			}
+
 			ctx->cfg = event->cfg;
 			break;
 		case UI_EVENT_QUIT:
@@ -254,22 +284,8 @@ int32_t main(int32_t argc, char **argv)
 	ui_create();
 
 	char sram_file[16] = {0};
-
-	if (argc >= 2) {
-		size_t rom_size = 0;
-		void *rom = fs_read(argv[1], &rom_size);
-
-		if (rom) {
-			uint32_t crc32 = crypto_crc32(rom, rom_size);
-			snprintf(sram_file, 16, "%02X.sav", crc32);
-
-			size_t sram_size = 0;
-			void *sram = fs_read(fs_path("save", sram_file), &sram_size);
-			NES_LoadCart(ctx.nes, rom, rom_size, sram, sram_size, NULL);
-			free(sram);
-			free(rom);
-		}
-	}
+	if (argc >= 2)
+		main_load_rom(ctx.nes, argv[1], sram_file, 16);
 
 	while (ctx.running) {
 		window_poll(ctx.window);

@@ -80,6 +80,7 @@ void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pres
 void NES_ControllerState(NES *nes, uint8_t player, uint8_t state);
 void NES_Reset(NES *ctx, bool hard);
 void NES_SetStereo(NES *ctx, bool stereo);
+void NES_SetSampleRate(NES *ctx, uint32_t sampleRate);
 void NES_SetAPUClock(NES *ctx, uint32_t hz);
 void NES_ToggleChannel(NES *ctx, NES_Channel channel);
 size_t NES_SRAMDirty(NES *ctx);

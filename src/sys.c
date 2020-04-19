@@ -320,6 +320,11 @@ void NES_SetStereo(NES *ctx, bool stereo)
 	apu_set_stereo(ctx->apu, stereo);
 }
 
+void NES_SetSampleRate(NES *ctx, uint32_t sampleRate)
+{
+	apu_set_sample_rate(ctx->apu, sampleRate);
+}
+
 void NES_SetAPUClock(NES *ctx, uint32_t hz)
 {
 	apu_set_clock(ctx->apu, hz);

@@ -426,6 +426,7 @@ static void apu_vrc6_saw_step_timer(struct pulse *p)
 
 struct dac {
 	bool stereo;
+	uint32_t clock;
 	uint32_t sample_rate;
 	uint32_t frame_samples;
 	uint32_t factor;
@@ -472,6 +473,12 @@ static int16_t SINC[PHASE_COUNT + 1][16] = {
 	{ 1,   40, -110,  350, -499, 1190, -1021,  6464},
 	{ 0,   43, -115,  350, -488, 1136,  -914,  5861},
 };
+
+static void apu_dac_clock_math(struct dac *dac)
+{
+	dac->factor = (uint32_t) ceil(TIME_UNIT * (double) dac->sample_rate / (double) dac->clock);
+	dac->frame_samples = (dac->clock / dac->sample_rate) * (dac->sample_rate / 100);
+}
 
 static int16_t apu_clampi32(int32_t pcmi32)
 {
@@ -1004,6 +1011,12 @@ void apu_set_stereo(struct apu *apu, bool stereo)
 	apu->dac.stereo = stereo;
 }
 
+void apu_set_sample_rate(struct apu *apu, uint32_t sample_rate)
+{
+	apu->dac.sample_rate = sample_rate;
+	apu_dac_clock_math(&apu->dac);
+}
+
 uint32_t apu_get_channels(struct apu *apu)
 {
 	return apu->channels;
@@ -1016,8 +1029,8 @@ void apu_set_channels(struct apu *apu, uint32_t channels)
 
 void apu_set_clock(struct apu *apu, uint32_t hz)
 {
-	apu->dac.factor = (uint32_t) ceil(TIME_UNIT * (double) apu->dac.sample_rate / (double) hz);
-	apu->dac.frame_samples = (hz / apu->dac.sample_rate) * (apu->dac.sample_rate / 100);
+	apu->dac.clock = hz;
+	apu_dac_clock_math(&apu->dac);
 }
 
 void apu_create(uint32_t sample_rate, bool stereo, struct apu **apu)

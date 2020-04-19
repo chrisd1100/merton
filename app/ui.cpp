@@ -306,6 +306,7 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 	PushStyleVar(ImGuiStyleVar_WindowRounding,   0);
 	PushStyleVar(ImGuiStyleVar_ItemSpacing,      VEC(10, 8));
 	PushStyleVar(ImGuiStyleVar_FramePadding,     VEC(10, 6));
+	PushStyleVar(ImGuiStyleVar_WindowPadding,    VEC(10, 10));
 
 	if (BeginMainMenuBar()) {
 		if (BeginMenu("System", true)) {
@@ -395,12 +396,31 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 			}
 
 			if (BeginMenu("Sample Rate", true)) {
-				MenuItem("48000", "", false, true);
-				MenuItem("44100", "", true, true);
-				MenuItem("22050", "", false, true);
-				MenuItem("16000", "", false, true);
-				MenuItem("11025", "", false, true);
-				MenuItem("8000", "", false, true);
+				int32_t sample_rate = 0;
+
+				if (MenuItem("48000", "", args->cfg->sample_rate == 48000, true))
+					sample_rate = 48000;
+
+				if (MenuItem("44100", "", args->cfg->sample_rate == 44100, true))
+					sample_rate = 44100;
+
+				if (MenuItem("22050", "", args->cfg->sample_rate == 22050, true))
+					sample_rate = 22050;
+
+				if (MenuItem("16000", "", args->cfg->sample_rate == 16000, true))
+					sample_rate = 16000;
+
+				if (MenuItem("11025", "", args->cfg->sample_rate == 11025, true))
+					sample_rate = 11025;
+
+				if (MenuItem("8000", "", args->cfg->sample_rate == 8000, true))
+					sample_rate = 8000;
+
+				if (sample_rate != 0) {
+					event.cfg.sample_rate = sample_rate;
+					NES_SetSampleRate(args->nes, sample_rate);
+				}
+
 				ImGui::EndMenu();
 			}
 
@@ -424,7 +444,7 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 	if (CMP.nav == NAV_OPEN_ROM)
 		ui_open_rom(args);
 
-	PopStyleVar(7);
+	PopStyleVar(8);
 	PopStyleColor(18);
 
 	if (memcmp(args->cfg, &event.cfg, sizeof(struct config)))
