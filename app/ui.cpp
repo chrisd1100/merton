@@ -317,6 +317,9 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 
 			Separator();
 
+			if (MenuItem(args->paused ? "Unpause" : "Pause", "Ctrl+P"))
+				event.type = UI_EVENT_PAUSE;
+
 			if (MenuItem("Reset", "Ctrl+R"))
 				NES_Reset(args->nes, false);
 

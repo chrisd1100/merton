@@ -20,6 +20,7 @@ struct main {
 	struct audio *audio;
 	struct config cfg;
 	bool running;
+	bool paused;
 
 	// Video
 	uint32_t cropped[NES_FRAME_WIDTH * NES_FRAME_HEIGHT];
@@ -64,8 +65,9 @@ static void main_nes_video(const uint32_t *frame, void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
-	main_crop_copy(ctx->cropped, frame, ctx->cfg.overscan.top ? 8 : 0, ctx->cfg.overscan.right ? 8 : 0,
-		ctx->cfg.overscan.bottom ? 8 : 0, ctx->cfg.overscan.left ? 8 : 0);
+	if (frame)
+		main_crop_copy(ctx->cropped, frame, ctx->cfg.overscan.top ? 8 : 0, ctx->cfg.overscan.right ? 8 : 0,
+			ctx->cfg.overscan.bottom ? 8 : 0, ctx->cfg.overscan.left ? 8 : 0);
 
 	window_render_quad(ctx->window, ctx->cropped, NES_FRAME_WIDTH, NES_FRAME_HEIGHT,
 		(float) ctx->cfg.aspect_ratio.x / (float) ctx->cfg.aspect_ratio.y);
@@ -249,6 +251,9 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 		case UI_EVENT_QUIT:
 			ctx->running = false;
 			break;
+		case UI_EVENT_PAUSE:
+			ctx->paused = !ctx->paused;
+			break;
 		default:
 			break;
 	}
@@ -261,6 +266,7 @@ static void main_ui_root(void *opaque)
 	struct ui_args args = {0};
 	args.nes = ctx->nes;
 	args.cfg = &ctx->cfg;
+	args.paused = ctx->paused;
 
 	ui_root(&args, main_ui_event, ctx);
 }
@@ -292,7 +298,13 @@ int32_t main(int32_t argc, char **argv)
 
 		if (window_is_foreground(ctx.window) || !ctx.cfg.bg_pause) {
 			main_audio_adjustment(&ctx);
-			ctx.cycles += NES_NextFrame(ctx.nes);
+
+			if (!ctx.paused) {
+				ctx.cycles += NES_NextFrame(ctx.nes);
+
+			} else {
+				main_nes_video(NULL, &ctx);
+			}
 
 			OpaqueDevice *device = window_get_device(ctx.window);
 			OpaqueContext *context = window_get_context(ctx.window);
@@ -300,7 +312,7 @@ int32_t main(int32_t argc, char **argv)
 
 			ui_begin(window_get_dpi_scale(ctx.window), device, context, back_buffer);
 			ui_draw(main_ui_root, &ctx);
-			ui_render(ctx.cycles == 0);
+			ui_render(ctx.cycles == 0 && !ctx.paused);
 
 			window_release_back_buffer(back_buffer);
 			window_present(ctx.window, main_sync_to_60(&ctx));
