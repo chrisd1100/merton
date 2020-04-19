@@ -305,6 +305,7 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 	PushStyleVar(ImGuiStyleVar_PopupBorderSize,  1);
 	PushStyleVar(ImGuiStyleVar_WindowRounding,   0);
 	PushStyleVar(ImGuiStyleVar_ItemSpacing,      VEC(10, 8));
+	PushStyleVar(ImGuiStyleVar_FramePadding,     VEC(10, 6));
 
 	if (BeginMainMenuBar()) {
 		if (BeginMenu("System", true)) {
@@ -423,7 +424,7 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 	if (CMP.nav == NAV_OPEN_ROM)
 		ui_open_rom(args);
 
-	PopStyleVar(6);
+	PopStyleVar(7);
 	PopStyleColor(18);
 
 	if (memcmp(args->cfg, &event.cfg, sizeof(struct config)))

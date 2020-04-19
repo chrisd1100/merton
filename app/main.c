@@ -52,11 +52,11 @@ static const NES_Button NES_KEYBOARD_MAP[SCANCODE_MAX] = {
 static void main_crop_copy(uint32_t *dest, const uint32_t *src, uint32_t top, uint32_t right,
 	uint32_t bottom, uint32_t left)
 {
-	int32_t adjx = (right - left) / 2;
-	int32_t adjy = (bottom - top) / 2;
+	int32_t adjx = (right + left) / 2;
+	int32_t adjy = (bottom + top) / 2;
 
 	for (uint32_t row = top; row < NES_FRAME_HEIGHT - bottom; row++)
-		memcpy(dest + (row + adjy) * NES_FRAME_WIDTH + left + adjx,
+		memcpy(dest + ((row - top) + adjy) * NES_FRAME_WIDTH + adjx,
 			src + row * NES_FRAME_WIDTH + left, 4 * (NES_FRAME_WIDTH - left - right));
 }
 
