@@ -11,7 +11,8 @@ struct window_quad {
 	ID3D11Buffer *vb;
 	ID3D11Buffer *ib;
 	ID3D11InputLayout *il;
-	ID3D11SamplerState *ss;
+	ID3D11SamplerState *ss_nearest;
+	ID3D11SamplerState *ss_linear;
 	ID3D11Texture2D *texture;
 	ID3D11Resource *resource;
 	ID3D11ShaderResourceView *srv;
@@ -72,7 +73,11 @@ HRESULT window_quad_init(ID3D11Device *device, struct window_quad **quad)
 	sdesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sdesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sdesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	e = ID3D11Device_CreateSamplerState(device, &sdesc, &ctx->ss);
+	e = ID3D11Device_CreateSamplerState(device, &sdesc, &ctx->ss_nearest);
+	if (e != S_OK) goto except;
+
+	sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	e = ID3D11Device_CreateSamplerState(device, &sdesc, &ctx->ss_linear);
 	if (e != S_OK) goto except;
 
 	except:
@@ -179,7 +184,7 @@ static void window_quad_set_viewport(ID3D11DeviceContext *context, UINT width, U
 }
 
 static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *context,
-	ID3D11RenderTargetView *rtv)
+	ID3D11RenderTargetView *rtv, enum filter filter)
 {
 	UINT stride = 4 * sizeof(float);
 	UINT offset = 0;
@@ -187,7 +192,7 @@ static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *conte
 	ID3D11DeviceContext_VSSetShader(context, ctx->vs, NULL, 0);
 	ID3D11DeviceContext_PSSetShader(context, ctx->ps, NULL, 0);
 	ID3D11DeviceContext_PSSetShaderResources(context, 0, 1, &ctx->srv);
-	ID3D11DeviceContext_PSSetSamplers(context, 0, 1, &ctx->ss);
+	ID3D11DeviceContext_PSSetSamplers(context, 0, 1, filter == FILTER_LINEAR ? &ctx->ss_linear : &ctx->ss_nearest);
 	ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &ctx->vb, &stride, &offset);
 	ID3D11DeviceContext_IASetIndexBuffer(context, ctx->ib, DXGI_FORMAT_R32_UINT, 0);
 	ID3D11DeviceContext_IASetInputLayout(context, ctx->il);
@@ -200,7 +205,8 @@ static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *conte
 }
 
 HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11DeviceContext *context,
-	const void *image, uint32_t width, uint32_t height, ID3D11Texture2D *dest, float aspect_ratio)
+	const void *image, uint32_t width, uint32_t height, ID3D11Texture2D *dest, float aspect_ratio,
+	enum filter filter)
 {
 	HRESULT e = window_quad_refresh_resource(ctx, device, width, height);
 	if (e != S_OK) return e;
@@ -220,7 +226,7 @@ HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11
 		e = ID3D11Device_CreateRenderTargetView(device, resource, NULL, &rtv);
 
 		if (e == S_OK) {
-			window_quad_draw(ctx, context, rtv);
+			window_quad_draw(ctx, context, rtv, filter);
 			ID3D11RenderTargetView_Release(rtv);
 		}
 
@@ -239,8 +245,11 @@ void window_quad_destroy(struct window_quad **quad)
 
 	window_quad_destroy_resource(ctx);
 
-	if (ctx->ss)
-		ID3D11SamplerState_Release(ctx->ss);
+	if (ctx->ss_linear)
+		ID3D11SamplerState_Release(ctx->ss_linear);
+
+	if (ctx->ss_nearest)
+		ID3D11SamplerState_Release(ctx->ss_nearest);
 
 	if (ctx->il)
 		ID3D11InputLayout_Release(ctx->il);

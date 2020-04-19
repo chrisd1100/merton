@@ -68,6 +68,11 @@ enum mouse_button {
 	MOUSE_MIDDLE = 3,
 };
 
+enum filter {
+	FILTER_NEAREST = 1,
+	FILTER_LINEAR  = 2,
+};
+
 struct window_msg {
 	enum window_msg_type type;
 
@@ -139,7 +144,7 @@ OpaqueContext *window_get_context(struct window *ctx);
 OpaqueTexture *window_get_back_buffer(struct window *ctx);
 void window_release_back_buffer(OpaqueTexture *texture);
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
-	uint32_t height, float aspect_ratio);
+	uint32_t height, float aspect_ratio, enum filter filter);
 void window_destroy(struct window **window);
 
 

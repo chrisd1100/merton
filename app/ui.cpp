@@ -383,8 +383,12 @@ void ui_component_root(const struct ui_args *args,
 				ImGui::EndMenu();
 			}
 			if (BeginMenu("Filter", true)) {
-				MenuItem("Nearest", "", true, true);
-				MenuItem("Bilinear", "", false, true);
+				if (MenuItem("Nearest", "", args->cfg->filter == FILTER_NEAREST, true))
+					event.cfg.filter = FILTER_NEAREST;
+
+				if (MenuItem("Linear", "", args->cfg->filter == FILTER_LINEAR, true))
+					event.cfg.filter = FILTER_LINEAR;
+
 				ImGui::EndMenu();
 			}
 			if (BeginMenu("Shader", true)) {

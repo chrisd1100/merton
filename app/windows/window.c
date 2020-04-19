@@ -383,7 +383,7 @@ void window_release_back_buffer(OpaqueTexture *texture)
 }
 
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
-	uint32_t height, float aspect_ratio)
+	uint32_t height, float aspect_ratio, enum filter filter)
 {
 	if (!ctx->quad) {
 		HRESULT e = window_quad_init(ctx->device, &ctx->quad);
@@ -395,7 +395,7 @@ void window_render_quad(struct window *ctx, const void *image, uint32_t width,
 
 	if (e == S_OK) {
 		window_quad_render(ctx->quad, ctx->device, ctx->context, image, width, height,
-			back_buffer, aspect_ratio);
+			back_buffer, aspect_ratio, filter);
 		ID3D11Texture2D_Release(back_buffer);
 	}
 }

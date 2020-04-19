@@ -3,12 +3,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "lib.h"
 #include "../src/nes.h"
-
-enum config_filter {
-	CONFIG_FILTER_NEAREST = 1,
-	CONFIG_FILTER_LINEAR  = 2,
-};
 
 enum config_shader {
 	CONFIG_SHADER_NONE = 0,
@@ -21,7 +17,7 @@ struct config {
 	// Video
 	bool windowed;
 	int32_t frame_size;
-	enum config_filter filter;
+	enum filter filter;
 	enum config_shader shader;
 	struct {
 		int32_t x;
@@ -45,7 +41,7 @@ struct config {
 	true, \
 	true, \
 	3, \
-	CONFIG_FILTER_NEAREST, \
+	FILTER_NEAREST, \
 	CONFIG_SHADER_NONE, \
 	{16, 15}, \
 	{8, 0, 8, 0}, \
