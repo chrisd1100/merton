@@ -11,11 +11,14 @@
 
 #include "../src/nes.h"
 
+#define SRAM_FILE_NAME_LEN 16
+
 #define CLOCK_UP     1000
 #define CLOCK_DOWN   -1000
 
 struct main {
 	NES *nes;
+	char sram_file[SRAM_FILE_NAME_LEN];
 	struct window *window;
 	struct audio *audio;
 	struct config cfg;
@@ -197,33 +200,37 @@ static void main_audio_adjustment(struct main *ctx)
 	}
 }
 
-static void main_load_rom(NES *nes, const char *name, char *sram_file, size_t len)
+static void main_load_rom(struct main *ctx, const char *name)
 {
 	size_t rom_size = 0;
 	void *rom = fs_read(name, &rom_size);
 
 	if (rom) {
 		uint32_t crc32 = crypto_crc32(rom, rom_size);
-		snprintf(sram_file, len, "%02X.sav", crc32);
+		printf("[merton] --- (%02X) %s ---\n", crc32, name);
+		snprintf(ctx->sram_file, SRAM_FILE_NAME_LEN, "%02X.sav", crc32);
 
 		size_t sram_size = 0;
-		void *sram = fs_read(fs_path("save", sram_file), &sram_size);
-		NES_LoadCart(nes, rom, rom_size, sram, sram_size, NULL);
+		void *sram = fs_read(fs_path("save", ctx->sram_file), &sram_size);
+		NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, NULL);
 		free(sram);
 		free(rom);
 	}
 }
 
-static void main_save_sram(NES *nes, const char *sram_file)
+static void main_save_sram(struct main *ctx)
 {
-	size_t sram_size = NES_SRAMDirty(nes);
+	if (!ctx->sram_file[0])
+		return;
+
+	size_t sram_size = NES_SRAMDirty(ctx->nes);
 
 	if (sram_size > 0) {
 		void *sram = calloc(sram_size, 1);
-		NES_GetSRAM(nes, sram, sram_size);
+		NES_GetSRAM(ctx->nes, sram, sram_size);
 
 		fs_mkdir("save");
-		fs_write(fs_path("save", sram_file), sram, sram_size);
+		fs_write(fs_path("save", ctx->sram_file), sram, sram_size);
 		free(sram);
 	}
 }
@@ -255,6 +262,10 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 		case UI_EVENT_PAUSE:
 			ctx->paused = !ctx->paused;
 			break;
+		case UI_EVENT_OPEN_ROM:
+			main_save_sram(ctx);
+			main_load_rom(ctx, event->rom_name);
+			break;
 		default:
 			break;
 	}
@@ -269,7 +280,7 @@ static void main_ui_root(void *opaque)
 	args.cfg = &ctx->cfg;
 	args.paused = ctx->paused;
 
-	ui_root(&args, main_ui_event, ctx);
+	ui_component_root(&args, main_ui_event, ctx);
 }
 
 int32_t main(int32_t argc, char **argv)
@@ -290,9 +301,8 @@ int32_t main(int32_t argc, char **argv)
 
 	ui_create();
 
-	char sram_file[16] = {0};
 	if (argc >= 2)
-		main_load_rom(ctx.nes, argv[1], sram_file, 16);
+		main_load_rom(&ctx, argv[1]);
 
 	while (ctx.running) {
 		window_poll(ctx.window);
@@ -324,11 +334,11 @@ int32_t main(int32_t argc, char **argv)
 		}
 	}
 
-	if (sram_file[0])
-		main_save_sram(ctx.nes, sram_file);
+	main_save_sram(&ctx);
 
 	except:
 
+	ui_component_destroy();
 	ui_destroy();
 	NES_Destroy(&ctx.nes);
 	audio_destroy(&ctx.audio);

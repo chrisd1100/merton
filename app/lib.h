@@ -163,10 +163,18 @@ double time_diff(int64_t begin, int64_t end);
 
 
 /*** FS ***/
+struct finfo {
+	bool dir;
+	const char *path;
+	const char *name;
+};
+
 void *fs_read(const char *path, size_t *size);
 void fs_write(const char *path, const void *data, size_t size);
 void fs_mkdir(const char *path);
 const char *fs_path(const char *dir, const char *file);
+uint32_t fs_list(const char *path, struct finfo **fi);
+void fs_free_list(struct finfo **fi, uint32_t len);
 
 
 /*** CRYPTO ***/

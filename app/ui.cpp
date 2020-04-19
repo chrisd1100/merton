@@ -231,16 +231,22 @@ enum nav {
 	NAV_OPEN_ROM = 1,
 };
 
-struct {
+struct component_state {
 	enum nav nav;
+	struct finfo *fi;
+	uint32_t fi_n;
+	bool refreshed;
+	const char *dir;
 } CMP;
 
-static void ui_open_rom(const struct ui_args *args)
+static void ui_open_rom(struct ui_event *event)
 {
-	args;
+	ImGuiIO &io = GetIO();
 
-	SetNextWindowPos(VEC(30, 40));
-	SetNextWindowSize(VEC(400, 550));
+	float padding_h = X(18);
+	float padding_v = X(30);
+	SetNextWindowPos(ImVec2(padding_h, padding_v + X(14)));
+	SetNextWindowSize(ImVec2(io.DisplaySize.x - padding_h * 2.0f, io.DisplaySize.y - padding_v * 2.0f));
 
 	if (Begin("OPEN_ROM", NULL, ImGuiWindowFlags_NoMove |
 		ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
@@ -249,32 +255,37 @@ static void ui_open_rom(const struct ui_args *args)
 		if (Button("Close"))
 			CMP.nav = NAV_NONE;
 
-		/*
-		if (ctx->refresh_dir) {
-			free(ctx->fi);
-			ctx->fi_n = fs_list(ctx->dir, &ctx->fi);
-			ctx->refresh_dir = false;
+		if (!CMP.refreshed) {
+			struct finfo *fi = NULL;
+			uint32_t n = fs_list(CMP.dir ? CMP.dir : ".", &fi);
+
+			fs_free_list(&CMP.fi, CMP.fi_n);
+			CMP.fi = fi;
+			CMP.fi_n = n;
+
+			CMP.refreshed = true;
 		}
 
-		for (uint32_t x = 0; x < ctx->fi_n; x++) {
-			if (Selectable(ctx->fi[x].name)) {
-				if (ctx->fi[x].dir) {
-					fs_path(ctx->dir, ctx->dir, ctx->fi[x].name);
-					ctx->refresh_dir = true;
+		for (uint32_t x = 0; x < CMP.fi_n; x++) {
+			if (Selectable(CMP.fi[x].name)) {
+				if (CMP.fi[x].dir) {
+					CMP.dir = CMP.fi[x].path;
+					CMP.refreshed = false;
 
 				} else {
-					ctx->cbs.open(ctx->dir, ctx->fi[x].name, ctx->opaque);
-					ctx->open_rom = false;
+					event->type = UI_EVENT_OPEN_ROM;
+					event->rom_name = CMP.fi[x].path;
+					CMP.nav = NAV_NONE;
 				}
 			}
 		}
-		*/
 
 		End();
 	}
 }
 
-void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
+void ui_component_root(const struct ui_args *args,
+	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
 {
 	struct ui_event event = {0};
 	event.type = UI_EVENT_NONE;
@@ -475,7 +486,7 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 	}
 
 	if (CMP.nav == NAV_OPEN_ROM)
-		ui_open_rom(args);
+		ui_open_rom(&event);
 
 	PopStyleVar(8);
 	PopStyleColor(18);
@@ -485,4 +496,12 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 
 	if (event.type != UI_EVENT_NONE)
 		event_callback(&event, (void *) opaque);
+}
+
+void ui_component_destroy(void)
+{
+	fs_free_list(&CMP.fi, CMP.fi_n);
+	CMP.fi_n = 0;
+
+	memset(&CMP, 0, sizeof(struct component_state));
 }

@@ -8,11 +8,21 @@
 extern "C" {
 #endif
 
+/*** FRAMEWORK ***/
+void ui_create(void);
+void ui_destroy(void);
+void ui_input(struct window_msg *wmsg);
+bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture);
+void ui_draw(void (*callback)(void *opaque), const void *opaque);
+void ui_render(bool clear);
+
+/*** COMPONENTS ***/
 enum ui_event_type {
-	UI_EVENT_NONE   = 0,
-	UI_EVENT_CONFIG = 1,
-	UI_EVENT_QUIT   = 2,
-	UI_EVENT_PAUSE  = 3,
+	UI_EVENT_NONE     = 0,
+	UI_EVENT_CONFIG   = 1,
+	UI_EVENT_QUIT     = 2,
+	UI_EVENT_PAUSE    = 3,
+	UI_EVENT_OPEN_ROM = 4,
 };
 
 struct ui_args {
@@ -23,21 +33,13 @@ struct ui_args {
 
 struct ui_event {
 	enum ui_event_type type;
-	union {
-		struct config cfg;
-	};
+	struct config cfg;
+	const char *rom_name;
 };
 
-/*** FRAMEWORK ***/
-void ui_create(void);
-void ui_destroy(void);
-void ui_input(struct window_msg *wmsg);
-bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture);
-void ui_draw(void (*callback)(void *opaque), const void *opaque);
-void ui_render(bool clear);
-
-/*** COMPONENTS ***/
-void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque);
+void ui_component_root(const struct ui_args *args,
+	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque);
+void ui_component_destroy(void);
 
 #ifdef __cplusplus
 }
