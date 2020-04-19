@@ -9,7 +9,9 @@ extern "C" {
 #endif
 
 enum ui_event_type {
+	UI_EVENT_NONE   = 0,
 	UI_EVENT_CONFIG = 1,
+	UI_EVENT_QUIT   = 2,
 };
 
 struct ui_args {

@@ -276,6 +276,10 @@ static void ui_open_rom(const struct ui_args *args)
 
 void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
 {
+	struct ui_event event = {0};
+	event.type = UI_EVENT_NONE;
+	event.cfg = *args->cfg;
+
 	PushStyleColor(ImGuiCol_Separator,        COLOR_BORDER);
 	PushStyleColor(ImGuiCol_SeparatorActive,  COLOR_BORDER);
 	PushStyleColor(ImGuiCol_SeparatorHovered, COLOR_BORDER);
@@ -302,9 +306,6 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 	PushStyleVar(ImGuiStyleVar_WindowRounding,   0);
 	PushStyleVar(ImGuiStyleVar_ItemSpacing,      VEC(10, 8));
 
-	struct ui_event event = {0};
-	event.cfg = *args->cfg;
-
 	if (BeginMainMenuBar()) {
 		if (BeginMenu("System", true)) {
 			if (MenuItem("Load ROM", "Ctrl+O"))
@@ -323,7 +324,7 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 			Separator();
 
 			if (MenuItem("Quit"))
-				printf("Quit\n");
+				event.type = UI_EVENT_QUIT;
 
 			ImGui::EndMenu();
 		}
@@ -419,14 +420,15 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 		EndMainMenuBar();
 	}
 
-	if (memcmp(args->cfg, &event.cfg, sizeof(struct config))) {
-		event.type = UI_EVENT_CONFIG;
-		event_callback(&event, (void *) opaque);
-	}
-
 	if (CMP.nav == NAV_OPEN_ROM)
 		ui_open_rom(args);
 
 	PopStyleVar(6);
 	PopStyleColor(18);
+
+	if (memcmp(args->cfg, &event.cfg, sizeof(struct config)))
+		event.type = UI_EVENT_CONFIG;
+
+	if (event.type != UI_EVENT_NONE)
+		event_callback(&event, (void *) opaque);
 }

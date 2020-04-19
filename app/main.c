@@ -213,7 +213,11 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 
 	switch (event->type) {
 		case UI_EVENT_CONFIG:
+			memset(ctx->cropped, 0, sizeof(ctx->cropped));
 			ctx->cfg = event->cfg;
+			break;
+		case UI_EVENT_QUIT:
+			ctx->running = false;
 			break;
 		default:
 			break;
