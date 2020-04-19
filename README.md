@@ -42,9 +42,10 @@ Simply type `make` or `nmake` (on Windows) to build the emulator. The makefiles 
  224  225  226  227  228  229  230  231  232  233  234  235  236  237  238  239
  240  241  242  243  244  245  246  247  248  249  250  251  252  253  254  255
 
-¹ - PCM not implemented
-^ - Missing expansion audio
-† - Missing EEPROM support
+* Full support
+^ Missing expansion audio
+† Missing EEPROM support
+¹ PCM not implemented
 ```
 
 ## Mapper Wish List
