@@ -254,6 +254,19 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 				audio_create(&ctx->audio, event->cfg.sample_rate);
 			}
 
+			// Fullscreen/windowed transitions
+			if (event->cfg.fullscreen != ctx->cfg.fullscreen) {
+				if (window_is_fullscreen(ctx->window)) {
+					window_set_windowed(ctx->window, ctx->cfg.frame_size * NES_FRAME_WIDTH,
+						ctx->cfg.frame_size * NES_FRAME_HEIGHT);
+
+				} else {
+					window_set_fullscreen(ctx->window);
+				}
+
+				event->cfg.fullscreen = ctx->cfg.fullscreen = window_is_fullscreen(ctx->window);
+			}
+
 			ctx->cfg = event->cfg;
 			break;
 		case UI_EVENT_QUIT:
@@ -292,6 +305,8 @@ int32_t main(int32_t argc, char **argv)
 	int32_t r = window_create("Merton", main_window_msg_func, &ctx,
 		ctx.cfg.frame_size * NES_FRAME_WIDTH, ctx.cfg.frame_size * NES_FRAME_HEIGHT, &ctx.window);
 	if (r != LIB_OK) goto except;
+
+	ctx.cfg.fullscreen = window_is_fullscreen(ctx.window);
 
 	r = audio_create(&ctx.audio, ctx.cfg.sample_rate);
 	if (r != LIB_OK) goto except;

@@ -49,6 +49,7 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			break;
+		case WM_NCCALCSIZE:
 		case WM_SIZE:
 			if (lparam > 0) {
 				struct window *ctx = (struct window *) GetWindowLongPtr(hwnd, 0);
@@ -161,6 +162,17 @@ static void window_utf8_to_wchar(const char *src, WCHAR *dst, size_t dst_len)
 		memset(dst, 0, dst_len * sizeof(WCHAR));
 }
 
+static void window_calc_client_area(uint32_t *width, uint32_t *height)
+{
+	RECT rect = {0};
+	rect.right = *width;
+	rect.bottom = *height;
+	if (AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, 0)) {
+		*width = rect.right - rect.left;
+		*height = rect.bottom - rect.top;
+	}
+}
+
 enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const void *opaque,
 	uint32_t width, uint32_t height, struct window **window)
 {
@@ -194,14 +206,9 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	ctx->class = RegisterClassEx(&wc);
 	if (ctx->class == 0) {r = LIB_ERR; goto except;}
 
-	RECT rect = {0};
-	rect.right = width;
-	rect.bottom = height;
-	if (AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, 0)) {
-		width = rect.right - rect.left;
-		height = rect.bottom - rect.top;
-	}
+	window_calc_client_area(&width, &height);
 
+	RECT rect = {0};
 	HWND desktop = GetDesktopWindow();
 	int32_t x = CW_USEDEFAULT;
 	int32_t y = CW_USEDEFAULT;
@@ -307,21 +314,29 @@ void window_poll(struct window *ctx)
 	}
 }
 
-uint32_t window_refresh_rate(struct window *ctx)
+static bool window_get_monitor_info(HWND hwnd, MONITORINFOEX *info)
 {
-	HMONITOR mon = MonitorFromWindow(ctx->hwnd, MONITOR_DEFAULTTONEAREST);
+	HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
 
 	if (mon) {
-		MONITORINFOEX info = {0};
-		info.cbSize = sizeof(MONITORINFOEX);
+		memset(info, 0, sizeof(MONITORINFOEX));
+		info->cbSize = sizeof(MONITORINFOEX);
 
-		if (GetMonitorInfo(mon, (LPMONITORINFO) &info)) {
-			DEVMODE mode = {0};
-			mode.dmSize = sizeof(DEVMODE);
+		return GetMonitorInfo(mon, (LPMONITORINFO) info);
+	}
 
-			if (EnumDisplaySettings(info.szDevice, ENUM_CURRENT_SETTINGS, &mode))
-				return mode.dmDisplayFrequency;
-		}
+	return false;
+}
+
+uint32_t window_refresh_rate(struct window *ctx)
+{
+	MONITORINFOEX info = {0};
+	if (window_get_monitor_info(ctx->hwnd, &info)) {
+		DEVMODE mode = {0};
+		mode.dmSize = sizeof(DEVMODE);
+
+		if (EnumDisplaySettings(info.szDevice, ENUM_CURRENT_SETTINGS, &mode))
+			return mode.dmDisplayFrequency;
 	}
 
 	return 60;
@@ -335,11 +350,47 @@ float window_get_dpi_scale(struct window *ctx)
 		UINT x = 0;
 		UINT y = 0;
 
-		if ( GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y) == S_OK)
+		if (GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y) == S_OK)
 			return (float) x / 96.0f;
 	}
 
 	return 1.0f;
+}
+
+void window_set_fullscreen(struct window *ctx)
+{
+	MONITORINFOEX info = {0};
+	if (window_get_monitor_info(ctx->hwnd, &info)) {
+		uint32_t x = info.rcMonitor.left;
+		uint32_t y = info.rcMonitor.top;
+		uint32_t w = info.rcMonitor.right - info.rcMonitor.left;
+		uint32_t h = info.rcMonitor.bottom - info.rcMonitor.top;
+
+		SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+		SetWindowPos(ctx->hwnd, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
+	}
+}
+
+void window_set_windowed(struct window *ctx, uint32_t width, uint32_t height)
+{
+	window_calc_client_area(&width, &height);
+
+	int32_t x = CW_USEDEFAULT;
+	int32_t y = CW_USEDEFAULT;
+
+	MONITORINFOEX info = {0};
+	if (window_get_monitor_info(ctx->hwnd, &info)) {
+		x = (info.rcMonitor.right - width) / 2;
+		y = (info.rcMonitor.bottom - height) / 2;
+	}
+
+	SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
+	SetWindowPos(ctx->hwnd, NULL, x, y, width, height, SWP_FRAMECHANGED);
+}
+
+bool window_is_fullscreen(struct window *ctx)
+{
+	return GetWindowLongPtr(ctx->hwnd, GWL_STYLE) & WS_POPUP;
 }
 
 bool window_is_foreground(struct window *ctx)

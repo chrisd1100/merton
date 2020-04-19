@@ -353,7 +353,9 @@ void ui_component_root(const struct ui_args *args,
 
 		if (BeginMenu("Video", true)) {
 			if (BeginMenu("Window", true)) {
-				MenuItem("Fullscreen", "", false, true);
+				if (MenuItem("Fullscreen", "", args->cfg->fullscreen, true))
+					event.cfg.fullscreen = !event.cfg.fullscreen;
+
 				MenuItem("Reset Size");
 				ImGui::EndMenu();
 			}
