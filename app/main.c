@@ -101,9 +101,6 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 			break;
 		case WINDOW_MSG_KEYBOARD: {
 			switch (wmsg->keyboard.scancode) {
-				case SCANCODE_ESCAPE:
-					NES_Reset(ctx->nes, false);
-					break;
 				default: {
 					NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 					if (button != 0)

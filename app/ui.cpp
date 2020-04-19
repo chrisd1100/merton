@@ -96,6 +96,20 @@ void ui_input(struct window_msg *wmsg)
 			if (!wmsg->mouseMotion.relative)
 				io.MousePos = ImVec2((float) wmsg->mouseMotion.x, (float) wmsg->mouseMotion.y);
 			break;
+
+		case WINDOW_MSG_KEYBOARD:
+			if (wmsg->keyboard.pressed) {
+				enum scancode sc = wmsg->keyboard.scancode;
+
+				if (sc < IM_ARRAYSIZE(io.KeysDown))
+					io.KeysDown[sc] = true;
+
+				io.KeyShift |= sc == SCANCODE_LSHIFT || sc == SCANCODE_RSHIFT;
+				io.KeyCtrl  |= sc == SCANCODE_LCTRL  || sc == SCANCODE_RCTRL;
+				io.KeyAlt   |= sc == SCANCODE_LALT   || sc == SCANCODE_RALT;
+				io.KeySuper |= sc == SCANCODE_LGUI   || sc == SCANCODE_RGUI;
+			}
+			break;
 	}
 }
 
@@ -177,6 +191,11 @@ void ui_draw(void (*callback)(void *opaque), const void *opaque)
 	io.MouseDown[0] = UI.mouse[0];
 	io.MouseDown[1] = UI.mouse[1];
 	io.MouseDown[2] = UI.mouse[2];
+
+	for (uint32_t x = 0; x < IM_ARRAYSIZE(io.KeysDown); x++)
+		io.KeysDown[x] = false;
+
+	io.KeyShift = io.KeyCtrl = io.KeyAlt = io.KeySuper = false;
 }
 
 void ui_render(bool clear)
@@ -227,12 +246,13 @@ void ui_destroy(void)
 #define PACK_ASPECT(x, y) (((x) << 8) | (y))
 
 enum nav {
-	NAV_NONE     = 0,
-	NAV_OPEN_ROM = 1,
+	NAV_NONE     = 0x0000,
+	NAV_MENU     = 0x0100,
+	NAV_OPEN_ROM = 0x0001,
 };
 
 struct component_state {
-	enum nav nav;
+	uint32_t nav;
 	struct finfo *fi;
 	uint32_t fi_n;
 	bool refreshed;
@@ -284,9 +304,186 @@ static void ui_open_rom(struct ui_event *event)
 	}
 }
 
+static void ui_menu(const struct ui_args *args, struct ui_event *event)
+{
+	if (BeginMainMenuBar()) {
+		if (BeginMenu("System", true)) {
+			if (MenuItem("Load ROM", "Ctrl+O"))
+				CMP.nav ^= NAV_OPEN_ROM;
+
+			if (MenuItem("Unload ROM"))
+				NES_LoadCart(args->nes, NULL, 0, NULL, 0, NULL);
+
+			Separator();
+
+			if (MenuItem(args->paused ? "Unpause" : "Pause", "Ctrl+P"))
+				event->type = UI_EVENT_PAUSE;
+
+			if (MenuItem("Reset", "Ctrl+R"))
+				NES_Reset(args->nes, false);
+
+			if (MenuItem("Power Cycle", "Ctrl+T"))
+				NES_Reset(args->nes, true);
+
+			Separator();
+
+			if (MenuItem("Background Pause", "", args->cfg->bg_pause))
+				event->cfg.bg_pause = !event->cfg.bg_pause;
+
+			Separator();
+
+			if (MenuItem("Quit"))
+				event->type = UI_EVENT_QUIT;
+
+			ImGui::EndMenu();
+		}
+
+		if (BeginMenu("Video", true)) {
+			if (BeginMenu("Window", true)) {
+				if (MenuItem("Fullscreen", "", args->cfg->fullscreen, true))
+					event->cfg.fullscreen = !event->cfg.fullscreen;
+
+				MenuItem("Reset Size");
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Frame Size", true)) {
+				MenuItem("2x", "", false, true);
+				MenuItem("3x", "", false, true);
+				MenuItem("4x", "", false, true);
+				MenuItem("Fill", "", false, true);
+				ImGui::EndMenu();
+			}
+
+			uint32_t aspect = PACK_ASPECT(args->cfg->aspect_ratio.x, args->cfg->aspect_ratio.y);
+
+			if (BeginMenu("Aspect Ratio", true)) {
+				if (MenuItem("127:105", "", aspect == PACK_ASPECT(127, 105), true))
+					event->cfg.aspect_ratio.x = 127, event->cfg.aspect_ratio.y = 105;
+
+				if (MenuItem("16:15", "", aspect == PACK_ASPECT(16, 15), true))
+					event->cfg.aspect_ratio.x = 16, event->cfg.aspect_ratio.y = 15;
+
+				if (MenuItem("8:7", "", aspect == PACK_ASPECT(8, 7), true))
+					event->cfg.aspect_ratio.x = 8, event->cfg.aspect_ratio.y = 7;
+
+				if (MenuItem("4:3", "", aspect == PACK_ASPECT(4, 3), true))
+					event->cfg.aspect_ratio.x = 4, event->cfg.aspect_ratio.y = 3;
+
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Filter", true)) {
+				if (MenuItem("Nearest", "", args->cfg->filter == FILTER_NEAREST, true))
+					event->cfg.filter = FILTER_NEAREST;
+
+				if (MenuItem("Linear", "", args->cfg->filter == FILTER_LINEAR, true))
+					event->cfg.filter = FILTER_LINEAR;
+
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Shader", true)) {
+				MenuItem("None", "", true, true);
+				ImGui::EndMenu();
+			}
+			if (BeginMenu("Clear Overscan", true)) {
+				if (MenuItem("Top", "", args->cfg->overscan.top, true))
+					event->cfg.overscan.top = !event->cfg.overscan.top;
+
+				if (MenuItem("Right", "", args->cfg->overscan.right, true))
+					event->cfg.overscan.right = !event->cfg.overscan.right;
+
+				if (MenuItem("Bottom", "", args->cfg->overscan.bottom, true))
+					event->cfg.overscan.bottom = !event->cfg.overscan.bottom;
+
+				if (MenuItem("Left", "", args->cfg->overscan.left, true))
+					event->cfg.overscan.left = !event->cfg.overscan.left;
+
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenu();
+		}
+
+		if (BeginMenu("Audio", true)) {
+			if (MenuItem(args->cfg->mute ? "Unmute" : "Mute", "Ctrl+M"))
+				event->cfg.mute = !event->cfg.mute;
+
+			if (MenuItem("Stereo", "", args->cfg->stereo, true)) {
+				event->cfg.stereo = !event->cfg.stereo;
+				NES_SetStereo(args->nes, event->cfg.stereo);
+			}
+
+			if (BeginMenu("Sample Rate", true)) {
+				int32_t sample_rate = 0;
+
+				if (MenuItem("48000", "", args->cfg->sample_rate == 48000, true))
+					sample_rate = 48000;
+
+				if (MenuItem("44100", "", args->cfg->sample_rate == 44100, true))
+					sample_rate = 44100;
+
+				if (MenuItem("22050", "", args->cfg->sample_rate == 22050, true))
+					sample_rate = 22050;
+
+				if (MenuItem("16000", "", args->cfg->sample_rate == 16000, true))
+					sample_rate = 16000;
+
+				if (MenuItem("11025", "", args->cfg->sample_rate == 11025, true))
+					sample_rate = 11025;
+
+				if (MenuItem("8000", "", args->cfg->sample_rate == 8000, true))
+					sample_rate = 8000;
+
+				if (sample_rate != 0) {
+					event->cfg.sample_rate = sample_rate;
+					NES_SetSampleRate(args->nes, sample_rate);
+				}
+
+				ImGui::EndMenu();
+			}
+
+			if (BeginMenu("Channels", true)) {
+				uint32_t channels = event->cfg.channels;
+
+				if (MenuItem("Square 1", "", args->cfg->channels & NES_CHANNEL_PULSE_0, true))
+					event->cfg.channels ^= NES_CHANNEL_PULSE_0;
+
+				if (MenuItem("Square 2", "", args->cfg->channels & NES_CHANNEL_PULSE_1, true))
+					event->cfg.channels ^= NES_CHANNEL_PULSE_1;
+
+				if (MenuItem("Triangle", "", args->cfg->channels & NES_CHANNEL_TRIANGLE, true))
+					event->cfg.channels ^= NES_CHANNEL_TRIANGLE;
+
+				if (MenuItem("Noise", "", args->cfg->channels & NES_CHANNEL_NOISE, true))
+					event->cfg.channels ^= NES_CHANNEL_NOISE;
+
+				if (MenuItem("DMC", "", args->cfg->channels & NES_CHANNEL_DMC, true))
+					event->cfg.channels ^= NES_CHANNEL_DMC;
+
+				if (MenuItem("Mapper 1", "", args->cfg->channels & NES_CHANNEL_EXT_0, true))
+					event->cfg.channels ^= NES_CHANNEL_EXT_0;
+
+				if (MenuItem("Mapper 2", "", args->cfg->channels & NES_CHANNEL_EXT_1, true))
+					event->cfg.channels ^= NES_CHANNEL_EXT_1;
+
+				if (MenuItem("Mapper 3", "", args->cfg->channels & NES_CHANNEL_EXT_2, true))
+					event->cfg.channels ^= NES_CHANNEL_EXT_2;
+
+				if (channels != event->cfg.channels)
+					NES_SetChannels(args->nes, event->cfg.channels);
+
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenu();
+		}
+
+		EndMainMenuBar();
+	}
+}
+
 void ui_component_root(const struct ui_args *args,
 	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
 {
+	ImGuiIO &io = GetIO();
+
 	struct ui_event event = {0};
 	event.type = UI_EVENT_NONE;
 	event.cfg = *args->cfg;
@@ -319,179 +516,16 @@ void ui_component_root(const struct ui_args *args,
 	PushStyleVar(ImGuiStyleVar_FramePadding,     VEC(10, 6));
 	PushStyleVar(ImGuiStyleVar_WindowPadding,    VEC(10, 10));
 
-	if (BeginMainMenuBar()) {
-		if (BeginMenu("System", true)) {
-			if (MenuItem("Load ROM", "Ctrl+O"))
-				CMP.nav = NAV_OPEN_ROM;
+	if (io.KeysDown[SCANCODE_ESCAPE])
+		CMP.nav ^= NAV_MENU;
 
-			if (MenuItem("Unload ROM"))
-				NES_LoadCart(args->nes, NULL, 0, NULL, 0, NULL);
+	if (!(CMP.nav & NAV_MENU))
+		CMP.nav = NAV_NONE;
 
-			Separator();
+	if (CMP.nav & NAV_MENU)
+		ui_menu(args, &event);
 
-			if (MenuItem(args->paused ? "Unpause" : "Pause", "Ctrl+P"))
-				event.type = UI_EVENT_PAUSE;
-
-			if (MenuItem("Reset", "Ctrl+R"))
-				NES_Reset(args->nes, false);
-
-			if (MenuItem("Power Cycle", "Ctrl+T"))
-				NES_Reset(args->nes, true);
-
-			Separator();
-
-			if (MenuItem("Background Pause", "", args->cfg->bg_pause))
-				event.cfg.bg_pause = !event.cfg.bg_pause;
-
-			Separator();
-
-			if (MenuItem("Quit"))
-				event.type = UI_EVENT_QUIT;
-
-			ImGui::EndMenu();
-		}
-
-		if (BeginMenu("Video", true)) {
-			if (BeginMenu("Window", true)) {
-				if (MenuItem("Fullscreen", "", args->cfg->fullscreen, true))
-					event.cfg.fullscreen = !event.cfg.fullscreen;
-
-				MenuItem("Reset Size");
-				ImGui::EndMenu();
-			}
-			if (BeginMenu("Frame Size", true)) {
-				MenuItem("2x", "", false, true);
-				MenuItem("3x", "", false, true);
-				MenuItem("4x", "", false, true);
-				MenuItem("Fill", "", false, true);
-				ImGui::EndMenu();
-			}
-
-			uint32_t aspect = PACK_ASPECT(args->cfg->aspect_ratio.x, args->cfg->aspect_ratio.y);
-
-			if (BeginMenu("Aspect Ratio", true)) {
-				if (MenuItem("127:105", "", aspect == PACK_ASPECT(127, 105), true))
-					event.cfg.aspect_ratio.x = 127, event.cfg.aspect_ratio.y = 105;
-
-				if (MenuItem("16:15", "", aspect == PACK_ASPECT(16, 15), true))
-					event.cfg.aspect_ratio.x = 16, event.cfg.aspect_ratio.y = 15;
-
-				if (MenuItem("8:7", "", aspect == PACK_ASPECT(8, 7), true))
-					event.cfg.aspect_ratio.x = 8, event.cfg.aspect_ratio.y = 7;
-
-				if (MenuItem("4:3", "", aspect == PACK_ASPECT(4, 3), true))
-					event.cfg.aspect_ratio.x = 4, event.cfg.aspect_ratio.y = 3;
-
-				ImGui::EndMenu();
-			}
-			if (BeginMenu("Filter", true)) {
-				if (MenuItem("Nearest", "", args->cfg->filter == FILTER_NEAREST, true))
-					event.cfg.filter = FILTER_NEAREST;
-
-				if (MenuItem("Linear", "", args->cfg->filter == FILTER_LINEAR, true))
-					event.cfg.filter = FILTER_LINEAR;
-
-				ImGui::EndMenu();
-			}
-			if (BeginMenu("Shader", true)) {
-				MenuItem("None", "", true, true);
-				ImGui::EndMenu();
-			}
-			if (BeginMenu("Clear Overscan", true)) {
-				if (MenuItem("Top", "", args->cfg->overscan.top, true))
-					event.cfg.overscan.top = !event.cfg.overscan.top;
-
-				if (MenuItem("Right", "", args->cfg->overscan.right, true))
-					event.cfg.overscan.right = !event.cfg.overscan.right;
-
-				if (MenuItem("Bottom", "", args->cfg->overscan.bottom, true))
-					event.cfg.overscan.bottom = !event.cfg.overscan.bottom;
-
-				if (MenuItem("Left", "", args->cfg->overscan.left, true))
-					event.cfg.overscan.left = !event.cfg.overscan.left;
-
-				ImGui::EndMenu();
-			}
-			ImGui::EndMenu();
-		}
-
-		if (BeginMenu("Audio", true)) {
-			if (MenuItem(args->cfg->mute ? "Unmute" : "Mute", "Ctrl+M"))
-				event.cfg.mute = !event.cfg.mute;
-
-			if (MenuItem("Stereo", "", args->cfg->stereo, true)) {
-				event.cfg.stereo = !event.cfg.stereo;
-				NES_SetStereo(args->nes, event.cfg.stereo);
-			}
-
-			if (BeginMenu("Sample Rate", true)) {
-				int32_t sample_rate = 0;
-
-				if (MenuItem("48000", "", args->cfg->sample_rate == 48000, true))
-					sample_rate = 48000;
-
-				if (MenuItem("44100", "", args->cfg->sample_rate == 44100, true))
-					sample_rate = 44100;
-
-				if (MenuItem("22050", "", args->cfg->sample_rate == 22050, true))
-					sample_rate = 22050;
-
-				if (MenuItem("16000", "", args->cfg->sample_rate == 16000, true))
-					sample_rate = 16000;
-
-				if (MenuItem("11025", "", args->cfg->sample_rate == 11025, true))
-					sample_rate = 11025;
-
-				if (MenuItem("8000", "", args->cfg->sample_rate == 8000, true))
-					sample_rate = 8000;
-
-				if (sample_rate != 0) {
-					event.cfg.sample_rate = sample_rate;
-					NES_SetSampleRate(args->nes, sample_rate);
-				}
-
-				ImGui::EndMenu();
-			}
-
-			if (BeginMenu("Channels", true)) {
-				uint32_t channels = event.cfg.channels;
-
-				if (MenuItem("Square 1", "", args->cfg->channels & NES_CHANNEL_PULSE_0, true))
-					event.cfg.channels ^= NES_CHANNEL_PULSE_0;
-
-				if (MenuItem("Square 2", "", args->cfg->channels & NES_CHANNEL_PULSE_1, true))
-					event.cfg.channels ^= NES_CHANNEL_PULSE_1;
-
-				if (MenuItem("Triangle", "", args->cfg->channels & NES_CHANNEL_TRIANGLE, true))
-					event.cfg.channels ^= NES_CHANNEL_TRIANGLE;
-
-				if (MenuItem("Noise", "", args->cfg->channels & NES_CHANNEL_NOISE, true))
-					event.cfg.channels ^= NES_CHANNEL_NOISE;
-
-				if (MenuItem("DMC", "", args->cfg->channels & NES_CHANNEL_DMC, true))
-					event.cfg.channels ^= NES_CHANNEL_DMC;
-
-				if (MenuItem("Mapper 1", "", args->cfg->channels & NES_CHANNEL_EXT_0, true))
-					event.cfg.channels ^= NES_CHANNEL_EXT_0;
-
-				if (MenuItem("Mapper 2", "", args->cfg->channels & NES_CHANNEL_EXT_1, true))
-					event.cfg.channels ^= NES_CHANNEL_EXT_1;
-
-				if (MenuItem("Mapper 3", "", args->cfg->channels & NES_CHANNEL_EXT_2, true))
-					event.cfg.channels ^= NES_CHANNEL_EXT_2;
-
-				if (channels != event.cfg.channels)
-					NES_SetChannels(args->nes, event.cfg.channels);
-
-				ImGui::EndMenu();
-			}
-			ImGui::EndMenu();
-		}
-
-		EndMainMenuBar();
-	}
-
-	if (CMP.nav == NAV_OPEN_ROM)
+	if (CMP.nav & NAV_OPEN_ROM)
 		ui_open_rom(&event);
 
 	PopStyleVar(8);
