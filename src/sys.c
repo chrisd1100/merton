@@ -337,9 +337,9 @@ void NES_SetAPUClock(NES *ctx, uint32_t hz)
 	apu_set_clock(ctx->apu, hz);
 }
 
-void NES_ToggleChannel(NES *ctx, NES_Channel channel)
+void NES_SetChannels(NES *ctx, uint32_t channels)
 {
-	apu_set_channels(ctx->apu, apu_get_channels(ctx->apu) ^ channel);
+	apu_set_channels(ctx->apu, channels);
 }
 
 size_t NES_SRAMDirty(NES *ctx)

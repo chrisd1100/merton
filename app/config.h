@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "../src/nes.h"
+
 enum config_filter {
 	CONFIG_FILTER_NEAREST = 1,
 	CONFIG_FILTER_LINEAR  = 2,
@@ -36,16 +38,7 @@ struct config {
 	bool mute;
 	bool stereo;
 	int32_t sample_rate;
-	struct {
-		bool square1;
-		bool square2;
-		bool triangle;
-		bool noise;
-		bool dmc;
-		bool mapper1;
-		bool mapper2;
-		bool mapper4;
-	} channels;
+	uint32_t channels;
 };
 
 #define CONFIG_DEFAULTS { \
@@ -59,5 +52,5 @@ struct config {
 	false, \
 	true, \
 	44100, \
-	{true, true, true, true, true, true, true, true}, \
+	NES_CHANNEL_ALL, \
 }

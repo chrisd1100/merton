@@ -83,7 +83,7 @@ void NES_Reset(NES *ctx, bool hard);
 void NES_SetStereo(NES *ctx, bool stereo);
 void NES_SetSampleRate(NES *ctx, uint32_t sampleRate);
 void NES_SetAPUClock(NES *ctx, uint32_t hz);
-void NES_ToggleChannel(NES *ctx, NES_Channel channel);
+void NES_SetChannels(NES *ctx, uint32_t channels);
 size_t NES_SRAMDirty(NES *ctx);
 void NES_GetSRAM(NES *ctx, void *sram, size_t size);
 void NES_Destroy(NES **nes);

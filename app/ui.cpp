@@ -437,14 +437,35 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 			}
 
 			if (BeginMenu("Channels", true)) {
-				MenuItem("Square 1", "", true, true);
-				MenuItem("Square 2", "", true, true);
-				MenuItem("Triangle", "", true, true);
-				MenuItem("Noise", "", true, true);
-				MenuItem("DMC", "", true, true);
-				MenuItem("Mapper 1", "", true, true);
-				MenuItem("Mapper 2", "", true, true);
-				MenuItem("Mapper 3", "", true, true);
+				uint32_t channels = event.cfg.channels;
+
+				if (MenuItem("Square 1", "", args->cfg->channels & NES_CHANNEL_PULSE_0, true))
+					event.cfg.channels ^= NES_CHANNEL_PULSE_0;
+
+				if (MenuItem("Square 2", "", args->cfg->channels & NES_CHANNEL_PULSE_1, true))
+					event.cfg.channels ^= NES_CHANNEL_PULSE_1;
+
+				if (MenuItem("Triangle", "", args->cfg->channels & NES_CHANNEL_TRIANGLE, true))
+					event.cfg.channels ^= NES_CHANNEL_TRIANGLE;
+
+				if (MenuItem("Noise", "", args->cfg->channels & NES_CHANNEL_NOISE, true))
+					event.cfg.channels ^= NES_CHANNEL_NOISE;
+
+				if (MenuItem("DMC", "", args->cfg->channels & NES_CHANNEL_DMC, true))
+					event.cfg.channels ^= NES_CHANNEL_DMC;
+
+				if (MenuItem("Mapper 1", "", args->cfg->channels & NES_CHANNEL_EXT_0, true))
+					event.cfg.channels ^= NES_CHANNEL_EXT_0;
+
+				if (MenuItem("Mapper 2", "", args->cfg->channels & NES_CHANNEL_EXT_1, true))
+					event.cfg.channels ^= NES_CHANNEL_EXT_1;
+
+				if (MenuItem("Mapper 3", "", args->cfg->channels & NES_CHANNEL_EXT_2, true))
+					event.cfg.channels ^= NES_CHANNEL_EXT_2;
+
+				if (channels != event.cfg.channels)
+					NES_SetChannels(args->nes, event.cfg.channels);
+
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenu();
