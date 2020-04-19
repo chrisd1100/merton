@@ -290,7 +290,7 @@ int32_t main(int32_t argc, char **argv)
 	while (ctx.running) {
 		window_poll(ctx.window);
 
-		if (window_is_foreground(ctx.window)) {
+		if (window_is_foreground(ctx.window) || !ctx.cfg.bg_pause) {
 			main_audio_adjustment(&ctx);
 			ctx.cycles += NES_NextFrame(ctx.nes);
 

@@ -13,6 +13,9 @@ enum config_shader {
 };
 
 struct config {
+	// System
+	bool bg_pause;
+
 	// Video
 	bool windowed;
 	int32_t frame_size;
@@ -45,6 +48,7 @@ struct config {
 };
 
 #define CONFIG_DEFAULTS { \
+	true, \
 	true, \
 	3, \
 	CONFIG_FILTER_NEAREST, \

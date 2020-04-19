@@ -325,6 +325,11 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 
 			Separator();
 
+			if (MenuItem("Background Pause", "", args->cfg->bg_pause))
+				event.cfg.bg_pause = !event.cfg.bg_pause;
+
+			Separator();
+
 			if (MenuItem("Quit"))
 				event.type = UI_EVENT_QUIT;
 
