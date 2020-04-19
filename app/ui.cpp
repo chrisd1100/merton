@@ -98,17 +98,23 @@ void ui_input(struct window_msg *wmsg)
 			break;
 
 		case WINDOW_MSG_KEYBOARD:
-			if (wmsg->keyboard.pressed) {
-				enum scancode sc = wmsg->keyboard.scancode;
+			enum scancode sc = wmsg->keyboard.scancode;
 
-				if (sc < IM_ARRAYSIZE(io.KeysDown))
-					io.KeysDown[sc] = true;
+			if (wmsg->keyboard.pressed && sc < IM_ARRAYSIZE(io.KeysDown))
+				io.KeysDown[sc] = true;
 
-				io.KeyShift |= sc == SCANCODE_LSHIFT || sc == SCANCODE_RSHIFT;
-				io.KeyCtrl  |= sc == SCANCODE_LCTRL  || sc == SCANCODE_RCTRL;
-				io.KeyAlt   |= sc == SCANCODE_LALT   || sc == SCANCODE_RALT;
-				io.KeySuper |= sc == SCANCODE_LGUI   || sc == SCANCODE_RGUI;
-			}
+			if (sc == SCANCODE_LSHIFT || sc == SCANCODE_RSHIFT)
+				io.KeyShift = wmsg->keyboard.pressed;
+
+			if (sc == SCANCODE_LCTRL || sc == SCANCODE_RCTRL)
+				io.KeyCtrl =  wmsg->keyboard.pressed;
+
+			if (sc == SCANCODE_LALT || sc == SCANCODE_RALT)
+				io.KeyAlt = wmsg->keyboard.pressed;
+
+			if (sc == SCANCODE_LGUI || sc == SCANCODE_RGUI)
+				io.KeySuper = wmsg->keyboard.pressed;
+
 			break;
 	}
 }
@@ -194,8 +200,6 @@ void ui_draw(void (*callback)(void *opaque), const void *opaque)
 
 	for (uint32_t x = 0; x < IM_ARRAYSIZE(io.KeysDown); x++)
 		io.KeysDown[x] = false;
-
-	io.KeyShift = io.KeyCtrl = io.KeyAlt = io.KeySuper = false;
 }
 
 void ui_render(bool clear)
@@ -340,7 +344,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 		if (BeginMenu("Video", true)) {
 			if (BeginMenu("Window", true)) {
-				if (MenuItem("Fullscreen", "", args->cfg->fullscreen, true))
+				if (MenuItem("Fullscreen", "Ctrl+W", args->cfg->fullscreen, true))
 					event->cfg.fullscreen = !event->cfg.fullscreen;
 
 				MenuItem("Reset Size");
@@ -530,6 +534,9 @@ void ui_component_root(const struct ui_args *args,
 
 	PopStyleVar(8);
 	PopStyleColor(18);
+
+	if (io.KeysDown[SCANCODE_W] && io.KeyCtrl)
+		event.cfg.fullscreen = !event.cfg.fullscreen;
 
 	if (memcmp(args->cfg, &event.cfg, sizeof(struct config)))
 		event.type = UI_EVENT_CONFIG;
