@@ -22,6 +22,8 @@ struct window {
 	WINDOW_MSG_FUNC msg_func;
 	const void *opaque;
 
+	uint32_t width;
+	uint32_t height;
 	ID3D11Device *device;
 	ID3D11DeviceContext *context;
 	IDXGISwapChain2 *swap_chain2;
@@ -48,14 +50,6 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
-			break;
-		case WM_NCCALCSIZE:
-		case WM_SIZE:
-			struct window *ctx = (struct window *) GetWindowLongPtr(hwnd, 0);
-
-			if (ctx && ctx->swap_chain2)
-				IDXGISwapChain2_ResizeBuffers(ctx->swap_chain2, 0, 0, 0, DXGI_FORMAT_UNKNOWN,
-					WINDOW_SWAP_CHAIN_FLAGS);
 			break;
 		case WM_KEYUP:
 		case WM_KEYDOWN:
@@ -317,11 +311,32 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	return r;
 }
 
+static bool window_get_size(struct window *ctx, uint32_t *width, uint32_t *height)
+{
+	RECT rect = {0};
+	if (GetClientRect(ctx->hwnd, &rect)) {
+		*width = rect.right - rect.left;
+		*height = rect.bottom - rect.top;
+		return true;
+	}
+
+	return false;
+}
+
 void window_poll(struct window *ctx)
 {
 	for (MSG msg; PeekMessage(&msg, ctx->hwnd, 0, 0, PM_REMOVE | PM_NOYIELD);) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
+	}
+
+	uint32_t width = 0;
+	uint32_t height = 0;
+	if (window_get_size(ctx, &width, &height)) {
+		IDXGISwapChain2_ResizeBuffers(ctx->swap_chain2, 0, 0, 0,
+			DXGI_FORMAT_UNKNOWN, WINDOW_SWAP_CHAIN_FLAGS);
+		ctx->width = width;
+		ctx->height = height;
 	}
 }
 
