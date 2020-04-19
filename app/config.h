@@ -24,6 +24,10 @@ struct config {
 		int32_t y;
 	} aspect_ratio;
 	struct {
+		int32_t w;
+		int32_t h;
+	} window;
+	struct {
 		bool top;
 		bool right;
 		bool bottom;
@@ -44,6 +48,7 @@ struct config {
 	FILTER_NEAREST, \
 	CONFIG_SHADER_NONE, \
 	{16, 15}, \
+	{NES_FRAME_WIDTH * 3, NES_FRAME_HEIGHT * 3}, \
 	{8, 0, 8, 0}, \
 	false, \
 	true, \

@@ -154,7 +154,8 @@ OpaqueContext *window_get_context(struct window *ctx);
 OpaqueTexture *window_get_back_buffer(struct window *ctx);
 void window_release_back_buffer(OpaqueTexture *texture);
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
-	uint32_t height, float aspect_ratio, enum filter filter);
+	uint32_t height, uint32_t constrain_w, uint32_t constrain_h, float aspect_ratio,
+	enum filter filter);
 void window_destroy(struct window **window);
 
 

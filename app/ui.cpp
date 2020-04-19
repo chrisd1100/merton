@@ -153,7 +153,7 @@ bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 
 		ImGuiIO &io = GetIO();
 		io.Fonts->AddFontFromMemoryCompressedTTF(ponderosa_compressed_data,
-			ponderosa_compressed_size, X(14));
+			ponderosa_compressed_size, X(12));
 
 		if (!ui_impl_init(device, context))
 			return false;
@@ -351,10 +351,21 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 				ImGui::EndMenu();
 			}
 			if (BeginMenu("Frame Size", true)) {
-				MenuItem("2x", "", false, true);
-				MenuItem("3x", "", false, true);
-				MenuItem("4x", "", false, true);
-				MenuItem("Fill", "", false, true);
+				if (MenuItem("1x", "", args->cfg->frame_size == 1, true))
+					event->cfg.frame_size = 1;
+
+				if (MenuItem("2x", "", args->cfg->frame_size == 2, true))
+					event->cfg.frame_size = 2;
+
+				if (MenuItem("3x", "", args->cfg->frame_size == 3, true))
+					event->cfg.frame_size = 3;
+
+				if (MenuItem("4x", "", args->cfg->frame_size == 4, true))
+					event->cfg.frame_size = 4;
+
+				if (MenuItem("Fill", "", args->cfg->frame_size == 0, true))
+					event->cfg.frame_size = 0;
+
 				ImGui::EndMenu();
 			}
 

@@ -73,6 +73,7 @@ static void main_nes_video(const uint32_t *frame, void *opaque)
 			ctx->cfg.overscan.bottom ? 8 : 0, ctx->cfg.overscan.left ? 8 : 0);
 
 	window_render_quad(ctx->window, ctx->cropped, NES_FRAME_WIDTH, NES_FRAME_HEIGHT,
+		ctx->cfg.frame_size * NES_FRAME_WIDTH, ctx->cfg.frame_size * NES_FRAME_HEIGHT,
 		(float) ctx->cfg.aspect_ratio.x / (float) ctx->cfg.aspect_ratio.y, ctx->cfg.filter);
 }
 
@@ -254,8 +255,7 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			// Fullscreen/windowed transitions
 			if (event->cfg.fullscreen != ctx->cfg.fullscreen) {
 				if (window_is_fullscreen(ctx->window)) {
-					window_set_windowed(ctx->window, ctx->cfg.frame_size * NES_FRAME_WIDTH,
-						ctx->cfg.frame_size * NES_FRAME_HEIGHT);
+					window_set_windowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
 
 				} else {
 					window_set_fullscreen(ctx->window);
@@ -300,8 +300,7 @@ int32_t main(int32_t argc, char **argv)
 	ctx.running = true;
 
 	int32_t r = window_create("Merton", main_window_msg_func, &ctx,
-		ctx.cfg.frame_size * NES_FRAME_WIDTH, ctx.cfg.frame_size * NES_FRAME_HEIGHT,
-		ctx.cfg.fullscreen, &ctx.window);
+		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, &ctx.window);
 	if (r != LIB_OK) goto except;
 
 	r = audio_create(&ctx.audio, ctx.cfg.sample_rate);

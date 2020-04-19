@@ -166,14 +166,19 @@ static HRESULT window_quad_copy(struct window_quad *ctx, ID3D11DeviceContext *co
 }
 
 static void window_quad_set_viewport(ID3D11DeviceContext *context, UINT width, UINT height,
-	uint32_t window_w, uint32_t window_h, float aspect_ratio)
+	uint32_t constrain_w, uint32_t constrain_h, uint32_t window_w, uint32_t window_h, float aspect_ratio)
 {
+	if (constrain_w == 0 || constrain_h == 0 || window_w < constrain_w || window_h < constrain_h) {
+		constrain_w = window_w;
+		constrain_h = window_h;
+	}
+
 	D3D11_VIEWPORT viewport = {0};
-	viewport.Width = (float) window_w;
+	viewport.Width = (float) constrain_w;
 	viewport.Height = viewport.Width / aspect_ratio;
 
-	if ((float) window_h / (float) height < ((float) window_w / aspect_ratio) / (float) width) {
-		viewport.Height = (float) window_h;
+	if ((float) constrain_h / (float) height < ((float) constrain_w / aspect_ratio) / (float) width) {
+		viewport.Height = (float) constrain_h;
 		viewport.Width = viewport.Height * aspect_ratio;
 	}
 
@@ -205,8 +210,8 @@ static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *conte
 }
 
 HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11DeviceContext *context,
-	const void *image, uint32_t width, uint32_t height, ID3D11Texture2D *dest, float aspect_ratio,
-	enum filter filter)
+	const void *image, uint32_t width, uint32_t height, uint32_t constrain_w, uint32_t constrain_h,
+	ID3D11Texture2D *dest, float aspect_ratio, enum filter filter)
 {
 	HRESULT e = window_quad_refresh_resource(ctx, device, width, height);
 	if (e != S_OK) return e;
@@ -216,7 +221,9 @@ HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11
 
 	D3D11_TEXTURE2D_DESC desc = {0};
 	ID3D11Texture2D_GetDesc(dest, &desc);
-	window_quad_set_viewport(context, ctx->width, ctx->height, desc.Width, desc.Height, aspect_ratio);
+
+	window_quad_set_viewport(context, ctx->width, ctx->height, constrain_w, constrain_h,
+		desc.Width, desc.Height, aspect_ratio);
 
 	ID3D11Resource *resource = NULL;
 	e = ID3D11Texture2D_QueryInterface(dest, &IID_ID3D11Resource, &resource);
