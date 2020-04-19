@@ -313,7 +313,8 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 			if (MenuItem("Load ROM", "Ctrl+O"))
 				CMP.nav = NAV_OPEN_ROM;
 
-			MenuItem("Unload ROM");
+			if (MenuItem("Unload ROM"))
+				NES_LoadCart(args->nes, NULL, 0, NULL, 0, NULL);
 
 			Separator();
 
@@ -398,6 +399,9 @@ void ui_root(const struct ui_args *args, void (*event_callback)(struct ui_event 
 		}
 
 		if (BeginMenu("Audio", true)) {
+			if (MenuItem(args->cfg->mute ? "Unmute" : "Mute", "Ctrl+M"))
+				event.cfg.mute = !event.cfg.mute;
+
 			if (MenuItem("Stereo", "", args->cfg->stereo, true)) {
 				event.cfg.stereo = !event.cfg.stereo;
 				NES_SetStereo(args->nes, event.cfg.stereo);

@@ -264,8 +264,15 @@ void NES_LoadCart(NES *ctx, const void *rom, size_t romSize, const void *sram, s
 	if (ctx->cart)
 		cart_destroy(&ctx->cart);
 
-	cart_create(rom, romSize, sram, sramSize, hdr, &ctx->cart);
-	NES_Reset(ctx, true);
+	if (rom) {
+		cart_create(rom, romSize, sram, sramSize, hdr, &ctx->cart);
+		NES_Reset(ctx, true);
+	}
+}
+
+bool NES_CartLoaded(NES *ctx)
+{
+	return ctx->cart;
 }
 
 uint32_t NES_NextFrame(NES *ctx)

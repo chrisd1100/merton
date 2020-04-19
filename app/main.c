@@ -77,7 +77,8 @@ static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
-	audio_queue(ctx->audio, frames, count);
+	if (!ctx->cfg.mute)
+		audio_queue(ctx->audio, frames, count);
 }
 
 static void main_nes_log(const char *str)
@@ -312,7 +313,7 @@ int32_t main(int32_t argc, char **argv)
 
 			ui_begin(window_get_dpi_scale(ctx.window), device, context, back_buffer);
 			ui_draw(main_ui_root, &ctx);
-			ui_render(ctx.cycles == 0 && !ctx.paused);
+			ui_render(!NES_CartLoaded(ctx.nes));
 
 			window_release_back_buffer(back_buffer);
 			window_present(ctx.window, main_sync_to_60(&ctx));

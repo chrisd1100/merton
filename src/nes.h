@@ -75,6 +75,7 @@ typedef void (*NES_LogCallback)(const char *msg);
 void NES_Create(NES_VideoCallback videoCallback, NES_AudioCallback audioCallback, const void *opaque,
 	uint32_t sampleRate, bool stereo, NES **nes);
 void NES_LoadCart(NES *ctx, const void *rom, size_t romSize, const void *sram, size_t sramSize, const NES_CartDesc *hdr);
+bool NES_CartLoaded(NES *ctx);
 uint32_t NES_NextFrame(NES *ctx);
 void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pressed);
 void NES_ControllerState(NES *nes, uint8_t player, uint8_t state);

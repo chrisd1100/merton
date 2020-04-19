@@ -33,6 +33,7 @@ struct config {
 	} overscan;
 
 	// Audio
+	bool mute;
 	bool stereo;
 	int32_t sample_rate;
 	struct {
@@ -55,6 +56,7 @@ struct config {
 	CONFIG_SHADER_NONE, \
 	{16, 15}, \
 	{8, 0, 8, 0}, \
+	false, \
 	true, \
 	44100, \
 	{true, true, true, true, true, true, true, true}, \
