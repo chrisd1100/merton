@@ -397,6 +397,9 @@ void window_set_windowed(struct window *ctx, uint32_t width, uint32_t height)
 
 	SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
 	SetWindowPos(ctx->hwnd, NULL, x, y, width, height, SWP_FRAMECHANGED);
+
+	PostMessage(ctx->hwnd, WM_SETICON, ICON_BIG, GetClassLongPtr(ctx->hwnd, GCLP_HICON));
+	PostMessage(ctx->hwnd, WM_SETICON, ICON_SMALL, GetClassLongPtr(ctx->hwnd, GCLP_HICONSM));
 }
 
 bool window_is_fullscreen(struct window *ctx)
