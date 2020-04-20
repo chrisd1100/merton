@@ -262,7 +262,7 @@ void ui_destroy(void)
 #define COLOR_BUTTON  0xFF444444
 #define COLOR_BORDER  0xF6333333
 #define COLOR_DARK_BG 0xF6222222
-#define COLOR_MSG_BG  0x88222222
+#define COLOR_MSG_BG  0xD0222222
 #define COLOR_HOVER   0xF6666666
 
 #define PACK_ASPECT(x, y) (((x) << 8) | (y))
