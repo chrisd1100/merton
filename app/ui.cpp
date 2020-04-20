@@ -511,11 +511,39 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 	}
 }
 
-void ui_component_root(const struct ui_args *args,
-	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
+static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *event)
 {
 	ImGuiIO &io = GetIO();
 
+	if (io.KeysDown[SCANCODE_ESCAPE]) {
+		CMP.nav ^= NAV_MENU;
+
+		if (!(CMP.nav & NAV_MENU))
+			CMP.nav = NAV_NONE;
+	}
+
+	if (io.KeysDown[SCANCODE_W] && io.KeyCtrl)
+		event->cfg.fullscreen = !event->cfg.fullscreen;
+
+	if (io.KeysDown[SCANCODE_O] && io.KeyCtrl)
+		CMP.nav ^= NAV_OPEN_ROM;
+
+	if (io.KeysDown[SCANCODE_P] && io.KeyCtrl)
+		event->type = UI_EVENT_PAUSE;
+
+	if (io.KeysDown[SCANCODE_R] && io.KeyCtrl)
+		NES_Reset(args->nes, false);
+
+	if (io.KeysDown[SCANCODE_T] && io.KeyCtrl)
+		NES_Reset(args->nes, true);
+
+	if (io.KeysDown[SCANCODE_M] && io.KeyCtrl)
+		event->cfg.mute = !event->cfg.mute;
+}
+
+void ui_component_root(const struct ui_args *args,
+	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
+{
 	struct ui_event event = {};
 	event.type = UI_EVENT_NONE;
 	event.cfg = *args->cfg;
@@ -548,11 +576,7 @@ void ui_component_root(const struct ui_args *args,
 	PushStyleVar(ImGuiStyleVar_FramePadding,     VEC(10, 6));
 	PushStyleVar(ImGuiStyleVar_WindowPadding,    VEC(10, 10));
 
-	if (io.KeysDown[SCANCODE_ESCAPE])
-		CMP.nav ^= NAV_MENU;
-
-	if (!(CMP.nav & NAV_MENU))
-		CMP.nav = NAV_NONE;
+	ui_component_hotkeys(args, &event);
 
 	if (CMP.nav & NAV_MENU)
 		ui_menu(args, &event);
@@ -562,9 +586,6 @@ void ui_component_root(const struct ui_args *args,
 
 	PopStyleVar(8);
 	PopStyleColor(18);
-
-	if (io.KeysDown[SCANCODE_W] && io.KeyCtrl)
-		event.cfg.fullscreen = !event.cfg.fullscreen;
 
 	if (memcmp(args->cfg, &event.cfg, sizeof(struct config)))
 		event.type = UI_EVENT_CONFIG;
