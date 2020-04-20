@@ -262,6 +262,7 @@ void ui_destroy(void)
 #define COLOR_BUTTON  0xFF444444
 #define COLOR_BORDER  0xF6333333
 #define COLOR_DARK_BG 0xF6222222
+#define COLOR_MSG_BG  0xE0222222
 #define COLOR_HOVER   0xF6666666
 
 #define PACK_ASPECT(x, y) (((x) << 8) | (y))
@@ -296,12 +297,16 @@ void ui_component_message(const char *msg, int32_t timeout)
 static void ui_message(void)
 {
 	if (CMP.ts != 0 && time_diff(CMP.ts, time_stamp()) < CMP.timeout) {
+		PushStyleColor(ImGuiCol_WindowBg, COLOR_MSG_BG);
+
 		SetNextWindowPos(VEC(18, 18));
 
 		if (Begin("TIMED_MESSAGE", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
 			TextUnformatted(CMP.msg);
 			End();
 		}
+
+		PopStyleColor(1);
 	}
 }
 
@@ -593,7 +598,7 @@ void ui_component_root(const struct ui_args *args,
 	PushStyleColor(ImGuiCol_ButtonActive,     COLOR_BUTTON);
 
 	PushStyleVar(ImGuiStyleVar_ScrollbarSize,    X(12));
-	PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
+	PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
 	PushStyleVar(ImGuiStyleVar_ChildBorderSize,  1);
 	PushStyleVar(ImGuiStyleVar_PopupBorderSize,  1);
 	PushStyleVar(ImGuiStyleVar_WindowRounding,   0);
