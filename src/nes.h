@@ -53,7 +53,6 @@ typedef struct {
 	NES_Mirror mirror;
 	uint16_t mapper;
 	uint8_t submapper;
-	bool trainer;
 	bool battery;
 	bool useRAMSizes;
 	struct {

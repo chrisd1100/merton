@@ -386,7 +386,7 @@ static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 	hdr->chr = rom[5];
 	hdr->mirror = (rom[6] & 0x08) ? NES_MIRROR_FOUR : (rom[6] & 0x01) ? NES_MIRROR_VERTICAL : NES_MIRROR_HORIZONTAL;
 	hdr->battery = rom[6] & 0x02;
-	hdr->trainer = rom[6] & 0x04;
+	hdr->offset += (rom[6] & 0x04) ? 512: 0; // Trainer
 	hdr->mapper = rom[6] >> 4;
 
 	// modern iNES
@@ -421,17 +421,14 @@ static void cart_log_desc(NES_CartDesc *hdr)
 	NES_Log("CHR Size: %uKB", KB(hdr->chr * 0x2000));
 	NES_Log("Mirror: %s", hdr->mirror == NES_MIRROR_VERTICAL ? "Vertical" :
 		hdr->mirror == NES_MIRROR_HORIZONTAL ? "Horizontal" : "Four Screen");
-	NES_Log("Trainer: %s", hdr->trainer ? "true" : "false");
 	NES_Log("PRG RAM Battery: %s", hdr->battery ? "true" : "false");
 
 	if (hdr->submapper != 0)
 		NES_Log("Submapper: %x", hdr->submapper);
 
 	if (hdr->useRAMSizes) {
-		NES_Log("PRG RAM (volatile): %uKB", KB(hdr->prgSize.wram));
-		NES_Log("PRG RAM (non-volatile): %uKB", KB(hdr->prgSize.sram));
-		NES_Log("CHR RAM (volatile): %uKB", KB(hdr->chrSize.wram));
-		NES_Log("CHR RAM (non-volatile): %uKB", KB(hdr->chrSize.sram));
+		NES_Log("PRG RAM (Vol / Non-vol): %uKB / %uKB", KB(hdr->prgSize.wram), KB(hdr->prgSize.sram));
+		NES_Log("CHR RAM (Vol / Non-vol): %uKB / %uKB", KB(hdr->chrSize.wram), KB(hdr->chrSize.sram));
 	}
 }
 
@@ -481,8 +478,7 @@ void cart_create(const void *rom, size_t rom_size,
 	ctx->prg.ram.size = ctx->prg.wram + ctx->prg.sram;
 	ctx->chr.ram.size = ctx->chr.wram + ctx->chr.sram;
 
-	uint16_t trainer = ctx->hdr.trainer ? 512 : 0;
-	if (ctx->hdr.offset + trainer + ctx->prg.rom.size > rom_size)
+	if (ctx->hdr.offset + ctx->prg.rom.size > rom_size)
 		assert(!"ROM is not large enough to support PRG ROM size");
 
 	ctx->prg.ram.data = calloc(ctx->prg.ram.size, 1);
@@ -490,7 +486,7 @@ void cart_create(const void *rom, size_t rom_size,
 		memcpy(ctx->prg.ram.data, sram, sram_size);
 
 	ctx->prg.rom.data = calloc(ctx->prg.rom.size, 1);
-	memcpy(ctx->prg.rom.data, (uint8_t *) rom + ctx->hdr.offset + trainer, ctx->prg.rom.size);
+	memcpy(ctx->prg.rom.data, (uint8_t *) rom + ctx->hdr.offset, ctx->prg.rom.size);
 	cart_map(&ctx->prg, ROM, 0x8000, 0, 32);
 
 	ctx->chr.ram.data = calloc(ctx->chr.ram.size, 1);
@@ -498,7 +494,7 @@ void cart_create(const void *rom, size_t rom_size,
 	cart_map_ciram(&ctx->chr, ctx->hdr.mirror);
 
 	if (ctx->chr.rom.size > 0) {
-		int32_t chr_size = (int32_t) rom_size - (int32_t) ctx->hdr.offset - trainer - (int32_t) ctx->prg.rom.size;
+		int32_t chr_size = (int32_t) rom_size - (int32_t) ctx->hdr.offset - (int32_t) ctx->prg.rom.size;
 
 		if (chr_size <= 0)
 			assert(!"ROM is not large enough to support CHR ROM size");
@@ -507,7 +503,7 @@ void cart_create(const void *rom, size_t rom_size,
 			chr_size = (int32_t) ctx->chr.rom.size;
 
 		ctx->chr.rom.data = calloc(chr_size, 1);
-		memcpy(ctx->chr.rom.data, (uint8_t *) rom + ctx->hdr.offset + trainer + ctx->prg.rom.size, chr_size);
+		memcpy(ctx->chr.rom.data, (uint8_t *) rom + ctx->hdr.offset + ctx->prg.rom.size, chr_size);
 	}
 	cart_map(&ctx->chr, ctx->chr.rom.size > 0 ? ROM : RAM, 0x0000, 0, 8);
 

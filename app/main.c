@@ -10,6 +10,7 @@
 #include "config.h"
 
 #include "../src/nes.h"
+#include "assets/db/nes20db.h"
 
 #define SRAM_FILE_NAME_LEN 16
 
@@ -199,25 +200,62 @@ static void main_audio_adjustment(struct main *ctx)
 	}
 }
 
+static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc *desc)
+{
+	for (uint32_t x = 0; x < NES_DB_ROWS; x++) {
+		const uint8_t *row = NES_DB + x * NES_DB_ROW_SIZE;
+
+		if (crc32 == *((uint32_t *) row)) {
+			printf("[merton] %02X found in database\n", crc32);
+			desc->offset = offset;
+			desc->prg = row[4];
+			desc->chr = row[9];
+			desc->mapper = *((uint16_t *) (row + 14));
+			desc->submapper = row[16] & 0xF;
+			desc->mirror = (row[16] & 0x10) ? NES_MIRROR_VERTICAL :
+				(row[16] & 0x20) ? NES_MIRROR_FOUR : NES_MIRROR_HORIZONTAL;
+			desc->battery = row[16] & 0x40;
+			desc->prgSize.wram = *((uint16_t *) (row + 5)) * 8;
+			desc->prgSize.sram = *((uint16_t *) (row + 7)) * 8;
+			desc->chrSize.wram = *((uint16_t *) (row + 10)) * 8;
+			desc->chrSize.sram = *((uint16_t *) (row + 12)) * 8;
+
+			desc->useRAMSizes = desc->prgSize.wram > 0 || desc->prgSize.sram > 0 ||
+				desc->chrSize.wram > 0 || desc->chrSize.sram > 0;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static bool main_load_rom(struct main *ctx, const char *name)
 {
 	size_t rom_size = 0;
-	void *rom = fs_read(name, &rom_size);
+	uint8_t *rom = fs_read(name, &rom_size);
 
-	if (rom) {
-		ui_component_message("Press ESC to access the menu", 3000);
+	if (rom && rom_size > 16) {
+		uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
 
-		uint32_t crc32 = crypto_crc32(rom, rom_size);
-		printf("[merton] --- (%02X) %s ---\n", crc32, name);
-		snprintf(ctx->sram_file, SRAM_FILE_NAME_LEN, "%02X.sav", crc32);
+		if (rom_size > offset) {
+			ui_component_message("Press ESC to access the menu", 3000);
+			printf("[merton] --- %s ---\n", name);
 
-		size_t sram_size = 0;
-		void *sram = fs_read(fs_path("save", ctx->sram_file), &sram_size);
-		NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, NULL);
-		free(sram);
-		free(rom);
+			uint32_t crc32 = crypto_crc32(rom + offset, rom_size - offset);
+			snprintf(ctx->sram_file, SRAM_FILE_NAME_LEN, "%02X.sav", crc32);
 
-		return true;
+			NES_CartDesc desc = {0};
+			bool found_in_db = main_get_desc_from_db(offset, crc32, &desc);
+
+			size_t sram_size = 0;
+			void *sram = fs_read(fs_path("save", ctx->sram_file), &sram_size);
+			NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
+			free(sram);
+			free(rom);
+
+			return true;
+		}
 	}
 
 	return false;
