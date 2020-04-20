@@ -41,6 +41,7 @@ struct ui_event {
 
 void ui_component_root(const struct ui_args *args,
 	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque);
+void ui_component_message(const char *msg, int32_t timeout);
 void ui_component_destroy(void);
 
 #ifdef __cplusplus

@@ -205,6 +205,8 @@ static bool main_load_rom(struct main *ctx, const char *name)
 	void *rom = fs_read(name, &rom_size);
 
 	if (rom) {
+		ui_component_message("Press ESC to access the menu", 3000);
+
 		uint32_t crc32 = crypto_crc32(rom, rom_size);
 		printf("[merton] --- (%02X) %s ---\n", crc32, name);
 		snprintf(ctx->sram_file, SRAM_FILE_NAME_LEN, "%02X.sav", crc32);

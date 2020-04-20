@@ -278,7 +278,32 @@ struct component_state {
 	uint32_t fi_n;
 	bool refreshed;
 	const char *dir;
+
+	int64_t ts;
+	int32_t timeout;
+	char *msg;
 } CMP;
+
+void ui_component_message(const char *msg, int32_t timeout)
+{
+	free(CMP.msg);
+	CMP.msg = _strdup(msg);
+
+	CMP.ts = time_stamp();
+	CMP.timeout = timeout;
+}
+
+static void ui_message(void)
+{
+	if (CMP.ts != 0 && time_diff(CMP.ts, time_stamp()) < CMP.timeout) {
+		SetNextWindowPos(VEC(18, 18));
+
+		if (Begin("TIMED_MESSAGE", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
+			TextUnformatted(CMP.msg);
+			End();
+		}
+	}
+}
 
 static void ui_open_rom(struct ui_event *event)
 {
@@ -289,10 +314,7 @@ static void ui_open_rom(struct ui_event *event)
 	SetNextWindowPos(ImVec2(padding_h, padding_v + X(14)));
 	SetNextWindowSize(ImVec2(io.DisplaySize.x - padding_h * 2.0f, io.DisplaySize.y - padding_v * 2.0f));
 
-	if (Begin("OPEN_ROM", NULL, ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-		ImGuiWindowFlags_NoSavedSettings)) {
-
+	if (Begin("OPEN_ROM", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
 		if (Button("Close"))
 			CMP.nav = NAV_NONE;
 
@@ -519,6 +541,7 @@ static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *ev
 
 	if (io.KeysDown[SCANCODE_ESCAPE]) {
 		CMP.nav ^= NAV_MENU;
+		CMP.ts = 0;
 
 		if (!(CMP.nav & NAV_MENU))
 			CMP.nav = NAV_NONE;
@@ -589,6 +612,8 @@ void ui_component_root(const struct ui_args *args,
 	if (CMP.nav & NAV_OPEN_ROM)
 		ui_open_rom(&event);
 
+	ui_message();
+
 	PopStyleVar(8);
 	PopStyleColor(18);
 
@@ -603,6 +628,8 @@ void ui_component_destroy(void)
 {
 	fs_free_list(&CMP.fi, CMP.fi_n);
 	CMP.fi_n = 0;
+
+	free(CMP.msg);
 
 	memset(&CMP, 0, sizeof(struct component_state));
 }
