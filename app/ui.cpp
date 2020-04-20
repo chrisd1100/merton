@@ -97,7 +97,7 @@ void ui_input(struct window_msg *wmsg)
 				io.MousePos = ImVec2((float) wmsg->mouseMotion.x, (float) wmsg->mouseMotion.y);
 			break;
 
-		case WINDOW_MSG_KEYBOARD:
+		case WINDOW_MSG_KEYBOARD: {
 			enum scancode sc = wmsg->keyboard.scancode;
 
 			if (wmsg->keyboard.pressed && sc < IM_ARRAYSIZE(io.KeysDown))
@@ -116,19 +116,29 @@ void ui_input(struct window_msg *wmsg)
 				io.KeySuper = wmsg->keyboard.pressed;
 
 			break;
+		}
+		default:
+			break;
 	}
 }
 
 static void ui_impl_destroy(void)
 {
-	ImGui_ImplDX11_Shutdown();
+	#if defined(_WIN32)
+		ImGui_ImplDX11_Shutdown();
+	#elif defined(__APPLE__)
+	#endif
 }
 
 static bool ui_impl_init(OpaqueDevice *device, OpaqueContext *context)
 {
-	bool r = device != NULL && context != NULL &&
-		ImGui_ImplDX11_Init((ID3D11Device *) device, (ID3D11DeviceContext *) context) &&
-		ImGui_ImplDX11_CreateDeviceObjects();
+	#if defined(_WIN32)
+		bool r = device != NULL && context != NULL &&
+			ImGui_ImplDX11_Init((ID3D11Device *) device, (ID3D11DeviceContext *) context) &&
+			ImGui_ImplDX11_CreateDeviceObjects();
+	#elif defined(__APPLE__)
+		bool r = false;
+	#endif
 
 	if (!r || !GetIO().Fonts->TexID) {
 		ui_impl_destroy();
@@ -165,13 +175,17 @@ bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 	}
 
 	UI.texture = texture;
-	ID3D11Texture2D *d3d11texture = (ID3D11Texture2D *) texture;
 
-	D3D11_TEXTURE2D_DESC desc = {0};
-	d3d11texture->GetDesc(&desc);
+	#if defined(_WIN32)
+		ID3D11Texture2D *d3d11texture = (ID3D11Texture2D *) texture;
 
-	UI.width = (float) desc.Width;
-	UI.height = (float) desc.Height;
+		D3D11_TEXTURE2D_DESC desc = {0};
+		d3d11texture->GetDesc(&desc);
+
+		UI.width = (float) desc.Width;
+		UI.height = (float) desc.Height;
+	#elif defined(__APPLE__)
+	#endif
 
 	return true;
 }
@@ -207,23 +221,26 @@ void ui_render(bool clear)
 	if (!UI.device || !UI.context)
 		return;
 
-	ID3D11RenderTargetView *rtv = NULL;
-	ID3D11Device *device = (ID3D11Device *) UI.device;
-	HRESULT e = device->CreateRenderTargetView((ID3D11Texture2D *) UI.texture, NULL, &rtv);
+	#if defined(_WIN32)
+		ID3D11RenderTargetView *rtv = NULL;
+		ID3D11Device *device = (ID3D11Device *) UI.device;
+		HRESULT e = device->CreateRenderTargetView((ID3D11Texture2D *) UI.texture, NULL, &rtv);
 
-	if (e == S_OK) {
-		ID3D11DeviceContext *context = (ID3D11DeviceContext *) UI.context;
+		if (e == S_OK) {
+			ID3D11DeviceContext *context = (ID3D11DeviceContext *) UI.context;
 
-		if (clear) {
-			FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-			context->ClearRenderTargetView(rtv, clear_color);
+			if (clear) {
+				FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+				context->ClearRenderTargetView(rtv, clear_color);
+			}
+
+			context->OMSetRenderTargets(1, &rtv, NULL);
+
+			ImGui_ImplDX11_RenderDrawData(UI.draw_data);
+			rtv->Release();
 		}
-
-		context->OMSetRenderTargets(1, &rtv, NULL);
-
-		ImGui_ImplDX11_RenderDrawData(UI.draw_data);
-		rtv->Release();
-	}
+	#elif defined(__APPLE__)
+	#endif
 }
 
 void ui_destroy(void)
@@ -499,7 +516,7 @@ void ui_component_root(const struct ui_args *args,
 {
 	ImGuiIO &io = GetIO();
 
-	struct ui_event event = {0};
+	struct ui_event event = {};
 	event.type = UI_EVENT_NONE;
 	event.cfg = *args->cfg;
 

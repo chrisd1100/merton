@@ -11,23 +11,19 @@ OBJS = \
 	src/cpu.o \
 	src/ppu.o \
 	app/main.o \
+	app/ui.o \
 	app/crypto.o \
 	app/unix/fs.o \
 	app/unix/time.o
 
-CFLAGS = \
+FLAGS = \
 	-Iapp \
 	-Wall \
 	-Wextra \
-	-std=c99 \
 	-D_POSIX_C_SOURCE=200112L \
 	-Wno-unused-value \
 	-Wno-unused-result \
 	-Wno-unused-parameter
-
-CXXFLAGS = \
-	$(CFLAGS) \
-	-std=c++11
 
 ifeq ($(UNAME), Linux)
 
@@ -51,6 +47,7 @@ OBJS := $(OBJS) \
 	app/unix/macos/audio.o
 
 LIBS = \
+	-lc++ \
 	-framework AppKit \
 	-framework QuartzCore \
 	-framework Metal \
@@ -61,11 +58,17 @@ endif
 LD_FLAGS = \
 
 ifdef DEBUG
-CFLAGS := $(CFLAGS) -O0 -g
+FLAGS := $(FLAGS) -O0 -g
 else
-CFLAGS := $(CFLAGS) -fvisibility=hidden -O3 -flto
+FLAGS := $(FLAGS) -fvisibility=hidden -O3 -flto
 LD_FLAGS := $(LD_FLAGS) -flto
 endif
+
+CFLAGS = $(FLAGS) \
+	-std=c99
+
+CXXFLAGS = $(FLAGS) \
+	-std=c++11
 
 LD_COMMAND = \
 	$(CC) \
