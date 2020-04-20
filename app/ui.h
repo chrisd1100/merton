@@ -23,11 +23,13 @@ enum ui_event_type {
 	UI_EVENT_QUIT     = 2,
 	UI_EVENT_PAUSE    = 3,
 	UI_EVENT_OPEN_ROM = 4,
+	UI_EVENT_RESET    = 5,
 };
 
 struct ui_args {
 	const struct config *cfg;
 	bool paused;
+	bool show_menu;
 	NES *nes;
 };
 

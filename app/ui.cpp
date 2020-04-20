@@ -364,7 +364,9 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 				if (MenuItem("Fullscreen", "Ctrl+W", args->cfg->fullscreen, true))
 					event->cfg.fullscreen = !event->cfg.fullscreen;
 
-				MenuItem("Reset Size");
+				if (MenuItem("Reset"))
+					event->type = UI_EVENT_RESET;
+
 				ImGui::EndMenu();
 			}
 			if (BeginMenu("Frame Size", true)) {
@@ -577,6 +579,9 @@ void ui_component_root(const struct ui_args *args,
 	PushStyleVar(ImGuiStyleVar_WindowPadding,    VEC(10, 10));
 
 	ui_component_hotkeys(args, &event);
+
+	if (args->show_menu)
+		CMP.nav = NAV_MENU;
 
 	if (CMP.nav & NAV_MENU)
 		ui_menu(args, &event);

@@ -24,6 +24,7 @@ struct main {
 	struct config cfg;
 	bool running;
 	bool paused;
+	bool loaded;
 
 	// Video
 	uint32_t cropped[NES_FRAME_WIDTH * NES_FRAME_HEIGHT];
@@ -198,7 +199,7 @@ static void main_audio_adjustment(struct main *ctx)
 	}
 }
 
-static void main_load_rom(struct main *ctx, const char *name)
+static bool main_load_rom(struct main *ctx, const char *name)
 {
 	size_t rom_size = 0;
 	void *rom = fs_read(name, &rom_size);
@@ -213,7 +214,11 @@ static void main_load_rom(struct main *ctx, const char *name)
 		NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, NULL);
 		free(sram);
 		free(rom);
+
+		return true;
 	}
+
+	return false;
 }
 
 static void main_save_sram(struct main *ctx)
@@ -261,7 +266,7 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 					window_set_fullscreen(ctx->window);
 				}
 
-				event->cfg.fullscreen = ctx->cfg.fullscreen = window_is_fullscreen(ctx->window);
+				event->cfg.fullscreen = window_is_fullscreen(ctx->window);
 			}
 
 			ctx->cfg = event->cfg;
@@ -276,6 +281,10 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			main_save_sram(ctx);
 			main_load_rom(ctx, event->rom_name);
 			break;
+		case UI_EVENT_RESET:
+			window_set_windowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
+			ctx->cfg.fullscreen = window_is_fullscreen(ctx->window);
+			break;
 		default:
 			break;
 	}
@@ -289,6 +298,8 @@ static void main_ui_root(void *opaque)
 	args.nes = ctx->nes;
 	args.cfg = &ctx->cfg;
 	args.paused = ctx->paused;
+	args.show_menu = !ctx->loaded;
+	ctx->loaded = true;
 
 	ui_component_root(&args, main_ui_event, ctx);
 }
@@ -312,7 +323,7 @@ int32_t main(int32_t argc, char **argv)
 	ui_create();
 
 	if (argc >= 2)
-		main_load_rom(&ctx, argv[1]);
+		ctx.loaded = main_load_rom(&ctx, argv[1]);
 
 	while (ctx.running) {
 		window_poll(ctx.window);
