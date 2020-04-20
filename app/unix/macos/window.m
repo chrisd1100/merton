@@ -97,6 +97,28 @@ uint32_t window_refresh_rate(struct window *ctx)
 	return 60;
 }
 
+float window_get_dpi_scale(struct window *ctx)
+{
+	return 1.0f;
+}
+
+void window_set_fullscreen(struct window *ctx)
+{
+	if (!window_is_fullscreen(ctx))
+		[ctx->nswindow toggleFullScreen:ctx->nswindow];
+}
+
+void window_set_windowed(struct window *ctx, uint32_t width, uint32_t height)
+{
+	if (window_is_fullscreen(ctx))
+		[ctx->nswindow toggleFullScreen:ctx->nswindow];
+}
+
+bool window_is_fullscreen(struct window *ctx)
+{
+	return ([ctx->nswindow styleMask] & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
+}
+
 void window_present(struct window *ctx, uint32_t num_frames)
 {
 	for (uint32_t x = 0; x < num_frames; x++)
@@ -108,6 +130,28 @@ void window_present(struct window *ctx, uint32_t num_frames)
 	[cb presentDrawable:drawable];
 	[cb commit];
 	[cb release];
+}
+
+OpaqueDevice *window_get_device(struct window *ctx)
+{
+	return ctx->cq.device;
+}
+
+OpaqueContext *window_get_context(struct window *ctx)
+{
+	return ctx->cq;
+}
+
+OpaqueTexture *window_get_back_buffer(struct window *ctx)
+{
+	id<CAMetalDrawable> drawable = [ctx->layer nextDrawable];
+
+	return drawable;
+}
+
+void window_release_back_buffer(OpaqueTexture *texture)
+{
+	[(id<CAMetalDrawable>) texture release];
 }
 
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
