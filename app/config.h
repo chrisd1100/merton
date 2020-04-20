@@ -13,6 +13,7 @@ enum config_shader {
 struct config {
 	// System
 	bool bg_pause;
+	bool reduce_latency;
 
 	// Video
 	bool fullscreen;
@@ -42,6 +43,7 @@ struct config {
 };
 
 #define CONFIG_DEFAULTS { \
+	true, \
 	true, \
 	false, \
 	3, \

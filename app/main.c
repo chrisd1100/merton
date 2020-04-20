@@ -327,7 +327,13 @@ int32_t main(int32_t argc, char **argv)
 	if (argc >= 2)
 		ctx.loaded = main_load_rom(&ctx, argv[1]);
 
+	double wait = 0.0f;
+
 	while (ctx.running) {
+		if (ctx.cfg.reduce_latency)
+			time_sleep(lrint(wait));
+
+		int64_t ts = time_stamp();
 		window_poll(ctx.window);
 
 		if (window_is_foreground(ctx.window) || !ctx.cfg.bg_pause) {
@@ -349,6 +355,7 @@ int32_t main(int32_t argc, char **argv)
 			ui_render(!NES_CartLoaded(ctx.nes));
 
 			window_release_back_buffer(back_buffer);
+			wait = floor(1000.0 / 60.0 - time_diff(ts, time_stamp()));
 			window_present(ctx.window, main_sync_to_60(&ctx));
 
 		} else {

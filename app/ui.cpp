@@ -378,6 +378,9 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 			if (MenuItem("Background Pause", "", args->cfg->bg_pause))
 				event->cfg.bg_pause = !event->cfg.bg_pause;
 
+			if (MenuItem("Reduce Latency", "", args->cfg->reduce_latency))
+				event->cfg.reduce_latency = !event->cfg.reduce_latency;
+
 			Separator();
 
 			if (MenuItem("Quit"))
@@ -396,6 +399,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 				ImGui::EndMenu();
 			}
+
 			if (BeginMenu("Frame Size", true)) {
 				if (MenuItem("1x", "", args->cfg->frame_size == 1, true))
 					event->cfg.frame_size = 1;
