@@ -188,7 +188,7 @@ static void main_audio_adjustment(struct main *ctx)
 		int64_t now = time_stamp();
 
 		if (ctx->ts != 0) {
-			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
+			int32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
 			if (abs(cycles_sec - NES_CLOCK) < 5000)
 				NES_SetAPUClock(ctx->nes, cycles_sec + (queued >= audio_buffer ? CLOCK_UP : CLOCK_DOWN));
 		}

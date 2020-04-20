@@ -32,7 +32,7 @@ static CVReturn window_display_link(CVDisplayLinkRef displayLink, const CVTimeSt
 }
 
 enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const void *opaque,
-	uint32_t width, uint32_t height, struct window **window)
+	uint32_t width, uint32_t height, bool fullscreen, struct window **window)
 {
 	enum lib_status r = LIB_OK;
 	struct window *ctx = *window = calloc(1, sizeof(struct window));
@@ -99,7 +99,8 @@ uint32_t window_refresh_rate(struct window *ctx)
 
 void window_present(struct window *ctx, uint32_t num_frames)
 {
-	dispatch_semaphore_wait(ctx->semaphore, DISPATCH_TIME_FOREVER);
+	for (uint32_t x = 0; x < num_frames; x++)
+		dispatch_semaphore_wait(ctx->semaphore, DISPATCH_TIME_FOREVER);
 
 	id<CAMetalDrawable> drawable = [ctx->layer nextDrawable];
 	id<MTLCommandBuffer> cb = [ctx->cq commandBuffer];
@@ -110,7 +111,7 @@ void window_present(struct window *ctx, uint32_t num_frames)
 }
 
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
-	uint32_t height, float aspect_ratio)
+	uint32_t height, uint32_t constrain_w, uint32_t constrain_h, float aspect_ratio, enum filter filter)
 {
 	if (!ctx->quad) {
 		if (!window_quad_init(ctx->cq.device, &ctx->quad))
@@ -118,7 +119,8 @@ void window_render_quad(struct window *ctx, const void *image, uint32_t width,
 	}
 
 	id<CAMetalDrawable> drawable = [ctx->layer nextDrawable];
-	window_quad_render(ctx->quad, ctx->cq, image, width, height, drawable.texture, aspect_ratio);
+	window_quad_render(ctx->quad, ctx->cq, image, width, height,
+		constrain_w, constrain_h, drawable.texture, aspect_ratio);
 	[drawable release];
 }
 

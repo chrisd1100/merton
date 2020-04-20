@@ -103,7 +103,8 @@ static void window_quad_refresh_resource(struct window_quad *ctx, id<MTLDevice> 
 	}
 }
 
-static MTLViewport window_quad_viewport(uint32_t width, uint32_t height, uint32_t window_w, uint32_t window_h, float aspect_ratio)
+static MTLViewport window_quad_viewport(uint32_t width, uint32_t height,
+	uint32_t constrain_w, uint32_t constrain_h, uint32_t window_w, uint32_t window_h, float aspect_ratio)
 {
 	MTLViewport vp = {0};
 	vp.width = (double) window_w;
@@ -120,7 +121,8 @@ static MTLViewport window_quad_viewport(uint32_t width, uint32_t height, uint32_
 	return vp;
 }
 
-static void window_quad_draw(struct window_quad *ctx, id<MTLCommandQueue> cq, id<MTLTexture> dest, float aspect_ratio)
+static void window_quad_draw(struct window_quad *ctx, id<MTLCommandQueue> cq,
+	uint32_t constrain_w, uint32_t constrain_h, id<MTLTexture> dest, float aspect_ratio)
 {
 	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
 	rpd.colorAttachments[0].texture = dest;
@@ -132,7 +134,8 @@ static void window_quad_draw(struct window_quad *ctx, id<MTLCommandQueue> cq, id
 	id<MTLRenderCommandEncoder> re = [cb renderCommandEncoderWithDescriptor:rpd];
 
 	[re setRenderPipelineState:ctx->pipeline];
-	[re setViewport:window_quad_viewport(ctx->width, ctx->height, dest.width, dest.height, aspect_ratio)];
+	[re setViewport:window_quad_viewport(ctx->width, ctx->height, constrain_w, constrain_h,
+		dest.width, dest.height, aspect_ratio)];
 	[re setVertexBuffer:ctx->vb offset:0 atIndex:0];
 	[re setFragmentTexture:ctx->texture atIndex:0];
 	[re setFragmentSamplerState:ctx->ss atIndex:0];
@@ -148,14 +151,15 @@ static void window_quad_draw(struct window_quad *ctx, id<MTLCommandQueue> cq, id
 }
 
 void window_quad_render(struct window_quad *ctx, id<MTLCommandQueue> cq,
-	const void *image, uint32_t width, uint32_t height, id<MTLTexture> dest, float aspect_ratio)
+	const void *image, uint32_t width, uint32_t height, uint32_t constrain_w,
+	uint32_t constrain_h, id<MTLTexture> dest, float aspect_ratio)
 {
 	window_quad_refresh_resource(ctx, cq.device, width, height);
 
 	MTLRegion region = MTLRegionMake2D(0, 0, width, height);
 	[ctx->texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:4 * width];
 
-	window_quad_draw(ctx, cq, dest, aspect_ratio);
+	window_quad_draw(ctx, cq, constrain_w, constrain_h, dest, aspect_ratio);
 }
 
 void window_quad_destroy(struct window_quad **quad)

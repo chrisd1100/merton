@@ -13,8 +13,7 @@ OBJS = \
 	app/main.o \
 	app/crypto.o \
 	app/unix/fs.o \
-	app/unix/time.o \
-	app/deps/imgui.o
+	app/unix/time.o
 
 CFLAGS = \
 	-Iapp \
