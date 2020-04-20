@@ -73,7 +73,7 @@ struct timer {
 
 struct pulse {
 	bool enabled;
-	int16_t output;
+	uint8_t output;
 
 	struct timer timer;
 	struct length len;
@@ -137,11 +137,9 @@ static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel, enum extaudio
 
 static void apu_pulse_output(struct pulse *p, enum extaudio ext)
 {
-	uint8_t level = (p->len.value == 0 || apu_sweep_mute(p, ext) ||
+	p->output = (p->len.value == 0 || apu_sweep_mute(p, ext) ||
 		DUTY_TABLE[p->duty_mode][p->duty_value] == 0) ? 0 :
 		p->env.constant_volume ? p->env.v : p->env.decay_level;
-
-	p->output = PULSE_TABLE[level];
 }
 
 static void apu_pulse_step_timer(struct pulse *p, enum extaudio ext)
@@ -162,7 +160,7 @@ static void apu_pulse_step_timer(struct pulse *p, enum extaudio ext)
 
 struct triangle {
 	bool enabled;
-	int16_t output;
+	uint8_t output;
 	bool pop;
 
 	struct timer timer;
@@ -189,7 +187,7 @@ static void apu_triangle_output(struct triangle *t)
 
 	uint8_t level = t->pop ? TRIANGLE_TABLE[t->duty_value] : 0;
 
-	t->output = TND_TABLE[level] * 3;
+	t->output = level;
 }
 
 static void apu_triangle_step_timer(struct triangle *t)
@@ -226,7 +224,7 @@ static void apu_triangle_step_counter(struct triangle *t)
 
 struct noise {
 	bool enabled;
-	int16_t output;
+	uint8_t output;
 
 	struct timer timer;
 	struct length len;
@@ -242,11 +240,9 @@ static const uint16_t NOISE_TABLE[] = {
 
 static void apu_noise_output(struct noise *n)
 {
-	uint8_t level =
+	n->output =
 		(n->len.value == 0 || (n->shift_register & 0x0001)) ? 0 :
 		n->env.constant_volume ? n->env.v : n->env.decay_level;
-
-	n->output = TND_TABLE[level] * 2;
 }
 
 static void apu_noise_step_timer(struct noise *n)
@@ -269,7 +265,7 @@ static void apu_noise_step_timer(struct noise *n)
 
 struct dmc {
 	bool enabled;
-	int16_t output;
+	uint8_t output;
 
 	struct timer timer;
 
@@ -306,7 +302,7 @@ static void apu_dmc_restart(struct dmc *d)
 
 static void apu_dmc_output(struct dmc *d)
 {
-	d->output = TND_TABLE[d->out.level];
+	d->output = d->out.level;
 }
 
 static void apu_dmc_fill_sample_buffer(struct dmc *d, NES *nes, struct cpu *cpu)
@@ -386,7 +382,7 @@ static void apu_vrc6_pulse_step_timer(struct pulse *p)
 		}
 
 		p->output = p->enabled && (p->duty_value <= p->env.decay_level || p->duty_mode) ?
-			PULSE_TABLE[p->env.v] : 0;
+			p->env.v : 0;
 
 	} else {
 		p->timer.value--;
@@ -403,7 +399,7 @@ static void apu_vrc6_saw_step_timer(struct pulse *p)
 
 		} else if ((p->duty_value & 1) == 0) {
 			p->env.v += p->env.decay_level;
-			p->output = p->enabled ? PULSE_TABLE[(p->env.v & 0xF8) >> 3] : 0;
+			p->output = p->enabled ? (p->env.v & 0xF8) >> 3 : 0;
 		}
 
 		if (++p->duty_value == 14)
@@ -952,32 +948,42 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	apu_vrc6_pulse_step_timer(&apu->vrc6[1]);
 	apu_vrc6_saw_step_timer(&apu->vrc6[2]);
 
-	//sample
+	//mix
 	int16_t l = 0, r = 0;
+	uint8_t t = 0, n = 0, d = 0, p0 = 0, p1 = 0, ext0 = 0, ext1 = 0, ext2 = 0;
 
 	if (apu->channels & NES_CHANNEL_PULSE_0)
-		l += apu->p[0].output;
+		p0 = apu->p[0].output;
 
 	if (apu->channels & NES_CHANNEL_PULSE_1)
-		r += apu->p[1].output;
+		p1 = apu->p[1].output;
 
 	if (apu->channels & NES_CHANNEL_EXT_0)
-		l += apu->mmc5[0].output + apu->vrc6[0].output;
+		ext0 = apu->mmc5[0].output + apu->vrc6[0].output;
 
 	if (apu->channels & NES_CHANNEL_EXT_1)
-		r += apu->mmc5[1].output + apu->vrc6[1].output;
+		ext1 = apu->mmc5[1].output + apu->vrc6[1].output;
 
 	if (apu->channels & NES_CHANNEL_EXT_2)
-		r += apu->vrc6[2].output;
+		ext2 = apu->vrc6[2].output;
 
 	if (apu->channels & NES_CHANNEL_TRIANGLE)
-		l += apu->t.output;
+		t = apu->t.output;
 
 	if (apu->channels & NES_CHANNEL_NOISE)
-		r += apu->n.output;
+		n = apu->n.output;
 
 	if (apu->channels & NES_CHANNEL_DMC)
-		l += apu->d.output;
+		d = apu->d.output;
+
+	if (apu->dac.stereo) {
+		l = TND_TABLE[3 * t + 2 * n] + PULSE_TABLE[p0] - PULSE_TABLE[ext0] - PULSE_TABLE[ext2];
+		r = TND_TABLE[d] + PULSE_TABLE[p1] - PULSE_TABLE[ext1];
+
+	} else {
+		l = TND_TABLE[3 * t + 2 * n + d] + PULSE_TABLE[p0 + p1] - PULSE_TABLE[ext0] -
+			PULSE_TABLE[ext1] - PULSE_TABLE[ext2];
+	}
 
 	apu_dac_step(&apu->dac, l, r, new_samples, opaque);
 
