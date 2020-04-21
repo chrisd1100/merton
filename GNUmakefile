@@ -39,11 +39,6 @@ endif
 
 ifeq ($(UNAME), Darwin)
 
-OCXXFLAGS = $(FLAGS)
-
-%.o: %.mm
-	$(CC) $(OCXXFLAGS)   -c -o $@ $<
-
 export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
 
 OBJS := $(OBJS) \
@@ -75,6 +70,9 @@ CFLAGS = $(FLAGS) \
 
 CXXFLAGS = $(FLAGS) \
 	-std=c++11
+
+%.o: %.mm
+	$(CC) $(CXXFLAGS)   -c -o $@ $<
 
 LD_COMMAND = \
 	$(CC) \
