@@ -28,9 +28,9 @@ def xml_to_bin(name):
 			data += struct.pack('H', int(int(chrnvram.get('size')) / 8) if chrnvram is not None else 0)
 			data += struct.pack('H', int(pcb.get('mapper')))
 
-			mirroring = pcb.get('mirroring').encode('ascii')
-			mirroring_bits = 0x1 if mirroring == 'V' else 0x2 if mirroring == '4' else 0x0
-			data += struct.pack('B', int(pcb.get('submapper')) | (mirroring_bits << 4) | (int(pcb.get('battery')) << 7))
+			mirroring = pcb.get('mirroring')
+			mirroring_bits = 0x10 if mirroring == 'V' else 0x20 if mirroring == '4' else 0x00
+			data += struct.pack('B', int(pcb.get('submapper')) | mirroring_bits | (int(pcb.get('battery')) << 7))
 
 			num_rows += 1
 
