@@ -6,6 +6,8 @@
 
 #if defined(_WIN32)
 	#include "deps/imgui/imgui_impl_dx11.cpp"
+#else
+	#define _strdup(s) strdup(s)
 #endif
 
 #include "assets/font/ponderosa.h"
