@@ -217,22 +217,23 @@ uint8_t cart_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu, uint1
 void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, uint8_t v)
 {
 	switch (cart->hdr.mapper) {
-		case 1:  mmc1_prg_write(cart, addr, v);            break;
-		case 4:  mmc3_prg_write(cart, cpu, addr, v);       break;
-		case 5:  mmc5_prg_write(cart, apu, addr, v);       break;
-		case 9:  mmc2_prg_write(cart, addr, v);            break;
-		case 10: mmc2_prg_write(cart, addr, v);            break;
-		case 19: namco_prg_write(cart, cpu, addr, v);      break;
-		case 21: vrc_prg_write(cart, cpu, addr, v);        break;
-		case 22: vrc_prg_write(cart, cpu, addr, v);        break;
-		case 24: vrc6_prg_write(cart, cpu, apu, addr, v);  break;
-		case 26: vrc6_prg_write(cart, cpu, apu, addr, v);  break;
-		case 23: vrc_prg_write(cart, cpu, addr, v);        break;
-		case 25: vrc_prg_write(cart, cpu, addr, v);        break;
-		case 69: fme7_prg_write(cart, cpu, addr, v);       break;
-		case 85: vrc7_prg_write(cart, cpu, addr, v);       break;
+		case 1:   mmc1_prg_write(cart, addr, v);            break;
+		case 4:
+		case 206: mmc3_prg_write(cart, cpu, addr, v);       break;
+		case 5:   mmc5_prg_write(cart, apu, addr, v);       break;
+		case 9:   mmc2_prg_write(cart, addr, v);            break;
+		case 10:  mmc2_prg_write(cart, addr, v);            break;
+		case 19:  namco_prg_write(cart, cpu, addr, v);      break;
+		case 21:  vrc_prg_write(cart, cpu, addr, v);        break;
+		case 22:  vrc_prg_write(cart, cpu, addr, v);        break;
+		case 24:  vrc6_prg_write(cart, cpu, apu, addr, v);  break;
+		case 26:  vrc6_prg_write(cart, cpu, apu, addr, v);  break;
+		case 23:  vrc_prg_write(cart, cpu, addr, v);        break;
+		case 25:  vrc_prg_write(cart, cpu, addr, v);        break;
+		case 69:  fme7_prg_write(cart, cpu, addr, v);       break;
+		case 85:  vrc7_prg_write(cart, cpu, addr, v);       break;
 		case 16:
-		case 159: fcg_prg_write(cart, cpu, addr, v);       break;
+		case 159: fcg_prg_write(cart, cpu, addr, v);        break;
 		case 0:
 		case 2:
 		case 3:
@@ -509,7 +510,8 @@ void cart_create(const void *rom, size_t rom_size,
 
 	switch (ctx->hdr.mapper) {
 		case 1:   mmc1_create(ctx);    break;
-		case 4:   mmc3_create(ctx);    break;
+		case 4:
+		case 206: mmc3_create(ctx);    break;
 		case 5:   mmc5_create(ctx);    break;
 		case 9:   mmc2_create(ctx);    break;
 		case 10:  mmc2_create(ctx);    break;

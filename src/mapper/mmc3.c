@@ -1,4 +1,5 @@
 // https://wiki.nesdev.com/w/index.php/MMC3
+// https://wiki.nesdev.com/w/index.php/INES_Mapper_206
 
 static void mmc3_map_prg(struct cart *cart)
 {
@@ -44,16 +45,21 @@ static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 		cart->sram_dirty = cart->prg.sram;
 
 	} else {
+		if (cart->hdr.mapper == 206 && addr > 0x9FFF)
+			return;
+
 		switch (addr & 0xE001) {
 			case 0x8000:
 				cart->mmc3.bank_update = v & 0x07;
-				cart->prg_mode = (v & 0x40) >> 6;
-				cart->chr_mode = (v & 0x80) >> 7;
+				if (cart->hdr.mapper == 4) {
+					cart->prg_mode = (v & 0x40) >> 6;
+					cart->chr_mode = (v & 0x80) >> 7;
+				}
 				mmc3_map_chr(cart);
 				mmc3_map_prg(cart);
 				break;
 			case 0x8001:
-				cart->REG[cart->mmc3.bank_update] = v;
+				cart->REG[cart->mmc3.bank_update] = (cart->hdr.mapper == 4) ? v : v & 0x3F;
 
 				if (cart->mmc3.bank_update < 6) {
 					mmc3_map_chr(cart);
