@@ -218,8 +218,7 @@ static void MetalContext_RenderDrawData(struct MetalContext *ctx, ImDrawData *dr
 
 	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
 	rpd.colorAttachments[0].texture = texture;
-	rpd.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1);
-	rpd.colorAttachments[0].loadAction = MTLLoadActionClear;
+	rpd.colorAttachments[0].loadAction = MTLLoadActionLoad;
 	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
 
 	id<MTLCommandBuffer> cb = [cq commandBuffer];
