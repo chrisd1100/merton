@@ -7,6 +7,7 @@
 #if defined(_WIN32)
 	#include "deps/imgui/imgui_impl_dx11.cpp"
 #else
+	#include "deps/imgui/imgui_impl_metal.h"
 	#define _strdup(s) strdup(s)
 #endif
 

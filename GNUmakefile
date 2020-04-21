@@ -39,9 +39,15 @@ endif
 
 ifeq ($(UNAME), Darwin)
 
+OCXXFLAGS = $(FLAGS)
+
+%.o: %.mm
+	$(CC) $(OCXXFLAGS)   -c -o $@ $<
+
 export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
 
 OBJS := $(OBJS) \
+	app/deps/imgui/imgui_impl_metal.o \
 	app/unix/macos/window.o \
 	app/unix/macos/window-quad.o \
 	app/unix/macos/audio.o
