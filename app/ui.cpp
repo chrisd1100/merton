@@ -130,6 +130,7 @@ static void ui_impl_destroy(void)
 	#if defined(_WIN32)
 		ImGui_ImplDX11_Shutdown();
 	#elif defined(__APPLE__)
+		ImGui_ImplMetal_Shutdown();
 	#endif
 }
 
@@ -140,7 +141,7 @@ static bool ui_impl_init(OpaqueDevice *device, OpaqueContext *context)
 			ImGui_ImplDX11_Init((ID3D11Device *) device, (ID3D11DeviceContext *) context) &&
 			ImGui_ImplDX11_CreateDeviceObjects();
 	#elif defined(__APPLE__)
-		bool r = false;
+		bool r = device != NULL && ImGui_ImplMetal_Init(device);
 	#endif
 
 	if (!r || !GetIO().Fonts->TexID) {
@@ -177,9 +178,8 @@ bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 		UI.context = context;
 	}
 
-	UI.texture = texture;
-
 	#if defined(_WIN32)
+		UI.texture = texture;
 		ID3D11Texture2D *d3d11texture = (ID3D11Texture2D *) texture;
 
 		D3D11_TEXTURE2D_DESC desc = {0};
@@ -187,7 +187,10 @@ bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 
 		UI.width = (float) desc.Width;
 		UI.height = (float) desc.Height;
+
 	#elif defined(__APPLE__)
+		UI.texture = ImGui_ImplMetal_GetDrawableTexture(texture); // this is an id<CAMetalDrawable>
+		ImGui_ImplMetal_TextureSize(UI.texture, &UI.width, &UI.height);
 	#endif
 
 	return true;
@@ -242,7 +245,9 @@ void ui_render(bool clear)
 			ImGui_ImplDX11_RenderDrawData(UI.draw_data);
 			rtv->Release();
 		}
+
 	#elif defined(__APPLE__)
+		ImGui_ImplMetal_RenderDrawData(UI.draw_data, UI.context, UI.texture);
 	#endif
 }
 

@@ -11,15 +11,16 @@
 
 #include "imgui.h"      // IMGUI_IMPL_API
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 IMGUI_IMPL_API bool ImGui_ImplMetal_Init(void *device);
 IMGUI_IMPL_API void ImGui_ImplMetal_Shutdown();
-IMGUI_IMPL_API void ImGui_ImplMetal_NewFrame(void *renderPassDescriptor);
-IMGUI_IMPL_API void ImGui_ImplMetal_RenderDrawData(ImDrawData* draw_data,
-                                                   void *commandBuffer,
-                                                   void *commandEncoder);
+IMGUI_IMPL_API void ImGui_ImplMetal_RenderDrawData(ImDrawData* draw_data, void *ocq, void *otexture);
+IMGUI_IMPL_API void ImGui_ImplMetal_TextureSize(void *texture, float *width, float *height);
+IMGUI_IMPL_API void *ImGui_ImplMetal_GetDrawableTexture(void *drawable);
 
-// Called by Init/NewFrame/Shutdown
-IMGUI_IMPL_API bool ImGui_ImplMetal_CreateFontsTexture(void *device);
-IMGUI_IMPL_API void ImGui_ImplMetal_DestroyFontsTexture();
-IMGUI_IMPL_API bool ImGui_ImplMetal_CreateDeviceObjects(void * device);
-IMGUI_IMPL_API void ImGui_ImplMetal_DestroyDeviceObjects();
+#ifdef __cplusplus
+}
+#endif
