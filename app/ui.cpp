@@ -138,8 +138,7 @@ static bool ui_impl_init(OpaqueDevice *device, OpaqueContext *context)
 {
 	#if defined(_WIN32)
 		bool r = device != NULL && context != NULL &&
-			ImGui_ImplDX11_Init((ID3D11Device *) device, (ID3D11DeviceContext *) context) &&
-			ImGui_ImplDX11_CreateDeviceObjects();
+			ImGui_ImplDX11_Init((ID3D11Device *) device);
 	#elif defined(__APPLE__)
 		bool r = device != NULL && ImGui_ImplMetal_Init(device);
 	#endif
@@ -242,7 +241,7 @@ void ui_render(bool clear)
 
 			context->OMSetRenderTargets(1, &rtv, NULL);
 
-			ImGui_ImplDX11_RenderDrawData(UI.draw_data);
+			ImGui_ImplDX11_RenderDrawData(UI.draw_data, device, context);
 			rtv->Release();
 		}
 
