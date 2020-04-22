@@ -748,7 +748,7 @@ uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		cart_ppu_scanline_hook(cart, cpu, ppu->scanline);
 
 	if (ppu->scanline <= 239) {
-		if (ppu->dot >= 1 && ppu->dot <= 260)
+		if (ppu->dot >= 1 && ppu->dot <= 259)
 			ppu_render(ppu, ppu->dot, ppu->MASK.rendering);
 
 		if (ppu->MASK.rendering)
