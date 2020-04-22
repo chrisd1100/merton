@@ -147,8 +147,8 @@ uint8_t sys_read_dmc(NES *nes, uint16_t addr)
 		ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2007);
 	}
 
-	if (nes->sys.read_addr == 0x4016)
-		sys_read(nes, 0x4016);
+	if (nes->sys.read_addr == 0x4016 || nes->sys.read_addr == 0x4017)
+		sys_read(nes, nes->sys.read_addr);
 
 	return cpu_dma_dmc(nes->cpu, nes, addr, nes->sys.write_addr != 0, nes->sys.write_addr == 0x4014);
 }
