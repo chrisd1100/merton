@@ -1,8 +1,8 @@
 #include <winver.h>
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     0,0,0,1
-PRODUCTVERSION  0,0,0,1
+FILEVERSION     0,0,0,2
+PRODUCTVERSION  0,0,0,2
 
 BEGIN
 	BLOCK "StringFileInfo"
@@ -12,8 +12,8 @@ BEGIN
 			VALUE "ProductName",     "Merton\000"
 			VALUE "LegalCopyright",  "\251 Christopher Dickson\000"
 			VALUE "FileDescription", "Merton\000"
-			VALUE "FileVersion",     "0.0.0.1\000"
-			VALUE "ProductVersion",  "0.0.0.1\000"
+			VALUE "FileVersion",     "0.0.0.2\000"
+			VALUE "ProductVersion",  "0.0.0.2\000"
 		END
 	END
 
