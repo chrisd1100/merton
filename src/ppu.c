@@ -210,10 +210,11 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 			ppu->decay_high2 = 0;
 
 			// https://wiki.nesdev.com/w/index.php/PPU_frame_timing#VBL_Flag_Timing
-			if (ppu->scanline == 241 && ppu->dot == 1) {
+			if (ppu->scanline == 241 && ppu->dot == 0) {
 				ppu->supress_nmi = true;
 
-			} else if (ppu->scanline == 241 && ppu->dot > 1 && ppu->dot < 4) {
+			} else if (ppu->scanline == 241 && ppu->dot >= 1 && ppu->dot <= 2) {
+				ppu->supress_nmi = true;
 				cpu_nmi(cpu, false);
 			}
 
@@ -723,6 +724,8 @@ uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 {
 	uint8_t got_frame = 0;
 
+	ppu_clock(ppu);
+
 	if (ppu->dot == 0) {
 		ppu->oam_n = ppu->soam_n = ppu->eval_step = 0;
 		ppu->overflow = false;
@@ -778,8 +781,6 @@ uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		}
 	}
 
-	ppu_clock(ppu);
-
 	return got_frame;
 }
 
@@ -826,6 +827,8 @@ void ppu_reset(struct ppu *ppu)
 	ppu_generate_emphasis_tables(ppu);
 	ppu->palette = ppu->palettes[0];
 
+	ppu->scanline = 261;
+	ppu->dot = 340;
 	ppu->CTRL.incr = 1;
 	ppu->CTRL.sprite_h = 8;
 	ppu->MASK.grayscale = 0x3F;
