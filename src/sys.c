@@ -318,9 +318,6 @@ void NES_Reset(NES *ctx, bool hard)
 	ppu_reset(ctx->ppu);
 	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
 	cpu_reset(ctx->cpu, ctx, hard);
-
-	ctx->sys.frame += ppu_step(ctx->ppu, ctx->cpu, ctx->cart, ctx->new_frame, ctx->opaque);
-	ctx->sys.frame += ppu_step(ctx->ppu, ctx->cpu, ctx->cart, ctx->new_frame, ctx->opaque);
 }
 
 void NES_SetStereo(NES *ctx, bool stereo)

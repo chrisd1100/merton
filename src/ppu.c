@@ -839,8 +839,8 @@ void ppu_reset(struct ppu *ppu)
 	ppu_generate_emphasis_tables(ppu);
 	ppu->palette = ppu->palettes[0];
 
-	ppu->scanline = 261;
-	ppu->dot = 340;
+	ppu->scanline = 0;
+	ppu->dot = 1;
 	ppu->CTRL.incr = 1;
 	ppu->CTRL.sprite_h = 8;
 	ppu->MASK.grayscale = 0x3F;
