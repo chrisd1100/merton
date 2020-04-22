@@ -277,7 +277,7 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 			if ((v & 0x80) && GET_FLAG(ppu->STATUS, FLAG_STATUS_V) && !ppu->CTRL.nmi_enabled)
 				cpu_nmi(cpu, true);
 
-			if (!(v & 0x80) && ppu->scanline == 241 && ppu->dot < 5)
+			if (!(v & 0x80) && ppu->scanline == 241 && ppu->dot < 4)
 				cpu_nmi(cpu, false);
 
 			ppu->CTRL.nt = v & 0x03;
@@ -636,33 +636,45 @@ static void ppu_oam_glitch(struct ppu *ppu)
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Preface
 
+static bool ppu_sprite0_hit(struct ppu *ppu, uint16_t dot)
+{
+	bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
+	bool show_sprites = !(dot < 8 && !ppu->MASK.clip_sprites) && ppu->MASK.show_sprites;
+	uint8_t color = show_bg ? ppu->bg[dot + ppu->x] : 0;
+
+	return show_sprites && ppu->spr[dot].sprite0 && color != 0;
+}
+
 static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 {
 	uint16_t addr = 0x3F00;
 
-	if (rendering) {
-		bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
-		bool show_sprites = !(dot < 8 && !ppu->MASK.clip_sprites) && ppu->MASK.show_sprites;
+	if (rendering && dot <= 256 && ppu_sprite0_hit(ppu, dot - 1))
+		SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
 
-		uint8_t color = show_bg ? ppu->bg[dot + ppu->x] : 0;
+	if (dot >= 4) {
+		dot -= 4;
 
-		if (show_sprites) {
-			if (ppu->spr[dot].sprite0 && color != 0)
-				SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
+		if (rendering) {
+			bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
+			bool show_sprites = !(dot < 8 && !ppu->MASK.clip_sprites) && ppu->MASK.show_sprites;
+			uint8_t color = show_bg ? ppu->bg[dot + ppu->x] : 0;
 
-			uint8_t sprite_color = ppu->spr[dot].color;
-			if (sprite_color != 0 && (color == 0 || !ppu->spr[dot].priority))
-				color = sprite_color;
+			if (show_sprites) {
+				uint8_t sprite_color = ppu->spr[dot].color;
+				if (sprite_color != 0 && (color == 0 || !ppu->spr[dot].priority))
+					color = sprite_color;
+			}
+
+			addr += color;
+
+		} else if (ppu->v >= 0x3F00 && ppu->v < 0x4000) {
+			addr = ppu->v;
 		}
 
-		addr += color;
-
-	} else if (ppu->v >= 0x3F00 && ppu->v < 0x4000) {
-		addr = ppu->v;
+		uint8_t color = ppu_read_palette(ppu, addr);
+		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palette[color];
 	}
-
-	uint8_t color = ppu_read_palette(ppu, addr);
-	ppu->pixels[ppu->scanline * 256 + dot] = ppu->palette[color];
 }
 
 
@@ -736,8 +748,8 @@ uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		cart_ppu_scanline_hook(cart, cpu, ppu->scanline);
 
 	if (ppu->scanline <= 239) {
-		if (ppu->dot >= 1 && ppu->dot <= 256) //XXX DEFEAT DEVICE: sprite evaluation should begin at cycle 2
-			ppu_render(ppu, ppu->dot - 1, ppu->MASK.rendering);
+		if (ppu->dot >= 1 && ppu->dot <= 260)
+			ppu_render(ppu, ppu->dot, ppu->MASK.rendering);
 
 		if (ppu->MASK.rendering)
 			ppu_memory_access(ppu, cart, false);
