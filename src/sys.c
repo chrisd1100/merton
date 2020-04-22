@@ -87,7 +87,7 @@ static uint8_t ctrl_read(struct ctrl *ctrl, uint8_t n)
 		return 0x40 | (ctrl->state[n] & 0x01);
 
 	uint8_t r = 0x40 | (ctrl->bits[n] & 0x01);
-	ctrl->bits[n] = (0x80 << 24) | (ctrl->bits[n] >> 1);
+	ctrl->bits[n] = (n < 2 ? 0x80 : 0x80000000) | (ctrl->bits[n] >> 1);
 
 	return r;
 }
