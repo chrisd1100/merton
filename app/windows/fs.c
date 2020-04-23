@@ -6,6 +6,7 @@
 #include <windows.h>
 
 static __declspec(thread) char FS_PATH[MAX_PATH];
+static __declspec(thread) char FS_PROG_DIR[MAX_PATH];
 
 void *fs_read(const char *path, size_t *size)
 {
@@ -55,9 +56,42 @@ void fs_mkdir(const char *path)
 	CreateDirectoryA(path, NULL);
 }
 
+const char *fs_prog_dir(void)
+{
+	DWORD n = GetModuleFileNameA(NULL, FS_PROG_DIR, MAX_PATH);
+
+	if (n > 0) {
+		char *last_bs = NULL;
+		char *ptr = FS_PROG_DIR;
+
+		do {
+			ptr = strchr(ptr, '\\');
+
+			if (ptr) {
+				last_bs = ptr;
+				ptr++;
+			}
+		} while (ptr);
+
+		if (last_bs)
+			last_bs[0] = '\0';
+
+	} else {
+		snprintf(FS_PROG_DIR, MAX_PATH, ".");
+	}
+
+	return FS_PROG_DIR;
+}
+
 const char *fs_path(const char *dir, const char *file)
 {
-	snprintf(FS_PATH, MAX_PATH, "%s\\%s", dir, file);
+	char *safe_dir = _strdup(dir);
+	char *safe_file = _strdup(file);
+
+	snprintf(FS_PATH, MAX_PATH, "%s\\%s", safe_dir, safe_file);
+
+	free(safe_dir);
+	free(safe_file);
 
 	return FS_PATH;
 }

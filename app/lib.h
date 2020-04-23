@@ -164,7 +164,6 @@ void window_destroy(struct window **window);
 
 
 /*** AUDIO ***/
-
 struct audio;
 
 enum lib_status audio_create(struct audio **audio, uint32_t sample_rate);
@@ -192,6 +191,7 @@ struct finfo {
 void *fs_read(const char *path, size_t *size);
 void fs_write(const char *path, const void *data, size_t size);
 void fs_mkdir(const char *path);
+const char *fs_prog_dir(void);
 const char *fs_path(const char *dir, const char *file);
 uint32_t fs_list(const char *path, struct finfo **fi);
 void fs_free_list(struct finfo **fi, uint32_t len);

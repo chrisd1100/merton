@@ -254,7 +254,7 @@ static bool main_load_rom(struct main *ctx, const char *name)
 			}
 
 			size_t sram_size = 0;
-			void *sram = fs_read(fs_path("save", ctx->sram_file), &sram_size);
+			void *sram = fs_read(fs_path(fs_prog_dir(), fs_path("save", ctx->sram_file)), &sram_size);
 			NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
 			free(sram);
 			free(rom);
@@ -277,8 +277,9 @@ static void main_save_sram(struct main *ctx)
 		void *sram = calloc(sram_size, 1);
 		NES_GetSRAM(ctx->nes, sram, sram_size);
 
-		fs_mkdir("save");
-		fs_write(fs_path("save", ctx->sram_file), sram, sram_size);
+		const char *save_path = fs_path(fs_prog_dir(), "save");
+		fs_mkdir(save_path);
+		fs_write(fs_path(save_path, ctx->sram_file), sram, sram_size);
 		free(sram);
 	}
 }
@@ -352,7 +353,7 @@ static void main_ui_root(void *opaque)
 static struct config main_load_config(void)
 {
 	size_t size = 0;
-	struct config *cfg = (struct config *) fs_read("config.bin", &size);
+	struct config *cfg = (struct config *) fs_read(fs_path(fs_prog_dir(), "config.bin"), &size);
 
 	struct config r = cfg && size == sizeof(struct config) && cfg->version == CONFIG_VERSION ?
 		*cfg : (struct config) CONFIG_DEFAULTS;
@@ -363,7 +364,7 @@ static struct config main_load_config(void)
 
 static void main_save_config(struct config *cfg)
 {
-	fs_write("config.bin", cfg, sizeof(struct config));
+	fs_write(fs_path(fs_prog_dir(), "config.bin"), cfg, sizeof(struct config));
 }
 
 int32_t main(int32_t argc, char **argv)
@@ -444,6 +445,14 @@ int32_t main(int32_t argc, char **argv)
 int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int32_t nCmdShow)
 {
 	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
+
+	/*
+	AllocConsole();
+	AttachConsole(GetCurrentProcessId());
+
+	FILE *f = NULL;
+	freopen_s(&f, "CONOUT$", "w", stdout);
+	*/
 
 	timeBeginPeriod(1);
 

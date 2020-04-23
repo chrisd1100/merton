@@ -320,7 +320,8 @@ static void ui_message(void)
 
 		SetNextWindowPos(VEC(18, 18));
 
-		if (Begin("TIMED_MESSAGE", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
+		if (Begin("TIMED_MESSAGE", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoNavInputs)) {
 			TextUnformatted(CMP.msg);
 			End();
 		}
@@ -363,7 +364,8 @@ static void ui_log(bool always)
 		SetNextWindowPos(ImVec2(io.DisplaySize.x - w - padding_h, padding_v));
 		SetNextWindowSize(ImVec2(w, h));
 
-		if (Begin("LOG", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
+		if (Begin("LOG", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration
+			| ImGuiWindowFlags_NoNavInputs)) {
 			for (uint32_t x = 0; x < CMP.log_lines; x++)
 				TextUnformatted(CMP.logs[x]);
 
@@ -634,16 +636,6 @@ static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *ev
 		if (!(CMP.nav & NAV_MENU))
 			CMP.nav = NAV_NONE;
 	}
-
-	#if defined(_WIN32)
-	if (io.KeysDown[SCANCODE_D] && io.KeyCtrl) {
-		AllocConsole();
-		AttachConsole(GetCurrentProcessId());
-
-		FILE *f = NULL;
-		freopen_s(&f, "CONOUT$", "w", stdout);
-	}
-	#endif
 
 	if (io.KeysDown[SCANCODE_W] && io.KeyCtrl)
 		event->cfg.fullscreen = !event->cfg.fullscreen;
