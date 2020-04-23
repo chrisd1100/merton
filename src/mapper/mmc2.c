@@ -66,15 +66,19 @@ static void mmc2_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 				break;
 			case 0xB000:
 				cart->REG[0] = v & 0x1F;
+				cart_map(&cart->chr, ROM, 0x0000, cart->REG[0], 4);
 				break;
 			case 0xC000:
 				cart->REG[1] = v & 0x1F;
+				cart_map(&cart->chr, ROM, 0x0000, cart->REG[1], 4);
 				break;
 			case 0xD000:
 				cart->REG[2] = v & 0x1F;
+				cart_map(&cart->chr, ROM, 0x1000, cart->REG[2], 4);
 				break;
 			case 0xE000:
 				cart->REG[3] = v & 0x1F;
+				cart_map(&cart->chr, ROM, 0x1000, cart->REG[3], 4);
 				break;
 			case 0xF000:
 				cart_map_ciram(&cart->chr, (v & 0x01) ? NES_MIRROR_HORIZONTAL : NES_MIRROR_VERTICAL);
