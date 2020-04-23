@@ -445,9 +445,6 @@ void cart_create(const void *rom, size_t rom_size,
 	ctx->prg.shift = PRG_SHIFT;
 	ctx->chr.shift = CHR_SHIFT;
 
-	if (sram_size > 0x2000)
-		assert(!"SRAM is lager than 8K");
-
 	if (desc) {
 		ctx->hdr = *desc;
 
@@ -484,7 +481,7 @@ void cart_create(const void *rom, size_t rom_size,
 		assert(!"ROM is not large enough to support PRG ROM size");
 
 	ctx->prg.ram.data = calloc(ctx->prg.ram.size, 1);
-	if (sram && sram_size > 0)
+	if (sram && sram_size > 0 && sram_size <= ctx->prg.sram)
 		memcpy(ctx->prg.ram.data, sram, sram_size);
 
 	ctx->prg.rom.data = calloc(ctx->prg.rom.size, 1);
