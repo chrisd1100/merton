@@ -388,7 +388,7 @@ int32_t main(int32_t argc, char **argv)
 			ui_render(!NES_CartLoaded(ctx.nes));
 
 			window_release_back_buffer(back_buffer);
-			double wait = floor(1000.0 / 60.0 - time_diff(ts, time_stamp()));
+			double wait = floor(1000.0 / 60.0 - time_diff(ts, time_stamp())) - 1.0;
 			window_present(ctx.window, main_sync_to_60(&ctx));
 
 			if (ctx.cfg.reduce_latency && wait > 0.0)
