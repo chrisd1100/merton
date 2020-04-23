@@ -14,8 +14,8 @@
 
 #define SRAM_FILE_NAME_LEN 16
 
-#define CLOCK_UP     1000
-#define CLOCK_DOWN   -1000
+#define CLOCK_UP   1000
+#define CLOCK_DOWN -1000
 
 struct main {
 	NES *nes;

@@ -279,7 +279,7 @@ void ui_destroy(void)
 
 #define PACK_ASPECT(x, y) (((x) << 8) | (y))
 
-#define UI_LOG_LINES  10
+#define UI_LOG_LINES  20
 
 enum nav {
 	NAV_NONE     = 0x0000,
@@ -356,11 +356,11 @@ static void ui_log(void)
 		PushStyleVar(ImGuiStyleVar_ItemSpacing, VEC(5, 4));
 		PushFont(UI.font_small);
 
-		float h = X(140);
+		float h = X(18 + 14 * (CMP.log_lines - 1));
 		float w = X(260);
 		float padding_h = X(18);
 		float padding_v = X(18);
-		SetNextWindowPos(ImVec2(padding_h, io.DisplaySize.y - h - padding_v));
+		SetNextWindowPos(ImVec2(io.DisplaySize.x - w - padding_h, padding_v));
 		SetNextWindowSize(ImVec2(w, h));
 
 		if (Begin("LOG", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
