@@ -1,5 +1,5 @@
 ## Overview
-Merton is an accurate NES emulator written in C with no dependencies. The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes every known test](/test) and successfully emulates tricky games.
+Merton is an accurate NES emulator written in C with no dependencies. The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes every known test](/test) (except for those that test unsupported featuers or mappers) and successfully emulates tricky games.
 
 ## Building
 Simply type `make` or `nmake` (on Windows) to build the emulator. The makefiles assume a basic C build toolchain, meaning Microsoft Visual Studio on Windows, `gcc` on Linux, and `Xcode` command line tools on macOS.
