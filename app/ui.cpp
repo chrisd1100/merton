@@ -563,6 +563,16 @@ static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *ev
 			CMP.nav = NAV_NONE;
 	}
 
+	#if defined(_WIN32)
+	if (io.KeysDown[SCANCODE_D] && io.KeyCtrl) {
+		AllocConsole();
+		AttachConsole(GetCurrentProcessId());
+
+		FILE *f = NULL;
+		freopen_s(&f, "CONOUT$", "w", stdout);
+	}
+	#endif
+
 	if (io.KeysDown[SCANCODE_W] && io.KeyCtrl)
 		event->cfg.fullscreen = !event->cfg.fullscreen;
 

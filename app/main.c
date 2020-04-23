@@ -89,7 +89,7 @@ static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)
 
 static void main_nes_log(const char *str)
 {
-	printf("[merton] %s\n", str);
+	printf("%s\n", str);
 }
 
 static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
@@ -206,7 +206,6 @@ static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc 
 		const uint8_t *row = NES_DB + x * NES_DB_ROW_SIZE;
 
 		if (crc32 == *((uint32_t *) row)) {
-			printf("[merton] %02X found in database\n", crc32);
 			desc->offset = offset;
 			desc->prg = row[4];
 			desc->chr = row[9];
@@ -240,13 +239,15 @@ static bool main_load_rom(struct main *ctx, const char *name)
 
 		if (rom_size > offset) {
 			ui_component_message("Press ESC to access the menu", 3000);
-			printf("[merton] --- %s ---\n", name);
 
 			uint32_t crc32 = crypto_crc32(rom + offset, rom_size - offset);
 			snprintf(ctx->sram_file, SRAM_FILE_NAME_LEN, "%02X.sav", crc32);
 
 			NES_CartDesc desc = {0};
 			bool found_in_db = main_get_desc_from_db(offset, crc32, &desc);
+
+			if (found_in_db)
+				printf("%02X found in database\n", crc32);
 
 			size_t sram_size = 0;
 			void *sram = fs_read(fs_path("save", ctx->sram_file), &sram_size);
@@ -421,12 +422,6 @@ int32_t main(int32_t argc, char **argv)
 int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int32_t nCmdShow)
 {
 	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
-
-	AllocConsole();
-	AttachConsole(GetCurrentProcessId());
-
-	FILE *f = NULL;
-	freopen_s(&f, "CONOUT$", "w", stdout);
 
 	timeBeginPeriod(1);
 

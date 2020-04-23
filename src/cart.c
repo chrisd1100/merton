@@ -417,20 +417,22 @@ static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 
 static void cart_log_desc(NES_CartDesc *hdr)
 {
-	NES_Log("Mapper: %u", hdr->mapper);
-	NES_Log("PRG Size: %uKB", KB(hdr->prg * 0x4000));
-	NES_Log("CHR Size: %uKB", KB(hdr->chr * 0x2000));
-	NES_Log("Mirror: %s", hdr->mirror == NES_MIRROR_VERTICAL ? "Vertical" :
-		hdr->mirror == NES_MIRROR_HORIZONTAL ? "Horizontal" : "Four Screen");
-	NES_Log("PRG RAM Battery: %s", hdr->battery ? "true" : "false");
-
-	if (hdr->submapper != 0)
-		NES_Log("Submapper: %x", hdr->submapper);
+	NES_Log("PRG ROM Size: %uKB", KB(hdr->prg * 0x4000));
+	NES_Log("CHR ROM Size: %uKB", KB(hdr->chr * 0x2000));
 
 	if (hdr->useRAMSizes) {
 		NES_Log("PRG RAM (Vol / Non-vol): %uKB / %uKB", KB(hdr->prgSize.wram), KB(hdr->prgSize.sram));
 		NES_Log("CHR RAM (Vol / Non-vol): %uKB / %uKB", KB(hdr->chrSize.wram), KB(hdr->chrSize.sram));
 	}
+
+	NES_Log("Mapper: %u", hdr->mapper);
+
+	if (hdr->submapper != 0)
+		NES_Log("Submapper: %x", hdr->submapper);
+
+	NES_Log("Mirroring: %s", hdr->mirror == NES_MIRROR_VERTICAL ? "Vertical" :
+		hdr->mirror == NES_MIRROR_HORIZONTAL ? "Horizontal" : "Four Screen");
+	NES_Log("Battery: %s", hdr->battery ? "true" : "false");
 }
 
 void cart_create(const void *rom, size_t rom_size,
@@ -441,8 +443,6 @@ void cart_create(const void *rom, size_t rom_size,
 	ctx->chr.mask = CHR_SLOT - 1;
 	ctx->prg.shift = PRG_SHIFT;
 	ctx->chr.shift = CHR_SHIFT;
-
-	NES_Log("ROM size: %uKB", rom_size / 0x0400);
 
 	if (sram_size > 0x2000)
 		assert(!"SRAM is lager than 8K");
