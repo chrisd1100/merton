@@ -421,8 +421,8 @@ static void cart_log_desc(NES_CartDesc *hdr)
 	NES_Log("CHR ROM Size: %uKB", KB(hdr->chr * 0x2000));
 
 	if (hdr->useRAMSizes) {
-		NES_Log("PRG RAM (Vol / Non-vol): %uKB / %uKB", KB(hdr->prgSize.wram), KB(hdr->prgSize.sram));
-		NES_Log("CHR RAM (Vol / Non-vol): %uKB / %uKB", KB(hdr->chrSize.wram), KB(hdr->chrSize.sram));
+		NES_Log("PRG RAM Vol / Non-vol: %uKB / %uKB", KB(hdr->prgSize.wram), KB(hdr->prgSize.sram));
+		NES_Log("CHR RAM Vol / Non-vol: %uKB / %uKB", KB(hdr->chrSize.wram), KB(hdr->chrSize.sram));
 	}
 
 	NES_Log("Mapper: %u", hdr->mapper);

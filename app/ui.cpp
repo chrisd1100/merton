@@ -33,6 +33,9 @@ struct ui {
 	float width;
 	float height;
 	bool mouse[3];
+
+	ImFont *font;
+	ImFont *font_small;
 } UI;
 
 void ui_create(void)
@@ -165,8 +168,10 @@ bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 		UI.context = NULL;
 
 		ImGuiIO &io = GetIO();
-		io.Fonts->AddFontFromMemoryCompressedTTF(ponderosa_compressed_data,
+		UI.font = io.Fonts->AddFontFromMemoryCompressedTTF(ponderosa_compressed_data,
 			ponderosa_compressed_size, X(12));
+		UI.font_small = io.Fonts->AddFontFromMemoryCompressedTTF(ponderosa_compressed_data,
+			ponderosa_compressed_size, X(9));
 
 		if (!ui_impl_init(device, context))
 			return false;
@@ -274,6 +279,8 @@ void ui_destroy(void)
 
 #define PACK_ASPECT(x, y) (((x) << 8) | (y))
 
+#define UI_LOG_LINES  10
+
 enum nav {
 	NAV_NONE     = 0x0000,
 	NAV_MENU     = 0x0100,
@@ -290,6 +297,11 @@ struct component_state {
 	int64_t ts;
 	int32_t timeout;
 	char *msg;
+
+	char logs[UI_LOG_LINES][UI_LOG_LEN];
+	uint32_t log_lines;
+	int64_t log_ts;
+	int32_t log_timeout;
 } CMP;
 
 void ui_component_message(const char *msg, int32_t timeout)
@@ -313,6 +325,53 @@ static void ui_message(void)
 			End();
 		}
 
+		PopStyleColor(1);
+	}
+}
+
+void ui_component_log(const char *msg, int32_t timeout)
+{
+	if (++CMP.log_lines > UI_LOG_LINES) {
+		memmove(CMP.logs, (char *) CMP.logs + UI_LOG_LEN, UI_LOG_LEN * (UI_LOG_LINES - 1));
+		CMP.log_lines = UI_LOG_LINES;
+	}
+
+	snprintf(CMP.logs[CMP.log_lines - 1], UI_LOG_LEN, "%s", msg);
+
+	CMP.log_ts = time_stamp();
+	CMP.log_timeout = timeout;
+}
+
+void ui_component_clear_log(void)
+{
+	CMP.log_lines = 0;
+	memset(CMP.logs, 0, UI_LOG_LEN * UI_LOG_LINES);
+}
+
+static void ui_log(void)
+{
+	if (CMP.log_ts != 0 && time_diff(CMP.log_ts, time_stamp()) < CMP.log_timeout) {
+		ImGuiIO &io = GetIO();
+		PushStyleColor(ImGuiCol_WindowBg, COLOR_MSG_BG);
+		PushStyleVar(ImGuiStyleVar_ItemSpacing, VEC(5, 4));
+		PushFont(UI.font_small);
+
+		float h = X(140);
+		float w = X(260);
+		float padding_h = X(18);
+		float padding_v = X(18);
+		SetNextWindowPos(ImVec2(padding_h, io.DisplaySize.y - h - padding_v));
+		SetNextWindowSize(ImVec2(w, h));
+
+		if (Begin("LOG", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
+			for (uint32_t x = 0; x < CMP.log_lines; x++)
+				TextUnformatted(CMP.logs[x]);
+
+			End();
+		}
+
+		PopFont();
+		PopStyleVar(1);
 		PopStyleColor(1);
 	}
 }
@@ -639,6 +698,7 @@ void ui_component_root(const struct ui_args *args,
 		ui_open_rom(&event);
 
 	ui_message();
+	ui_log();
 
 	PopStyleVar(8);
 	PopStyleColor(18);

@@ -89,7 +89,7 @@ static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)
 
 static void main_nes_log(const char *str)
 {
-	printf("%s\n", str);
+	ui_component_log(str, 3000);
 }
 
 static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
@@ -238,6 +238,7 @@ static bool main_load_rom(struct main *ctx, const char *name)
 		uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
 
 		if (rom_size > offset) {
+			ui_component_clear_log();
 			ui_component_message("Press ESC to access the menu", 3000);
 
 			uint32_t crc32 = crypto_crc32(rom + offset, rom_size - offset);
@@ -246,8 +247,11 @@ static bool main_load_rom(struct main *ctx, const char *name)
 			NES_CartDesc desc = {0};
 			bool found_in_db = main_get_desc_from_db(offset, crc32, &desc);
 
-			if (found_in_db)
-				printf("%02X found in database\n", crc32);
+			if (found_in_db) {
+				char msg[UI_LOG_LEN];
+				snprintf(msg, UI_LOG_LEN, "%02X found in database", crc32);
+				ui_component_log(msg, 3000);
+			}
 
 			size_t sram_size = 0;
 			void *sram = fs_read(fs_path("save", ctx->sram_file), &sram_size);

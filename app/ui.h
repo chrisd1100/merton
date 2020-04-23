@@ -17,6 +17,8 @@ void ui_draw(void (*callback)(void *opaque), const void *opaque);
 void ui_render(bool clear);
 
 /*** COMPONENTS ***/
+#define UI_LOG_LEN  128
+
 enum ui_event_type {
 	UI_EVENT_NONE     = 0,
 	UI_EVENT_CONFIG   = 1,
@@ -43,6 +45,8 @@ void ui_component_root(const struct ui_args *args,
 	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque);
 void ui_component_message(const char *msg, int32_t timeout);
 void ui_component_destroy(void);
+void ui_component_log(const char *msg, int32_t timeout);
+void ui_component_clear_log(void);
 
 #ifdef __cplusplus
 }
