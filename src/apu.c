@@ -611,6 +611,7 @@ struct apu {
 	struct noise n;
 	struct dmc d;
 
+	enum extaudio ext;
 	struct dac dac;
 };
 
@@ -655,6 +656,9 @@ uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext)
 {
 	struct pulse *p = ext == EXT_MMC5 ? apu->mmc5 : apu->p;
+
+	if (ext != EXT_NONE)
+		apu->ext = ext;
 
 	if (ext != EXT_VRC6 && addr > 0x4017)
 		return;
@@ -859,18 +863,24 @@ static void apu_step_mmc5(struct apu *apu)
 	apu_step_envelope(&apu->mmc5[1].env);
 	apu_step_length(&apu->mmc5[0].len);
 	apu_step_length(&apu->mmc5[1].len);
-	apu_pulse_output(&apu->mmc5[0], EXT_MMC5);
-	apu_pulse_output(&apu->mmc5[1], EXT_MMC5);
+
+	if (apu->ext == EXT_MMC5) {
+		apu_pulse_output(&apu->mmc5[0], EXT_MMC5);
+		apu_pulse_output(&apu->mmc5[1], EXT_MMC5);
+	}
 }
 
 static void apu_delayed_length_enabled(struct apu *apu)
 {
 	apu->p[0].len.enabled = apu->p[0].len.next_enabled;
 	apu->p[1].len.enabled = apu->p[1].len.next_enabled;
-	apu->mmc5[0].len.enabled = apu->mmc5[0].len.next_enabled;
-	apu->mmc5[1].len.enabled = apu->mmc5[1].len.next_enabled;
 	apu->t.len.enabled = apu->t.len.next_enabled;
 	apu->n.len.enabled = apu->n.len.next_enabled;
+
+	if (apu->ext == EXT_MMC5) {
+		apu->mmc5[0].len.enabled = apu->mmc5[0].len.next_enabled;
+		apu->mmc5[1].len.enabled = apu->mmc5[1].len.next_enabled;
+	}
 }
 
 static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
@@ -934,9 +944,12 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	if (apu->cpu_cycle & 1) {
 		apu_pulse_step_timer(&apu->p[0], EXT_NONE);
 		apu_pulse_step_timer(&apu->p[1], EXT_NONE);
-		apu_pulse_step_timer(&apu->mmc5[0], EXT_MMC5);
-		apu_pulse_step_timer(&apu->mmc5[1], EXT_MMC5);
 		apu_dmc_step_timer(&apu->d, nes, cpu);
+
+		if (apu->ext == EXT_MMC5) {
+			apu_pulse_step_timer(&apu->mmc5[0], EXT_MMC5);
+			apu_pulse_step_timer(&apu->mmc5[1], EXT_MMC5);
+		}
 	}
 
 	//triangle & noise step every clock
@@ -944,9 +957,11 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	apu_noise_step_timer(&apu->n);
 
 	//vrc6
-	apu_vrc6_pulse_step_timer(&apu->vrc6[0]);
-	apu_vrc6_pulse_step_timer(&apu->vrc6[1]);
-	apu_vrc6_saw_step_timer(&apu->vrc6[2]);
+	if (apu->ext == EXT_VRC6) {
+		apu_vrc6_pulse_step_timer(&apu->vrc6[0]);
+		apu_vrc6_pulse_step_timer(&apu->vrc6[1]);
+		apu_vrc6_saw_step_timer(&apu->vrc6[2]);
+	}
 
 	//mix
 	int16_t l = 0, r = 0;
@@ -1089,4 +1104,5 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 
 	apu->delayed_reset = 0;
 	apu->frame_counter = 4;
+	apu->ext = EXT_NONE;
 }

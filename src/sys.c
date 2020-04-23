@@ -87,7 +87,7 @@ static uint8_t ctrl_read(struct ctrl *ctrl, uint8_t n)
 		return 0x40 | (ctrl->state[n] & 0x01);
 
 	uint8_t r = 0x40 | (ctrl->bits[n] & 0x01);
-	ctrl->bits[n] = (0x80 << 24) | (ctrl->bits[n] >> 1);
+	ctrl->bits[n] = (n < 2 ? 0x80 : 0x80000000) | (ctrl->bits[n] >> 1);
 
 	return r;
 }
@@ -147,8 +147,8 @@ uint8_t sys_read_dmc(NES *nes, uint16_t addr)
 		ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2007);
 	}
 
-	if (nes->sys.read_addr == 0x4016)
-		sys_read(nes, 0x4016);
+	if (nes->sys.read_addr == 0x4016 || nes->sys.read_addr == 0x4017)
+		sys_read(nes, nes->sys.read_addr);
 
 	return cpu_dma_dmc(nes->cpu, nes, addr, nes->sys.write_addr != 0, nes->sys.write_addr == 0x4014);
 }
@@ -318,8 +318,6 @@ void NES_Reset(NES *ctx, bool hard)
 	ppu_reset(ctx->ppu);
 	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
 	cpu_reset(ctx->cpu, ctx, hard);
-
-	ppu_step(ctx->ppu, ctx->cpu, ctx->cart, ctx->new_frame, ctx->opaque);
 }
 
 void NES_SetStereo(NES *ctx, bool stereo)

@@ -332,7 +332,7 @@ void window_poll(struct window *ctx)
 
 	uint32_t width = 0;
 	uint32_t height = 0;
-	if (window_get_size(ctx, &width, &height)) {
+	if (window_get_size(ctx, &width, &height) && (width != ctx->width || height != ctx->height)) {
 		IDXGISwapChain2_ResizeBuffers(ctx->swap_chain2, 0, 0, 0,
 			DXGI_FORMAT_UNKNOWN, WINDOW_SWAP_CHAIN_FLAGS);
 		ctx->width = width;
