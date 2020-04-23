@@ -1,12 +1,8 @@
 ## Overview
-Merton is a cycle accurate NES emulator written in pure C with no dependencies. The code base is lean with a focus on accuracy and readability--but don't let its minimal nature fool you, it [passes almost every known test](/test) and successfully emulates tricky games such as [Battletoads](https://en.wikipedia.org/wiki/Battletoads_(video_game)) with a only a handful of minor issues listed below.
+Merton is an accurate NES emulator written in C with no dependencies. The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes almost every known test](/test) and successfully emulates tricky games.
 
-#### Test Issues
-- ppu_nmi_sync: Leftmost pixel is a few short of the Famicom result
-- ppu_dpcmletterbox: Slight wiggle periodically, Famicom does not
-
-#### Game Issues
-- Micro Machines: very close, but needs revised sprite hit timing after resolving nmi_sync
+#### Issues
+- Micro Machines: Thin black line on title screen, related to OAM
 
 ## Building
 Simply type `make` or `nmake` (on Windows) to build the emulator. The makefiles assume a basic C build toolchain, meaning Microsoft Visual Studio on Windows, `gcc` on Linux, and `Xcode` command line tools on macOS.
@@ -46,17 +42,4 @@ Simply type `make` or `nmake` (on Windows) to build the emulator. The makefiles 
 ^ Missing expansion audio
 † Missing EEPROM support
 ¹ PCM not implemented
-```
-
-## Mapper Wish List
-```
-18       -- Jaleco SS88006
-64, 158  -- RAMBO-1
-99       -- Vs.
-
-Namco:           210
-MMC3:            74, 192, 76, 88, 154, 95, 112, 119, 191, 118, 155, 194, 195
-Stateful:        32, 33, 68, (72, 92), 75, (80, 207), 82, 86, 190, 218
-Stateful w/ IRQ: 42, 48, 65, 67, 73, 165
-Multicart:       15, 28, 37, 41, 47, 105, 228, 234
 ```
