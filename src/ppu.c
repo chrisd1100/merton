@@ -69,6 +69,7 @@ struct spr {
 
 struct ppu {
 	uint32_t pixels[256 * 240];
+	uint32_t *output;
 	uint32_t palettes[8][64];
 	uint32_t *palette;
 
@@ -673,7 +674,7 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 		}
 
 		uint8_t color = ppu_read_palette(ppu, addr);
-		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palette[color];
+		ppu->output[dot] = ppu->palette[color];
 	}
 }
 
@@ -699,6 +700,9 @@ static void ppu_clock(struct ppu *ppu)
 			if (ppu->decay_low5++ == 58)
 				ppu->open_bus &= 0xC0;
 		}
+
+		if (ppu->scanline < 240)
+			ppu->output = &ppu->pixels[ppu->scanline * 256];
 	}
 }
 
@@ -838,6 +842,7 @@ void ppu_reset(struct ppu *ppu)
 
 	ppu_generate_emphasis_tables(ppu);
 	ppu->palette = ppu->palettes[0];
+	ppu->output = ppu->pixels;
 
 	ppu->scanline = 0;
 	ppu->dot = 1;
