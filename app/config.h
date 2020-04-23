@@ -10,10 +10,17 @@ enum config_shader {
 	CONFIG_SHADER_NONE = 0,
 };
 
+enum log_visibility {
+	CONFIG_LOG_HIDE    = 0,
+	CONFIG_LOG_TIMEOUT = 1,
+	CONFIG_LOG_ALWAYS  = 2,
+};
+
 struct config {
 	// System
 	bool bg_pause;
 	bool reduce_latency;
+	enum log_visibility log;
 
 	// Video
 	bool fullscreen;
@@ -45,6 +52,7 @@ struct config {
 #define CONFIG_DEFAULTS { \
 	true, \
 	true, \
+	CONFIG_LOG_TIMEOUT, \
 	false, \
 	3, \
 	FILTER_NEAREST, \

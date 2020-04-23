@@ -432,6 +432,7 @@ static void cart_log_desc(NES_CartDesc *hdr)
 
 	NES_Log("Mirroring: %s", hdr->mirror == NES_MIRROR_VERTICAL ? "Vertical" :
 		hdr->mirror == NES_MIRROR_HORIZONTAL ? "Horizontal" : "Four Screen");
+
 	NES_Log("Battery: %s", hdr->battery ? "true" : "false");
 }
 

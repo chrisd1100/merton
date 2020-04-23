@@ -348,9 +348,9 @@ void ui_component_clear_log(void)
 	memset(CMP.logs, 0, UI_LOG_LEN * UI_LOG_LINES);
 }
 
-static void ui_log(void)
+static void ui_log(bool always)
 {
-	if (CMP.log_ts != 0 && time_diff(CMP.log_ts, time_stamp()) < CMP.log_timeout) {
+	if (always || (CMP.log_ts != 0 && time_diff(CMP.log_ts, time_stamp()) < CMP.log_timeout)) {
 		ImGuiIO &io = GetIO();
 		PushStyleColor(ImGuiCol_WindowBg, COLOR_MSG_BG);
 		PushStyleVar(ImGuiStyleVar_ItemSpacing, VEC(5, 4));
@@ -446,6 +446,19 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 			if (MenuItem("Reduce Latency", "", args->cfg->reduce_latency))
 				event->cfg.reduce_latency = !event->cfg.reduce_latency;
+
+			if (BeginMenu("Log", true)) {
+				if (MenuItem("Hide", "", args->cfg->log == CONFIG_LOG_HIDE, true))
+					event->cfg.log = CONFIG_LOG_HIDE;
+
+				if (MenuItem("Timeout", "", args->cfg->log == CONFIG_LOG_TIMEOUT, true))
+					event->cfg.log = CONFIG_LOG_TIMEOUT;
+
+				if (MenuItem("Always", "", args->cfg->log == CONFIG_LOG_ALWAYS, true))
+					event->cfg.log = CONFIG_LOG_ALWAYS;
+
+				ImGui::EndMenu();
+			}
 
 			Separator();
 
@@ -698,7 +711,9 @@ void ui_component_root(const struct ui_args *args,
 		ui_open_rom(&event);
 
 	ui_message();
-	ui_log();
+
+	if (args->cfg->log != CONFIG_LOG_HIDE)
+		ui_log(args->cfg->log == CONFIG_LOG_ALWAYS);
 
 	PopStyleVar(8);
 	PopStyleColor(18);

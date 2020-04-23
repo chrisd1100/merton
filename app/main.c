@@ -213,7 +213,7 @@ static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc 
 			desc->submapper = row[16] & 0xF;
 			desc->mirror = (row[16] & 0x10) ? NES_MIRROR_VERTICAL :
 				(row[16] & 0x20) ? NES_MIRROR_FOUR : NES_MIRROR_HORIZONTAL;
-			desc->battery = row[16] & 0x40;
+			desc->battery = row[16] & 0x80;
 			desc->prgSize.wram = *((uint16_t *) (row + 5)) * 8;
 			desc->prgSize.sram = *((uint16_t *) (row + 7)) * 8;
 			desc->chrSize.wram = *((uint16_t *) (row + 10)) * 8;
