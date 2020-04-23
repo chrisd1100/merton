@@ -6,6 +6,8 @@
 #include "lib.h"
 #include "../src/nes.h"
 
+#define CONFIG_VERSION 1
+
 enum config_shader {
 	CONFIG_SHADER_NONE = 0,
 };
@@ -16,7 +18,11 @@ enum log_visibility {
 	CONFIG_LOG_ALWAYS  = 2,
 };
 
+#pragma pack(1)
 struct config {
+	// Version
+	uint16_t version;
+
 	// System
 	bool bg_pause;
 	bool reduce_latency;
@@ -48,8 +54,10 @@ struct config {
 	int32_t sample_rate;
 	uint32_t channels;
 };
+#pragma pack()
 
 #define CONFIG_DEFAULTS { \
+	CONFIG_VERSION, \
 	true, \
 	true, \
 	CONFIG_LOG_TIMEOUT, \

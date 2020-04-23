@@ -349,10 +349,27 @@ static void main_ui_root(void *opaque)
 	ui_component_root(&args, main_ui_event, ctx);
 }
 
+static struct config main_load_config(void)
+{
+	size_t size = 0;
+	struct config *cfg = (struct config *) fs_read("config.bin", &size);
+
+	struct config r = cfg && size == sizeof(struct config) && cfg->version == CONFIG_VERSION ?
+		*cfg : (struct config) CONFIG_DEFAULTS;
+
+	free(cfg);
+	return r;
+}
+
+static void main_save_config(struct config *cfg)
+{
+	fs_write("config.bin", cfg, sizeof(struct config));
+}
+
 int32_t main(int32_t argc, char **argv)
 {
 	struct main ctx = {0};
-	ctx.cfg = (struct config) CONFIG_DEFAULTS;
+	ctx.cfg = main_load_config();
 	ctx.running = true;
 
 	int32_t r = window_create("Merton", main_window_msg_func, &ctx,
@@ -406,6 +423,7 @@ int32_t main(int32_t argc, char **argv)
 	}
 
 	main_save_sram(&ctx);
+	main_save_config(&ctx.cfg);
 
 	except:
 
