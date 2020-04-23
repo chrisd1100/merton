@@ -1,5 +1,5 @@
 ## Overview
-Merton is an accurate NES emulator written in C with no dependencies. The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes almost every known test](/test) and successfully emulates tricky games.
+Merton is an accurate NES emulator written in C with no dependencies. The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes every known test](/test) and successfully emulates tricky games.
 
 #### Issues
 - Micro Machines: Thin black line on title screen, related to OAM
