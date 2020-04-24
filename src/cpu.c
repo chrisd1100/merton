@@ -31,6 +31,7 @@ struct cpu {
 	bool NMI;
 	enum irq IRQ;
 	bool irq_pending;
+	bool rmw_first;
 
 	struct opcode OP[0x100];
 
@@ -97,6 +98,8 @@ static void cpu_write(struct cpu *cpu, NES *nes, uint16_t addr, uint8_t v)
 	sys_pre_tick_write(nes, addr);
 	sys_write(nes, addr, v);
 	sys_post_tick_write(nes);
+
+	cpu->rmw_first = false;
 }
 
 static uint16_t cpu_read16(struct cpu *cpu, NES *nes, uint16_t addr)
@@ -596,6 +599,7 @@ static uint8_t cpu_lsr(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = cpu_read(cpu, nes, addr);
+		cpu->rmw_first = true;
 		cpu_write(cpu, nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val >>= 1;
@@ -617,6 +621,7 @@ static uint8_t cpu_asl(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = cpu_read(cpu, nes, addr);
+		cpu->rmw_first = true;
 		cpu_write(cpu, nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val <<= 1;
@@ -640,6 +645,7 @@ static uint8_t cpu_rol(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = cpu_read(cpu, nes, addr);
+		cpu->rmw_first = true;
 		cpu_write(cpu, nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val = (val << 1) | c;
@@ -663,6 +669,7 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = cpu_read(cpu, nes, addr);
+		cpu->rmw_first = true;
 		cpu_write(cpu, nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val = (val >> 1) | (c << 7);
@@ -678,6 +685,7 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 {
 	uint8_t val = cpu_read(cpu, nes, addr);
+	cpu->rmw_first = true;
 	cpu_write(cpu, nes, addr, val); //dummy write
 
 	val += 1;
@@ -690,6 +698,7 @@ static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 static uint8_t cpu_dec(struct cpu *cpu, NES *nes, uint16_t addr)
 {
 	uint8_t val = cpu_read(cpu, nes, addr) ;
+	cpu->rmw_first = true;
 	cpu_write(cpu, nes, addr, val); //dummy write
 
 	val -= 1;
@@ -1259,6 +1268,9 @@ uint8_t cpu_dma_dmc(struct cpu *cpu, NES *nes, uint16_t addr, bool in_write, boo
 	} else if (in_write) { //+2 if CPU is writing
 		sys_tick(nes);
 		sys_tick(nes);
+
+		if (cpu->rmw_first)
+			sys_tick(nes);
 
 	} else { //+3 default case
 		sys_tick(nes);

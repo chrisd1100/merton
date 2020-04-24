@@ -18,6 +18,7 @@ struct NES {
 		uint8_t ram[0x0800];
 		uint8_t io_open_bus;
 		uint16_t read_addr;
+		bool in_write;
 		uint16_t write_addr;
 		uint64_t cycle;
 		uint64_t cycle_2007;
@@ -150,7 +151,7 @@ uint8_t sys_read_dmc(NES *nes, uint16_t addr)
 	if (nes->sys.read_addr == 0x4016 || nes->sys.read_addr == 0x4017)
 		sys_read(nes, nes->sys.read_addr);
 
-	return cpu_dma_dmc(nes->cpu, nes, addr, nes->sys.write_addr != 0, nes->sys.write_addr == 0x4014);
+	return cpu_dma_dmc(nes->cpu, nes, addr, nes->sys.in_write, nes->sys.write_addr == 0x4014);
 }
 
 void sys_write(NES *nes, uint16_t addr, uint8_t v)
@@ -187,6 +188,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 void sys_pre_tick_write(NES *nes, uint16_t addr)
 {
 	nes->sys.write_addr = addr;
+	nes->sys.in_write = true;
 
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
@@ -202,6 +204,7 @@ void sys_post_tick_write(NES *nes)
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;
 	nes->sys.write_addr = 0;
+	nes->sys.in_write = false;
 }
 
 void sys_pre_tick_read(NES *nes, uint16_t addr)
@@ -235,6 +238,7 @@ static void sys_reset(struct sys *sys, bool hard)
 {
 	sys->odd_cycle = false;
 	sys->frame = false;
+	sys->in_write = false;
 	sys->read_addr = sys->write_addr = 0;
 	sys->cycle = sys->cycle_2007 = 0;
 
