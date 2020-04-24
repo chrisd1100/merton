@@ -37,11 +37,6 @@ Index of this file:
 
 #pragma once
 
-// Configuration file with compile-time options (edit imconfig.h or #define IMGUI_USER_CONFIG to your own filename)
-#ifdef IMGUI_USER_CONFIG
-#include IMGUI_USER_CONFIG
-#endif
-
 //---- Define assertion handler. Defaults to calling assert().
 // If your macro uses multiple statements, make sure is enclosed in a 'do { .. } while (0)' block so it can be used as a single statement.
 #include <assert.h>
