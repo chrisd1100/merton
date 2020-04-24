@@ -11,7 +11,7 @@
 	#define _strdup(s) strdup(s)
 #endif
 
-#include "assets/font/ponderosa.h"
+#include "assets/font/anonymous.h"
 
 using namespace ImGui;
 
@@ -35,7 +35,6 @@ struct ui {
 	bool mouse[3];
 
 	ImFont *font;
-	ImFont *font_small;
 } UI;
 
 void ui_create(void)
@@ -168,10 +167,8 @@ bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 		UI.context = NULL;
 
 		ImGuiIO &io = GetIO();
-		UI.font = io.Fonts->AddFontFromMemoryCompressedTTF(ponderosa_compressed_data,
-			ponderosa_compressed_size, X(12));
-		UI.font_small = io.Fonts->AddFontFromMemoryCompressedTTF(ponderosa_compressed_data,
-			ponderosa_compressed_size, X(9));
+		UI.font = io.Fonts->AddFontFromMemoryCompressedTTF(anonymous_compressed_data,
+			anonymous_compressed_size, X(13));
 
 		if (!ui_impl_init(device, context))
 			return false;
@@ -355,10 +352,9 @@ static void ui_log(bool always)
 		ImGuiIO &io = GetIO();
 		PushStyleColor(ImGuiCol_WindowBg, COLOR_MSG_BG);
 		PushStyleVar(ImGuiStyleVar_ItemSpacing, VEC(5, 4));
-		PushFont(UI.font_small);
 
-		float h = X(18 + 14 * (CMP.log_lines - 1));
-		float w = X(260);
+		float h = X(30 + 17 * (CMP.log_lines - 1));
+		float w = X(300);
 		float padding_h = X(18);
 		float padding_v = X(18);
 		SetNextWindowPos(ImVec2(io.DisplaySize.x - w - padding_h, padding_v));
@@ -372,7 +368,6 @@ static void ui_log(bool always)
 			End();
 		}
 
-		PopFont();
 		PopStyleVar(1);
 		PopStyleColor(1);
 	}
