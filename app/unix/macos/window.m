@@ -11,13 +11,12 @@
 
 struct window {
 	NSWindow *nswindow;
-	CAMetalLayer *layer;
-	CVDisplayLinkRef display_link;
-	dispatch_semaphore_t semaphore;
-
 	WINDOW_MSG_FUNC msg_func;
 	const void *opaque;
 
+	CAMetalLayer *layer;
+	CVDisplayLinkRef display_link;
+	dispatch_semaphore_t semaphore;
 	id<MTLCommandQueue> cq;
 
 	struct window_quad *quad;
@@ -241,6 +240,10 @@ void window_poll(struct window *ctx)
 			[NSApp sendEvent:event];
 		}
 	}
+
+	CGSize size = ctx->nswindow.contentView.frame.size;
+	if (size.width != ctx->layer.drawableSize.width || size.height != ctx->layer.drawableSize.height)
+		ctx->layer.drawableSize = size;
 }
 
 bool window_is_foreground(struct window *ctx)
