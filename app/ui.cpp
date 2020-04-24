@@ -354,7 +354,7 @@ static void ui_log(bool always)
 		PushStyleVar(ImGuiStyleVar_ItemSpacing, VEC(5, 4));
 
 		float h = X(30 + 17 * (CMP.log_lines - 1));
-		float w = X(300);
+		float w = X(260);
 		float padding_h = X(18);
 		float padding_v = X(18);
 		SetNextWindowPos(ImVec2(io.DisplaySize.x - w - padding_h, padding_v));
