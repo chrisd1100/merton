@@ -735,10 +735,10 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_rende
 	}
 }
 
-uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
+bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 	NES_VideoCallback new_frame, const void *opaque)
 {
-	uint8_t got_frame = 0;
+	bool frame = false;
 
 	ppu_clock(ppu);
 
@@ -766,7 +766,7 @@ uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 				memset(ppu->pixels, 0, 256 * 240 * 4);
 
 			new_frame(ppu->pixels, (void *) opaque);
-			got_frame = 1;
+			frame = true;
 		}
 
 	} else if (ppu->scanline == 241) {
@@ -797,7 +797,7 @@ uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		}
 	}
 
-	return got_frame;
+	return frame;
 }
 
 

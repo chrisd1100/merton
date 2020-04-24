@@ -17,12 +17,12 @@ struct NES {
 	struct sys {
 		uint8_t ram[0x0800];
 		uint8_t io_open_bus;
-		uint32_t frame;
 		uint16_t read_addr;
 		uint16_t write_addr;
 		uint64_t cycle;
 		uint64_t cycle_2007;
 		bool odd_cycle;
+		bool frame;
 	} sys;
 
 	struct ctrl {
@@ -188,9 +188,9 @@ void sys_pre_tick_write(NES *nes, uint16_t addr)
 {
 	nes->sys.write_addr = addr;
 
-	nes->sys.frame += ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	nes->sys.frame += ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	nes->sys.frame += ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 }
@@ -208,15 +208,15 @@ void sys_pre_tick_read(NES *nes, uint16_t addr)
 {
 	nes->sys.read_addr = addr;
 
-	nes->sys.frame += ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	nes->sys.frame += ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 }
 
 void sys_post_tick_read(NES *nes)
 {
-	nes->sys.frame += ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
 	cart_step(nes->cart, nes->cpu);
 
@@ -234,7 +234,7 @@ void sys_tick(NES *nes)
 static void sys_reset(struct sys *sys, bool hard)
 {
 	sys->odd_cycle = false;
-	sys->frame = 0;
+	sys->frame = false;
 	sys->read_addr = sys->write_addr = 0;
 	sys->cycle = sys->cycle_2007 = 0;
 
@@ -282,7 +282,7 @@ uint32_t NES_NextFrame(NES *ctx)
 
 	uint64_t cycles = ctx->sys.cycle;
 
-	for (uint32_t frame = ctx->sys.frame; frame == ctx->sys.frame; cpu_step(ctx->cpu, ctx));
+	for (ctx->sys.frame = false; !ctx->sys.frame; cpu_step(ctx->cpu, ctx));
 
 	return (uint32_t) (ctx->sys.cycle - cycles);
 }

@@ -13,7 +13,7 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr, uint8_t v);
 
 /*** RUN ***/
-uint8_t ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
+bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 	NES_VideoCallback new_frame, const void *opaque);
 
 /*** INIT & DESTROY ***/
