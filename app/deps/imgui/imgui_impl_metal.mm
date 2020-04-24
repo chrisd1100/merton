@@ -163,7 +163,7 @@ void ImGui_ImplMetal_RenderDrawData(ImDrawData* drawData, void *ocq, void *otext
 
 bool ImGui_ImplMetal_Init(void *odevice)
 {
-	if (g_Shared_metalContext)
+	if (g_sharedMetalContext)
 		ImGui_ImplMetal_Shutdown();
 
 	id<MTLDevice> device = (id<MTLDevice>) odevice;
@@ -172,7 +172,7 @@ bool ImGui_ImplMetal_Init(void *odevice)
 	io.BackendRendererName = "imgui_impl_metal";
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
 
-	g_sharedMetalContext = (struct MetalContext *) calloc(1, sizeof(struct MetalContext));
+	struct MetalContext *ctx = g_sharedMetalContext = (struct MetalContext *) calloc(1, sizeof(struct MetalContext));
 
 	MTLDepthStencilDescriptor *depthStencilDescriptor = [[MTLDepthStencilDescriptor alloc] init];
 	depthStencilDescriptor.depthWriteEnabled = NO;

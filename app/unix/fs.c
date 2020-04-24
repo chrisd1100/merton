@@ -8,10 +8,12 @@
 #include <strings.h>
 #include <limits.h>
 
+#include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
 
 static __thread char FS_PATH[PATH_MAX];
+static __thread char FS_PROG_DIR[PATH_MAX];
 
 void *fs_read(const char *path, size_t *size)
 {
@@ -57,6 +59,35 @@ void fs_write(const char *path, const void *data, size_t size)
 void fs_mkdir(const char *path)
 {
 	mkdir(path, 0755);
+}
+
+const char *fs_prog_dir(void)
+{
+	int32_t n = readlink("/proc/self/exe", FS_PROG_DIR, PATH_MAX);
+
+	if (n > 0 && n < PATH_MAX) {
+		FS_PROG_DIR[n] = '\0';
+
+		char *last_bs = NULL;
+		char *ptr = FS_PROG_DIR;
+
+		do {
+			ptr = strchr(ptr, '/');
+
+			if (ptr) {
+				last_bs = ptr;
+				ptr++;
+			}
+		} while (ptr);
+
+		if (last_bs)
+			last_bs[0] = '\0';
+
+	} else {
+		snprintf(FS_PROG_DIR, PATH_MAX, ".");
+	}
+
+	return FS_PROG_DIR;
 }
 
 const char *fs_path(const char *dir, const char *file)
