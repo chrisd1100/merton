@@ -229,6 +229,12 @@ void window_poll(struct window *ctx)
 				}
 				break;
 			}
+			case NSEventTypeMouseMoved: {
+				wmsg.type = WINDOW_MSG_MOUSE_MOTION;
+				wmsg.mouseMotion.x = 0;
+				wmsg.mouseMotion.y = 0;
+				break;
+			}
 			default:
 				break;
 		}
