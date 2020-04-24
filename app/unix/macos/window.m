@@ -247,7 +247,11 @@ void window_poll(struct window *ctx)
 		}
 	}
 
+	uint32_t scale = lrint([ctx->nswindow screen].backingScaleFactor);
 	CGSize size = ctx->nswindow.contentView.frame.size;
+	size.width *= scale;
+	size.height *= scale;
+
 	if (size.width != ctx->layer.drawableSize.width || size.height != ctx->layer.drawableSize.height)
 		ctx->layer.drawableSize = size;
 }
@@ -264,7 +268,7 @@ uint32_t window_refresh_rate(struct window *ctx)
 
 float window_get_dpi_scale(struct window *ctx)
 {
-	return 1.0f;
+	return [ctx->nswindow screen].backingScaleFactor;
 }
 
 void window_set_fullscreen(struct window *ctx)
