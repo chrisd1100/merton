@@ -650,7 +650,7 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 {
 	uint16_t addr = 0x3F00;
 
-	if (rendering && dot <= 256 && ppu_sprite0_hit(ppu, dot - 1))
+	if (rendering && dot <= 255 && !GET_FLAG(ppu->STATUS, FLAG_STATUS_S) && ppu_sprite0_hit(ppu, dot - 1))
 		SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
 
 	if (dot >= 4) {
