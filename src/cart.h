@@ -9,10 +9,13 @@
 enum mem {
 	RAM        = 0x10,
 	CIRAM      = 0x11,
+	EXRAM      = 0x12,
 	ROM_SPRITE = 0x00,
 	ROM_BG     = 0x01,
 	ROM_DATA   = 0x02,
 };
+
+#define ROM ROM_SPRITE
 
 struct cart;
 

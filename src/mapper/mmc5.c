@@ -85,7 +85,7 @@ static void mmc5_create(struct cart *cart)
 static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x5C00 && addr < 0x6000) {
-		cart->mmc5.exram[addr - 0x5C00] = v;
+		cart->chr.exram.data[addr - 0x5C00] = v;
 
 	} else if (addr < 0x6000) {
 		switch (addr) {
@@ -116,10 +116,10 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 			case 0x5105: //Mirroring mode
 				for (uint8_t x = 0; x < 4; x++) {
 					switch ((v >> (x * 2)) & 0x03) {
-						case 0: cart_map_ciram_slot(&cart->chr, x, 0);                    break;
-						case 1: cart_map_ciram_slot(&cart->chr, x, 1);                    break;
-						//case 2: cart_map_ciram_buf(&cart->chr, x, RAM, cart->mmc5.exram); break;
-						//case 3: cart_map_ciram_buf(&cart->chr, x, ROM, NULL);             break;
+						case 0: cart_map_ciram_slot(&cart->chr, x, 0);          break;
+						case 1: cart_map_ciram_slot(&cart->chr, x, 1);          break;
+						case 2: cart_map_ciram_offset(&cart->chr, x, EXRAM, 0); break;
+						case 3: cart_unmap_ciram(&cart->chr, x);                break;
 					}
 				}
 				break;
@@ -205,7 +205,7 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu
 		return map_read(&cart->prg, 0, addr, mem_hit);
 
 	} else if (addr >= 0x5C00 && addr < 0x6000) {
-		return cart->mmc5.exram[addr - 0x5C00];
+		return cart->chr.exram.data[addr - 0x5C00];
 
 	} else {
 		switch (addr) {
@@ -290,17 +290,17 @@ static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type
 
 			if (!cart->mmc5.exram_latch) {
 				cart->mmc5.exram_latch = true;
-				return cart->mmc5.exram[vtile * 32 + htile];
+				return cart->chr.exram.data[vtile * 32 + htile];
 
 			} else {
 				cart->mmc5.exram_latch = false;
-				return cart->mmc5.exram[0x03C0 + vtile / 32 + htile / 4];
+				return cart->chr.exram.data[0x03C0 + vtile / 32 + htile / 4];
 			}
 
 		} else if (cart->mmc5.exram_mode == 1) {
 			if (!cart->mmc5.exram_latch) {
 				cart->mmc5.exram_latch = true;
-				cart->mmc5.exram1 = cart->mmc5.exram[addr % 0x0400];
+				cart->mmc5.exram1 = cart->chr.exram.data[addr % 0x0400];
 
 			} else {
 				cart->mmc5.exram_latch = false;
