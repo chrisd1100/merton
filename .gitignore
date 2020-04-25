@@ -4,6 +4,7 @@
 *.res
 *.o
 *.sav
+*.state
 .vs/
 rom/
 merton
