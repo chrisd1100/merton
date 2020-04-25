@@ -22,7 +22,8 @@ struct memory {
 
 struct map {
 	enum mem type;
-	uint8_t *ptr;
+	size_t offset;
+	bool mapped;
 };
 
 struct asset {
@@ -38,9 +39,12 @@ struct asset {
 
 static uint8_t map_read(struct asset *asset, uint8_t index, uint16_t addr, bool *hit)
 {
-	uint8_t *mapped_addr = asset->map[index][addr >> asset->shift].ptr;
+	struct map *m = &asset->map[index][addr >> asset->shift];
+	struct memory *mem = ((m->type & CIRAM) == CIRAM) ? &asset->ciram : (m->type & RAM) ? &asset->ram : &asset->rom;
 
-	if (mapped_addr) {
+	if (m->mapped) {
+		uint8_t *mapped_addr = mem->data + m->offset;
+
 		if (hit) *hit = true;
 		return mapped_addr[addr & asset->mask];
 	}
@@ -52,14 +56,18 @@ static uint8_t map_read(struct asset *asset, uint8_t index, uint16_t addr, bool 
 static void map_write(struct asset *asset, uint8_t index, uint16_t addr, uint8_t v)
 {
 	struct map *m = &asset->map[index][addr >> asset->shift];
+	struct memory *mem = ((m->type & CIRAM) == CIRAM) ? &asset->ciram : (m->type & RAM) ? &asset->ram : &asset->rom;
 
-	if (m->ptr && (m->type & RAM))
-		m->ptr[addr & asset->mask] = v;
+	if (m->mapped && (m->type & RAM)) {
+		uint8_t *mapped_addr = mem->data + m->offset;
+		mapped_addr[addr & asset->mask] = v;
+	}
 }
 
 static void map_unmap(struct asset *asset, uint8_t index, uint16_t addr)
 {
-	asset->map[index][addr >> asset->shift].ptr = NULL;
+	struct map *m = &asset->map[index][addr >> asset->shift];
+	m->mapped = false;
 }
 
 static void cart_map(struct asset *asset, enum mem type, uint16_t addr, uint16_t bank, uint8_t bank_size_kb)
@@ -74,25 +82,28 @@ static void cart_map(struct asset *asset, enum mem type, uint16_t addr, uint16_t
 	for (int32_t x = start_slot, y = 0; x < end_slot; x++, y++) {
 		struct map *m = &asset->map[type & 0x0F][x];
 
-		m->ptr = mem->data + (bank_offset + (y << asset->shift)) % mem->size;
+		m->offset = (bank_offset + (y << asset->shift)) % mem->size;
 		m->type = type;
+		m->mapped = true;
 	}
 }
 
-static void cart_map_ciram_buf(struct asset *asset, uint8_t dest, enum mem type, uint8_t *buf)
+static void cart_map_ciram_offset(struct asset *asset, uint8_t dest, enum mem type, size_t offset)
 {
-	asset->map[0][dest + 8].ptr = buf;
+	asset->map[0][dest + 8].offset = offset;
 	asset->map[0][dest + 8].type = type;
+	asset->map[0][dest + 8].mapped = true;
 
 	if (dest < 4) {
-		asset->map[0][dest + 12].ptr = buf;
+		asset->map[0][dest + 12].offset = offset;
 		asset->map[0][dest + 12].type = type;
+		asset->map[0][dest + 12].mapped = true;
 	}
 }
 
 static void cart_map_ciram_slot(struct asset *asset, uint8_t dest, uint8_t src)
 {
-	cart_map_ciram_buf(asset, dest, CIRAM, asset->ciram.data + src * CHR_SLOT);
+	cart_map_ciram_offset(asset, dest, CIRAM, src * CHR_SLOT);
 }
 
 static void cart_map_ciram(struct asset *asset, NES_Mirror mirror)
@@ -580,4 +591,73 @@ void cart_destroy(struct cart **cart)
 
 	free(ctx);
 	*cart = NULL;
+}
+
+void *cart_get_state(struct cart *cart, size_t *size)
+{
+	*size = sizeof(struct cart) + cart->prg.rom.size + cart->prg.ram.size +
+		cart->chr.rom.size + cart->chr.ram.size + cart->chr.ciram.size;
+
+	struct cart *state = malloc(*size);
+	uint8_t *u8cart = (uint8_t *) state;
+	*state = *cart;
+	u8cart += sizeof(struct cart);
+
+	memcpy(u8cart, cart->prg.rom.data, cart->prg.rom.size);
+	u8cart += cart->prg.rom.size;
+
+	memcpy(u8cart, cart->prg.ram.data, cart->prg.ram.size);
+	u8cart += cart->prg.ram.size;
+
+	memcpy(u8cart, cart->chr.rom.data, cart->chr.rom.size);
+	u8cart += cart->chr.rom.size;
+
+	memcpy(u8cart, cart->chr.ram.data, cart->chr.ram.size);
+	u8cart += cart->chr.ram.size;
+
+	memcpy(u8cart, cart->chr.ciram.data, cart->chr.ciram.size);
+	u8cart += cart->chr.ciram.size;
+
+	return state;
+}
+
+size_t cart_set_state(struct cart *cart, const void *state, size_t size)
+{
+	if (size >= sizeof(struct cart)) {
+		free(cart->prg.rom.data);
+		free(cart->prg.ram.data);
+		free(cart->chr.rom.data);
+		free(cart->chr.ram.data);
+		free(cart->chr.ciram.data);
+
+		const uint8_t *u8state = state;
+		*cart = *((struct cart *) state);
+		size -= sizeof(struct cart);
+		u8state += sizeof(struct cart);
+
+		cart->prg.rom.data = malloc(cart->prg.rom.size);
+		memcpy(cart->prg.rom.data, u8state, cart->prg.rom.size);
+		u8state += cart->prg.rom.size;
+
+		cart->prg.ram.data = malloc(cart->prg.ram.size);
+		memcpy(cart->prg.ram.data, u8state, cart->prg.ram.size);
+		u8state += cart->prg.ram.size;
+
+		cart->chr.rom.data = malloc(cart->chr.rom.size);
+		memcpy(cart->chr.rom.data, u8state, cart->chr.rom.size);
+		u8state += cart->chr.rom.size;
+
+		cart->chr.ram.data = malloc(cart->chr.ram.size);
+		memcpy(cart->chr.ram.data, u8state, cart->chr.ram.size);
+		u8state += cart->chr.ram.size;
+
+		cart->chr.ciram.data = malloc(cart->chr.ciram.size);
+		memcpy(cart->chr.ciram.data, u8state, cart->chr.ciram.size);
+		u8state += cart->chr.ciram.size;
+
+		return sizeof(struct cart) + cart->prg.rom.size + cart->prg.ram.size +
+			cart->chr.rom.size + cart->chr.ram.size + cart->chr.ciram.size;
+	}
+
+	return 0;
 }

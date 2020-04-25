@@ -1106,3 +1106,24 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 	apu->frame_counter = 4;
 	apu->ext = EXT_NONE;
 }
+
+void *apu_get_state(struct apu *apu, size_t *size)
+{
+	*size = sizeof(struct apu);
+
+	struct apu *state = malloc(*size);
+	*state = *apu;
+
+	return state;
+}
+
+size_t apu_set_state(struct apu *apu, const void *state, size_t size)
+{
+	if (size >= sizeof(struct apu)) {
+		*apu = *((struct apu *) state);
+
+		return sizeof(struct apu);
+	}
+
+	return 0;
+}

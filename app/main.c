@@ -104,6 +104,18 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 			break;
 		case WINDOW_MSG_KEYBOARD: {
 			switch (wmsg->keyboard.scancode) {
+				case SCANCODE_V: {
+					size_t size = 0;
+					void *state = NES_GetState(ctx->nes, &size);
+					fs_write("STATE", state, size);
+					break;
+				}
+				case SCANCODE_W: {
+					size_t size = 0;
+					void *state = fs_read("STATE", &size);
+					if (state)
+						NES_SetState(ctx->nes, state, size);
+				}
 				default: {
 					NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 					if (button != 0)

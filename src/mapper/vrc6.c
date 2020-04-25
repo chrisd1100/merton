@@ -66,7 +66,7 @@ static void vrc6_map_ppu(struct cart *cart)
 
 	for (uint8_t x = 0; x < 4; x++) {
 		if (cart->REG[0] & 0x10) {
-			cart_map_ciram_buf(&cart->chr, x, ROM, cart->chr.rom.data + 0x400 * c[x]);
+			cart_map_ciram_offset(&cart->chr, x, ROM, 0x400 * c[x]);
 		} else {
 			cart_map_ciram_slot(&cart->chr, x, ~c[x] & 0x01);
 		}

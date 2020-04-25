@@ -118,8 +118,8 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 					switch ((v >> (x * 2)) & 0x03) {
 						case 0: cart_map_ciram_slot(&cart->chr, x, 0);                    break;
 						case 1: cart_map_ciram_slot(&cart->chr, x, 1);                    break;
-						case 2: cart_map_ciram_buf(&cart->chr, x, RAM, cart->mmc5.exram); break;
-						case 3: cart_map_ciram_buf(&cart->chr, x, ROM, NULL);             break;
+						//case 2: cart_map_ciram_buf(&cart->chr, x, RAM, cart->mmc5.exram); break;
+						//case 3: cart_map_ciram_buf(&cart->chr, x, ROM, NULL);             break;
 					}
 				}
 				break;

@@ -1332,3 +1332,24 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 
 	SET_FLAG(cpu->P, FLAG_I);
 }
+
+void *cpu_get_state(struct cpu *cpu, size_t *size)
+{
+	*size = sizeof(struct cpu);
+
+	struct cpu *state = malloc(*size);
+	*state = *cpu;
+
+	return state;
+}
+
+size_t cpu_set_state(struct cpu *cpu, const void *state, size_t size)
+{
+	if (size >= sizeof(struct cpu)) {
+		*cpu = *((struct cpu *) state);
+
+		return sizeof(struct cpu);
+	}
+
+	return 0;
+}
