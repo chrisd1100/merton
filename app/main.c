@@ -97,6 +97,8 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 			ctx->running = false;
 			break;
 		case WINDOW_MSG_KEYBOARD: {
+			printf("%d\n", wmsg->keyboard.scancode);
+
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 			if (button != 0)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
@@ -466,13 +468,11 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 {
 	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
 
-	/*
 	AllocConsole();
 	AttachConsole(GetCurrentProcessId());
 
 	FILE *f = NULL;
 	freopen_s(&f, "CONOUT$", "w", stdout);
-	*/
 
 	timeBeginPeriod(1);
 

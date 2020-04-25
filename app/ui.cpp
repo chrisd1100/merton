@@ -735,6 +735,14 @@ static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *ev
 
 	if (io.KeysDown[SCANCODE_M] && io.KeyCtrl)
 		event->cfg.mute = !event->cfg.mute;
+
+	for (uint8_t x = 0; x < 8; x++) {
+		if (io.KeysDown[SCANCODE_1 + x] && io.KeyCtrl)
+			ui_save_state(args->nes, args->crc32, x + 1);
+
+		if (io.KeysDown[SCANCODE_1 + x] && io.KeyShift)
+			ui_load_state(args->nes, args->crc32, x + 1);
+	}
 }
 
 void ui_component_root(const struct ui_args *args,
