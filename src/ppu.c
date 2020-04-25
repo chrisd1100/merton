@@ -249,14 +249,14 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 			//buffered read from CHR
 			if (waddr < 0x3F00) {
 				v = ppu->open_bus = ppu->read_buffer;
-				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr, ROM_DATA, false);
+				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr, ROM, false);
 
 			} else {
 				//read buffer gets ciram byte
-				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr - 0x1000, ROM_DATA, false);
+				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr - 0x1000, ROM, false);
 
 				//upper 2 bits get preserved from decay value
-				v = (ppu->open_bus & 0xC0) | (ppu_read_vram(ppu, cart, waddr, ROM_DATA, false) & 0x3F);
+				v = (ppu->open_bus & 0xC0) | (ppu_read_vram(ppu, cart, waddr, ROM, false) & 0x3F);
 			}
 
 			ppu_set_v(ppu, cart, ppu->v + ppu->CTRL.incr, true);
@@ -429,7 +429,7 @@ static uint8_t ppu_read_tile_byte(struct ppu *ppu, struct cart *cart, uint8_t nt
 {
 	uint16_t addr = ppu->CTRL.bg_table + (nt * 16) + GET_FY(ppu->v);
 
-	return ppu_read_vram(ppu, cart, addr + offset, ROM_BG, false);
+	return ppu_read_vram(ppu, cart, addr + offset, BGROM, false);
 }
 
 static uint8_t ppu_color(uint8_t low_tile, uint8_t high_tile, uint8_t attr, uint8_t shift)
@@ -453,10 +453,10 @@ static void ppu_fetch_bg(struct ppu *ppu, struct cart *cart, uint16_t bg_dot)
 {
 	switch (ppu->dot % 8) {
 		case 1:
-			ppu->nt = ppu_read_nt_byte(ppu, cart, ROM_BG);
+			ppu->nt = ppu_read_nt_byte(ppu, cart, BGROM);
 			break;
 		case 3:
-			ppu->attr = ppu_read_attr_byte(ppu, cart, ROM_BG);
+			ppu->attr = ppu_read_attr_byte(ppu, cart, BGROM);
 			break;
 		case 5:
 			ppu->bgl = ppu_read_tile_byte(ppu, cart, ppu->nt, 0);
@@ -602,18 +602,18 @@ static void ppu_fetch_sprite(struct ppu *ppu, struct cart *cart)
 
 	switch (ppu->dot % 8) {
 		case 1:
-			ppu_read_nt_byte(ppu, cart, ROM_SPRITE);
+			ppu_read_nt_byte(ppu, cart, SPRROM);
 			break;
 		case 3:
-			ppu_read_attr_byte(ppu, cart, ROM_SPRITE);
+			ppu_read_attr_byte(ppu, cart, SPRROM);
 			break;
 		case 5: {
 			int32_t row = ppu->scanline - ppu->soam[n][0];
 			s->addr = ppu_sprite_addr(ppu, (uint16_t) (row > 0 ? row : 0), ppu->soam[n][1], ppu->soam[n][2]);
-			s->low_tile = ppu_read_vram(ppu, cart, s->addr, ROM_SPRITE, false);
+			s->low_tile = ppu_read_vram(ppu, cart, s->addr, SPRROM, false);
 			break;
 		} case 7: {
-			uint8_t high_tile = ppu_read_vram(ppu, cart, s->addr + 8, ROM_SPRITE, false);
+			uint8_t high_tile = ppu_read_vram(ppu, cart, s->addr + 8, SPRROM, false);
 
 			if (n < ppu->soam_n)
 				ppu_store_sprite_colors(ppu, ppu->soam[n][2], ppu->soam[n][3], s->id, s->low_tile, high_tile);

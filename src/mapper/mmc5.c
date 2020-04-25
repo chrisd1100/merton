@@ -50,7 +50,7 @@ static void mmc5_map_prg(struct cart *cart, int32_t slot, uint16_t bank, enum me
 static void mmc5_map_chr(struct cart *cart, int32_t slot, uint16_t bank, enum mem type)
 {
 	bank |= cart->mmc5.chr_bank_upper;
-	uint8_t ram = cart->chr.rom.size == 0 ? 0x10 : 0x00;
+	enum mem ram = cart->chr.rom.size == 0 ? RAM : UNMAPPED;
 
 	switch (cart->chr_mode) {
 		case 0:
@@ -72,11 +72,11 @@ static void mmc5_create(struct cart *cart)
 	mmc5_map_prg16(cart, ROM, 0xC000, 0xFF);
 
 	cart->prg_mode = 3;
-	cart->mmc5.active_map = ROM_SPRITE;
+	cart->mmc5.active_map = SPRROM;
 
-	uint8_t ram = cart->chr.rom.size == 0 ? 0x10 : 0x00;
-	cart_map(&cart->chr, ROM_SPRITE | ram, 0x0000, 0, 8);
-	cart_map(&cart->chr, ROM_BG | ram, 0x0000, 0, 8);
+	enum mem ram = cart->chr.rom.size == 0 ? RAM : UNMAPPED;
+	cart_map(&cart->chr, SPRROM | ram, 0x0000, 0, 8);
+	cart_map(&cart->chr, BGROM | ram, 0x0000, 0, 8);
 
 	if (cart->prg.ram.size > 0)
 		cart_map(&cart->prg, RAM, 0x6000, 0, 8);
@@ -148,16 +148,16 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 			case 0x5125:
 			case 0x5126:
 			case 0x5127:
-				cart->mmc5.active_map = ROM_SPRITE;
-				mmc5_map_chr(cart, addr - 0x5120, v, ROM_SPRITE);
+				cart->mmc5.active_map = SPRROM;
+				mmc5_map_chr(cart, addr - 0x5120, v, SPRROM);
 				break;
 			case 0x5128:
 			case 0x5129:
 			case 0x512A:
 			case 0x512B:
-				cart->mmc5.active_map = ROM_BG;
-				mmc5_map_chr(cart, addr - 0x5128, v, ROM_BG);
-				mmc5_map_chr(cart, (addr - 0x5128) + 4, v, ROM_BG);
+				cart->mmc5.active_map = BGROM;
+				mmc5_map_chr(cart, addr - 0x5128, v, BGROM);
+				mmc5_map_chr(cart, (addr - 0x5128) + 4, v, BGROM);
 				break;
 			case 0x5130:
 				cart->mmc5.chr_bank_upper = (uint16_t) (v & 0x03) << 8;
@@ -267,7 +267,7 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu
 
 static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type, bool nt)
 {
-	if (type == ROM_BG) {
+	if (type == BGROM) {
 		if (nt) {
 			cart->mmc5.exram_latch = false;
 			cart->mmc5.nt_latch = false;
@@ -343,10 +343,10 @@ static void mmc5_ppu_write_hook(struct cart *cart, uint16_t addr, uint8_t v)
 static uint8_t mmc5_chr_read(struct cart *cart, uint16_t addr, enum mem type)
 {
 	if (cart->mmc5.exram_mode != 1 && !cart->mmc5.large_sprites)
-		type = ROM_SPRITE;
+		type = SPRROM;
 
 	switch (type) {
-		case ROM_BG:
+		case BGROM:
 			if (cart->mmc5.vs.fetch) {
 				uint16_t fine_y = cart->mmc5.vs.scroll & 0x07;
 				return cart->chr.rom.data[(cart->mmc5.vs.bank * 0x1000 + (addr & 0x0FF8) + fine_y) % cart->chr.rom.size];
@@ -356,11 +356,11 @@ static uint8_t mmc5_chr_read(struct cart *cart, uint16_t addr, enum mem type)
 				return cart->chr.rom.data[(exbank * 0x1000 + (addr & 0x0FFF)) % cart->chr.rom.size];
 			}
 
-			return map_read(&cart->chr, ROM_BG, addr, NULL);
-		case ROM_SPRITE:
-			return map_read(&cart->chr, ROM_SPRITE, addr, NULL);
-		case ROM_DATA:
-			return map_read(&cart->chr, cart->mmc5.active_map, addr, NULL);
+			return map_read(&cart->chr, BGROM & 0xF, addr, NULL);
+		case SPRROM:
+			return map_read(&cart->chr, SPRROM & 0xF, addr, NULL);
+		case ROM:
+			return map_read(&cart->chr, cart->mmc5.active_map & 0xF, addr, NULL);
 		default:
 			break;
 	}

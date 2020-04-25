@@ -7,15 +7,14 @@
 #include "apu.h"
 
 enum mem {
-	RAM        = 0x10,
-	CIRAM      = 0x11,
-	EXRAM      = 0x12,
-	ROM_SPRITE = 0x00,
-	ROM_BG     = 0x01,
-	ROM_DATA   = 0x02,
+	UNMAPPED = 0x000000,
+	ROM      = 0x010000,
+	RAM      = 0x100000,
+	CIRAM    = RAM | 0x000100,
+	EXRAM    = RAM | 0x000200,
+	SPRROM   = ROM | 0x000010,
+	BGROM    = ROM | 0x000011,
 };
-
-#define ROM ROM_SPRITE
 
 struct cart;
 
