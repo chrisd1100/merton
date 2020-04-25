@@ -672,7 +672,7 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 		}
 
 		uint8_t color = ppu_read_palette(ppu, addr);
-		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[(ppu->MASK.emphasis & 0xE0) >> 5][color];
+		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[ppu->MASK.emphasis][color];
 	}
 }
 
