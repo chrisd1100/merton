@@ -273,7 +273,7 @@ static bool main_load_rom(struct main *ctx, const char *name)
 			snprintf(ctx->sram_file, SRAM_FILE_NAME_LEN, "%02X.sav", crc32);
 
 			NES_CartDesc desc = {0};
-			bool found_in_db = main_get_desc_from_db(offset, crc32, &desc);
+			bool found_in_db = ctx->cfg.use_db ? main_get_desc_from_db(offset, crc32, &desc) : false;
 
 			if (found_in_db) {
 				char msg[UI_LOG_LEN];

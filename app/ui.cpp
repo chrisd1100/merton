@@ -444,6 +444,9 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 			if (MenuItem("Reduce Latency", "", args->cfg->reduce_latency))
 				event->cfg.reduce_latency = !event->cfg.reduce_latency;
 
+			if (MenuItem("Use NRS NES 2.0 DB", "", args->cfg->use_db))
+				event->cfg.use_db = !event->cfg.use_db;
+
 			if (BeginMenu("Log", true)) {
 				if (MenuItem("Hide", "", args->cfg->log == CONFIG_LOG_HIDE, true))
 					event->cfg.log = CONFIG_LOG_HIDE;
