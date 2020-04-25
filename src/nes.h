@@ -91,7 +91,7 @@ void NES_SetLogCallback(NES_LogCallback logCallback);
 void NES_Log(const char *fmt, ...);
 
 void *NES_GetState(NES *ctx, size_t *size);
-void NES_SetState(NES *ctx, const void *state, size_t size);
+bool NES_SetState(NES *ctx, const void *state, size_t size);
 
 #ifdef __cplusplus
 }
