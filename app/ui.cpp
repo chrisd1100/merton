@@ -496,7 +496,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 					char label[16];
 					char key[8];
 					snprintf(label, 16, "Slot %u", x + 1);
-					snprintf(key, 16, "%u", x + 1);
+					snprintf(key, 8, "%u", x + 1);
 
 					if (MenuItem(label, key))
 						ui_save_state(args->nes, args->crc32, x + 1);
@@ -510,7 +510,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 					char label[16];
 					char key[8];
 					snprintf(label, 16, "Slot %u", x + 1);
-					snprintf(key, 16, "Ctrl+%u", x + 1);
+					snprintf(key, 8, "Ctrl+%u", x + 1);
 
 					if (MenuItem(label, key))
 						ui_load_state(args->nes, args->crc32, x + 1);
