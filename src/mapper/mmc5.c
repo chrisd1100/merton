@@ -98,6 +98,9 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 			case 0x5015:
 				apu_write(apu, NULL, NULL, addr - 0x1000, v, EXT_MMC5);
 				break;
+			case 0x5001: //MMC5 audio unused pulse sweep
+			case 0x5005:
+				break;
 			case 0x5010: //MMC5 audio PCM
 			case 0x5011:
 				break;
@@ -215,6 +218,9 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu
 			case 0x5004:
 			case 0x5006:
 			case 0x5007:
+				break;
+			case 0x5001: //MMC5 audio unused pulse sweep
+			case 0x5005:
 				break;
 			case 0x5015: //MMC5 audio status
 				return apu_read_status(apu, NULL, EXT_MMC5);
