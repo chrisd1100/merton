@@ -315,7 +315,8 @@ static void ui_message(void)
 	if (CMP.ts != 0 && time_diff(CMP.ts, time_stamp()) < CMP.timeout) {
 		PushStyleColor(ImGuiCol_WindowBg, COLOR_MSG_BG);
 
-		SetNextWindowPos(VEC(18, 18));
+		SetNextWindowPos(VEC(12, (CMP.nav & NAV_MENU) ? 34 : 12));
+		SetNextWindowSize(ImVec2(0, 0));
 
 		if (Begin("TIMED_MESSAGE", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNavInputs)) {
@@ -355,8 +356,8 @@ static void ui_log(bool always)
 
 		float h = X(30 + 17 * (CMP.log_lines - 1));
 		float w = X(260);
-		float padding_h = X(18);
-		float padding_v = X(18);
+		float padding_h = X(12);
+		float padding_v = X((CMP.nav & NAV_MENU) ? 34 : 12);
 		SetNextWindowPos(ImVec2(io.DisplaySize.x - w - padding_h, padding_v));
 		SetNextWindowSize(ImVec2(w, h));
 
@@ -377,10 +378,12 @@ static void ui_open_rom(struct ui_event *event)
 {
 	ImGuiIO &io = GetIO();
 
-	float padding_h = X(18);
-	float padding_v = X(30);
-	SetNextWindowPos(ImVec2(padding_h, padding_v + X(14)));
-	SetNextWindowSize(ImVec2(io.DisplaySize.x - padding_h * 2.0f, io.DisplaySize.y - padding_v * 2.0f));
+	float padding_h = X(12);
+	float padding_v = X(12);
+	float offset = X((CMP.nav & NAV_MENU) ? 34 : 12);
+	SetNextWindowPos(ImVec2(padding_h, offset));
+	SetNextWindowSize(ImVec2(io.DisplaySize.x - padding_h * 2.0f,
+		(io.DisplaySize.y - (offset - padding_v)) - padding_v * 2.0f));
 
 	if (Begin("OPEN_ROM", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
 		if (Button("Close"))
@@ -415,6 +418,56 @@ static void ui_open_rom(struct ui_event *event)
 	}
 }
 
+static void ui_save_state(NES *nes, uint32_t crc32, uint8_t index)
+{
+	size_t size = 0;
+	void *state = NES_GetState(nes, &size);
+
+	if (state) {
+		const char *path = fs_path(fs_prog_dir(), "state");
+		fs_mkdir(path);
+
+		char name[32];
+		snprintf(name, 32, "%02X-%u.state", crc32, index);
+		fs_write(fs_path(path, name), state, size);
+
+		char msg[64];
+		snprintf(msg, 64, "State saved to slot %u", index);
+		ui_component_message(msg, 3000);
+
+		free(state);
+	}
+}
+
+static void ui_load_state(NES *nes, uint32_t crc32, uint8_t index)
+{
+	const char *path = fs_path(fs_prog_dir(), "state");
+	fs_mkdir(path);
+
+	char name[32];
+	snprintf(name, 32, "%02X-%u.state", crc32, index);
+
+	size_t size = 0;
+	void *state = fs_read(fs_path(path, name), &size);
+
+	char msg[64];
+
+	if (state) {
+		if (NES_SetState(nes, state, size)) {
+			snprintf(msg, 64, "State loaded from slot %u", index);
+
+		} else {
+			snprintf(msg, 64, "Error loading state from slot %u", index);
+		}
+
+		free(state);
+	} else {
+		snprintf(msg, 64, "State does not exist for slot %u", index);
+	}
+
+	ui_component_message(msg, 3000);
+}
+
 static void ui_menu(const struct ui_args *args, struct ui_event *event)
 {
 	if (BeginMainMenuBar()) {
@@ -438,11 +491,44 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 			Separator();
 
+			if (BeginMenu("Save State", true)) {
+				for (uint8_t x = 0; x < 8; x++) {
+					char label[16];
+					char key[8];
+					snprintf(label, 16, "Slot %u", x + 1);
+					snprintf(key, 16, "%u", x + 1);
+
+					if (MenuItem(label, key))
+						ui_save_state(args->nes, args->crc32, x + 1);
+				}
+
+				ImGui::EndMenu();
+			}
+
+			if (BeginMenu("Load State", true)) {
+				for (uint8_t x = 0; x < 8; x++) {
+					char label[16];
+					char key[8];
+					snprintf(label, 16, "Slot %u", x + 1);
+					snprintf(key, 16, "Ctrl+%u", x + 1);
+
+					if (MenuItem(label, key))
+						ui_load_state(args->nes, args->crc32, x + 1);
+				}
+
+				ImGui::EndMenu();
+			}
+
+			Separator();
+
 			if (MenuItem("Background Pause", "", args->cfg->bg_pause))
 				event->cfg.bg_pause = !event->cfg.bg_pause;
 
 			if (MenuItem("Reduce Latency", "", args->cfg->reduce_latency))
 				event->cfg.reduce_latency = !event->cfg.reduce_latency;
+
+			if (MenuItem("Use NRS NES 2.0 DB", "", args->cfg->use_db))
+				event->cfg.use_db = !event->cfg.use_db;
 
 			if (BeginMenu("Log", true)) {
 				if (MenuItem("Hide", "", args->cfg->log == CONFIG_LOG_HIDE, true))
@@ -649,6 +735,15 @@ static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *ev
 
 	if (io.KeysDown[SCANCODE_M] && io.KeyCtrl)
 		event->cfg.mute = !event->cfg.mute;
+
+	for (uint8_t x = 0; x < 8; x++) {
+		if (io.KeysDown[SCANCODE_1 + x] && io.KeyCtrl) {
+			ui_load_state(args->nes, args->crc32, x + 1);
+
+		} else if (io.KeysDown[SCANCODE_1 + x]) {
+			ui_save_state(args->nes, args->crc32, x + 1);
+		}
+	}
 }
 
 void ui_component_root(const struct ui_args *args,

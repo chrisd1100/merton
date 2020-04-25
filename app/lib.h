@@ -46,6 +46,7 @@ enum scancode {
 	SCANCODE_P         = 0x019,
 	SCANCODE_M         = 0x032,
 	SCANCODE_T         = 0x014,
+	SCANCODE_1         = 0x002,
 	SCANCODE_SEMICOLON = 0x027,
 	SCANCODE_LSHIFT    = 0x02A,
 	SCANCODE_SPACE     = 0x039,

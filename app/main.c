@@ -12,14 +12,9 @@
 #include "../src/nes.h"
 #include "assets/db/nes20db.h"
 
-#define SRAM_FILE_NAME_LEN 16
-
-#define CLOCK_UP   1000
-#define CLOCK_DOWN -1000
-
 struct main {
 	NES *nes;
-	char sram_file[SRAM_FILE_NAME_LEN];
+	uint32_t crc32;
 	struct window *window;
 	struct audio *audio;
 	struct config cfg;
@@ -37,23 +32,8 @@ struct main {
 	int64_t ts;
 };
 
-static const uint8_t PATTERN_60[]  = {1};
-static const uint8_t PATTERN_75[]  = {1, 1, 1, 2, 1, 1, 1, 2};
-static const uint8_t PATTERN_85[]  = {1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1};
-static const uint8_t PATTERN_100[] = {1, 2, 2};
-static const uint8_t PATTERN_120[] = {2};
-static const uint8_t PATTERN_144[] = {2, 3, 2, 3, 2};
 
-static const NES_Button NES_KEYBOARD_MAP[SCANCODE_MAX] = {
-	[SCANCODE_SEMICOLON] = NES_BUTTON_A,
-	[SCANCODE_L]         = NES_BUTTON_B,
-	[SCANCODE_LSHIFT]    = NES_BUTTON_SELECT,
-	[SCANCODE_SPACE]     = NES_BUTTON_START,
-	[SCANCODE_W]         = NES_BUTTON_UP,
-	[SCANCODE_S]         = NES_BUTTON_DOWN,
-	[SCANCODE_A]         = NES_BUTTON_LEFT,
-	[SCANCODE_D]         = NES_BUTTON_RIGHT,
-};
+/*** NES CALLBACKS ***/
 
 static void main_crop_copy(uint32_t *dest, const uint32_t *src, uint32_t top, uint32_t right,
 	uint32_t bottom, uint32_t left)
@@ -92,6 +72,20 @@ static void main_nes_log(const char *str)
 	ui_component_log(str, 3000);
 }
 
+
+/*** WINDOW MSG / INPUT HANDLING ***/
+
+static const NES_Button NES_KEYBOARD_MAP[SCANCODE_MAX] = {
+	[SCANCODE_SEMICOLON] = NES_BUTTON_A,
+	[SCANCODE_L]         = NES_BUTTON_B,
+	[SCANCODE_LSHIFT]    = NES_BUTTON_SELECT,
+	[SCANCODE_SPACE]     = NES_BUTTON_START,
+	[SCANCODE_W]         = NES_BUTTON_UP,
+	[SCANCODE_S]         = NES_BUTTON_DOWN,
+	[SCANCODE_A]         = NES_BUTTON_LEFT,
+	[SCANCODE_D]         = NES_BUTTON_RIGHT,
+};
+
 static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
@@ -103,14 +97,9 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 			ctx->running = false;
 			break;
 		case WINDOW_MSG_KEYBOARD: {
-			switch (wmsg->keyboard.scancode) {
-				default: {
-					NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
-					if (button != 0)
-						NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
-					break;
-				}
-			}
+			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
+			if (button != 0)
+				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
 			break;
 		}
 		case WINDOW_MSG_GAMEPAD: {
@@ -136,6 +125,19 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 			break;
 	}
 }
+
+
+/*** AUDIO / VIDEO TIMING & SYNCHRONIZATION ***/
+
+#define CLOCK_UP   1000
+#define CLOCK_DOWN -1000
+
+static const uint8_t PATTERN_60[]  = {1};
+static const uint8_t PATTERN_75[]  = {1, 1, 1, 2, 1, 1, 1, 2};
+static const uint8_t PATTERN_85[]  = {1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1};
+static const uint8_t PATTERN_100[] = {1, 2, 2};
+static const uint8_t PATTERN_120[] = {2};
+static const uint8_t PATTERN_144[] = {2, 3, 2, 3, 2};
 
 static uint32_t main_sync_to_60(struct main *ctx)
 {
@@ -200,6 +202,9 @@ static void main_audio_adjustment(struct main *ctx)
 	}
 }
 
+
+/*** ROM / SRAM LOADING ***/
+
 static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc *desc)
 {
 	for (uint32_t x = 0; x < NES_DB_ROWS; x++) {
@@ -238,23 +243,25 @@ static bool main_load_rom(struct main *ctx, const char *name)
 		uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
 
 		if (rom_size > offset) {
+			ctx->crc32 = crypto_crc32(rom + offset, rom_size - offset);
+
 			ui_component_clear_log();
 			ui_component_message("Press ESC to access the menu", 3000);
 
-			uint32_t crc32 = crypto_crc32(rom + offset, rom_size - offset);
-			snprintf(ctx->sram_file, SRAM_FILE_NAME_LEN, "%02X.sav", crc32);
+			char sram_name[16];
+			snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
 
 			NES_CartDesc desc = {0};
-			bool found_in_db = main_get_desc_from_db(offset, crc32, &desc);
+			bool found_in_db = ctx->cfg.use_db ? main_get_desc_from_db(offset, ctx->crc32, &desc) : false;
 
 			if (found_in_db) {
 				char msg[UI_LOG_LEN];
-				snprintf(msg, UI_LOG_LEN, "%02X found in database", crc32);
+				snprintf(msg, UI_LOG_LEN, "%02X found in database", ctx->crc32);
 				ui_component_log(msg, 3000);
 			}
 
 			size_t sram_size = 0;
-			void *sram = fs_read(fs_path(fs_prog_dir(), fs_path("save", ctx->sram_file)), &sram_size);
+			void *sram = fs_read(fs_path(fs_prog_dir(), fs_path("save", sram_name)), &sram_size);
 			NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
 			free(sram);
 			free(rom);
@@ -268,7 +275,7 @@ static bool main_load_rom(struct main *ctx, const char *name)
 
 static void main_save_sram(struct main *ctx)
 {
-	if (!ctx->sram_file[0])
+	if (ctx->crc32 == 0)
 		return;
 
 	size_t sram_size = NES_SRAMDirty(ctx->nes);
@@ -277,12 +284,18 @@ static void main_save_sram(struct main *ctx)
 		void *sram = calloc(sram_size, 1);
 		NES_GetSRAM(ctx->nes, sram, sram_size);
 
+		char sram_name[16];
+		snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
+
 		const char *save_path = fs_path(fs_prog_dir(), "save");
 		fs_mkdir(save_path);
-		fs_write(fs_path(save_path, ctx->sram_file), sram, sram_size);
+		fs_write(fs_path(save_path, sram_name), sram, sram_size);
 		free(sram);
 	}
 }
+
+
+/*** UI ***/
 
 static void main_ui_event(struct ui_event *event, void *opaque)
 {
@@ -342,6 +355,7 @@ static void main_ui_root(void *opaque)
 
 	struct ui_args args = {0};
 	args.nes = ctx->nes;
+	args.crc32 = ctx->crc32;
 	args.cfg = &ctx->cfg;
 	args.paused = ctx->paused;
 	args.show_menu = !ctx->loaded;
@@ -349,6 +363,9 @@ static void main_ui_root(void *opaque)
 
 	ui_component_root(&args, main_ui_event, ctx);
 }
+
+
+/*** CONFIG ***/
 
 static struct config main_load_config(void)
 {
@@ -366,6 +383,9 @@ static void main_save_config(struct config *cfg)
 {
 	fs_write(fs_path(fs_prog_dir(), "config.bin"), cfg, sizeof(struct config));
 }
+
+
+/*** MAIN ***/
 
 int32_t main(int32_t argc, char **argv)
 {
@@ -446,11 +466,13 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 {
 	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
 
+	/*
 	AllocConsole();
 	AttachConsole(GetCurrentProcessId());
 
 	FILE *f = NULL;
 	freopen_s(&f, "CONOUT$", "w", stdout);
+	*/
 
 	timeBeginPeriod(1);
 

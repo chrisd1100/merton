@@ -6,7 +6,7 @@
 #include "lib.h"
 #include "../src/nes.h"
 
-#define CONFIG_VERSION 1
+#define CONFIG_VERSION 2
 
 enum config_shader {
 	CONFIG_SHADER_NONE = 0,
@@ -26,6 +26,7 @@ struct config {
 	// System
 	bool bg_pause;
 	bool reduce_latency;
+	bool use_db;
 	enum log_visibility log;
 
 	// Video
@@ -58,6 +59,7 @@ struct config {
 
 #define CONFIG_DEFAULTS { \
 	CONFIG_VERSION, \
+	true, \
 	true, \
 	true, \
 	CONFIG_LOG_TIMEOUT, \

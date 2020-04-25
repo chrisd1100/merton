@@ -30,6 +30,7 @@ enum ui_event_type {
 
 struct ui_args {
 	const struct config *cfg;
+	uint32_t crc32;
 	bool paused;
 	bool show_menu;
 	NES *nes;

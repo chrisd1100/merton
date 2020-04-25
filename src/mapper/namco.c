@@ -24,7 +24,7 @@ static void namco_map_ppu(struct cart *cart)
 		if (cart->REG[x] >= 0xE0) {
 			cart_map_ciram_slot(&cart->chr, x, cart->REG[x] & 0x01);
 		} else {
-			cart_map_ciram_buf(&cart->chr, x, ROM, cart->chr.rom.data + 0x400 * cart->REG[x]);
+			cart_map_ciram_offset(&cart->chr, x, ROM, 0x400 * cart->REG[x]);
 		}
 	}
 }

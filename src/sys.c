@@ -390,3 +390,110 @@ void NES_Log(const char *fmt, ...)
 		va_end(args);
 	}
 }
+
+void *NES_GetState(NES *ctx, size_t *size)
+{
+	if (!ctx->cart)
+		return NULL;
+
+	size_t cpu_size = 0;
+	void *cpu_state = cpu_get_state(ctx->cpu, &cpu_size);
+
+	size_t apu_size = 0;
+	void *apu_state = apu_get_state(ctx->apu, &apu_size);
+
+	size_t ppu_size = 0;
+	void *ppu_state = ppu_get_state(ctx->ppu, &ppu_size);
+
+	size_t cart_size = 0;
+	void *cart_state = cart_get_state(ctx->cart, &cart_size);
+
+	size_t sys_size = sizeof(struct sys);
+	struct sys sys_state = ctx->sys;
+
+	size_t ctrl_size = sizeof(struct ctrl);
+	struct ctrl ctrl_state = ctx->ctrl;
+
+	*size = cpu_size + apu_size + ppu_size + cart_size + sys_size + ctrl_size;
+
+	void *state = malloc(*size);
+	uint8_t *u8state = state;
+
+	memcpy(u8state, cpu_state, cpu_size);
+	u8state += cpu_size;
+
+	memcpy(u8state, apu_state, apu_size);
+	u8state += apu_size;
+
+	memcpy(u8state, ppu_state, ppu_size);
+	u8state += ppu_size;
+
+	memcpy(u8state, cart_state, cart_size);
+	u8state += cart_size;
+
+	memcpy(u8state, &sys_state, sys_size);
+	u8state += sys_size;
+
+	memcpy(u8state, &ctrl_state, ctrl_size);
+	u8state += ctrl_size;
+
+	free(cpu_state);
+	free(apu_state);
+	free(ppu_state);
+	free(cart_state);
+
+	return state;
+}
+
+bool NES_SetState(NES *ctx, const void *state, size_t size)
+{
+	if (!ctx->cart)
+		return false;
+
+	bool r = true;
+	const uint8_t *u8state = state;
+
+	size_t current_size = 0;
+	void *current = NES_GetState(ctx, &current_size);
+
+	size_t consumed = cpu_set_state(ctx->cpu, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	consumed = apu_set_state(ctx->apu, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	consumed = ppu_set_state(ctx->ppu, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	consumed = cart_set_state(ctx->cart, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	if (size < sizeof(struct sys)) {r = false; goto except;}
+	const struct sys *sys_state = (const struct sys *) u8state;
+	ctx->sys = *sys_state;
+	size -= sizeof(struct sys);
+	u8state += sizeof(struct sys);
+
+	if (size < sizeof(struct ctrl)) {r = false; goto except;}
+	const struct ctrl *ctrl_state = (const struct ctrl *) u8state;
+	ctx->ctrl = *ctrl_state;
+	size -= sizeof(struct ctrl);
+	u8state += sizeof(struct ctrl);
+
+	except:
+
+	if (!r)
+		NES_SetState(ctx, current, current_size);
+
+	free(current);
+
+	return r;
+}

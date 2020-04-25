@@ -69,9 +69,7 @@ struct spr {
 
 struct ppu {
 	uint32_t pixels[256 * 240];
-	uint32_t *output;
 	uint32_t palettes[8][64];
-	uint32_t *palette;
 
 	uint8_t palette_ram[32];
 	uint8_t oam[256];
@@ -88,6 +86,7 @@ struct ppu {
 
 	struct {
 		uint8_t grayscale;
+		uint8_t emphasis;
 		bool show_bg;
 		bool show_sprites;
 		bool clip_bg;
@@ -250,14 +249,14 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 			//buffered read from CHR
 			if (waddr < 0x3F00) {
 				v = ppu->open_bus = ppu->read_buffer;
-				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr, ROM_DATA, false);
+				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr, ROM, false);
 
 			} else {
 				//read buffer gets ciram byte
-				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr - 0x1000, ROM_DATA, false);
+				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr - 0x1000, ROM, false);
 
 				//upper 2 bits get preserved from decay value
-				v = (ppu->open_bus & 0xC0) | (ppu_read_vram(ppu, cart, waddr, ROM_DATA, false) & 0x3F);
+				v = (ppu->open_bus & 0xC0) | (ppu_read_vram(ppu, cart, waddr, ROM, false) & 0x3F);
 			}
 
 			ppu_set_v(ppu, cart, ppu->v + ppu->CTRL.incr, true);
@@ -297,9 +296,8 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 			ppu->MASK.clip_sprites = v & 0x04;
 			ppu->MASK.show_bg = v & 0x08;
 			ppu->MASK.show_sprites = v & 0x10;
+			ppu->MASK.emphasis = (v & 0xE0) >> 5;
 			ppu->MASK.rendering = ppu->MASK.show_bg || ppu->MASK.show_sprites;
-
-			ppu->palette = ppu->palettes[(v & 0xE0) >> 5];
 			break;
 
 		case 0x2003:
@@ -431,7 +429,7 @@ static uint8_t ppu_read_tile_byte(struct ppu *ppu, struct cart *cart, uint8_t nt
 {
 	uint16_t addr = ppu->CTRL.bg_table + (nt * 16) + GET_FY(ppu->v);
 
-	return ppu_read_vram(ppu, cart, addr + offset, ROM_BG, false);
+	return ppu_read_vram(ppu, cart, addr + offset, BGROM, false);
 }
 
 static uint8_t ppu_color(uint8_t low_tile, uint8_t high_tile, uint8_t attr, uint8_t shift)
@@ -455,10 +453,10 @@ static void ppu_fetch_bg(struct ppu *ppu, struct cart *cart, uint16_t bg_dot)
 {
 	switch (ppu->dot % 8) {
 		case 1:
-			ppu->nt = ppu_read_nt_byte(ppu, cart, ROM_BG);
+			ppu->nt = ppu_read_nt_byte(ppu, cart, BGROM);
 			break;
 		case 3:
-			ppu->attr = ppu_read_attr_byte(ppu, cart, ROM_BG);
+			ppu->attr = ppu_read_attr_byte(ppu, cart, BGROM);
 			break;
 		case 5:
 			ppu->bgl = ppu_read_tile_byte(ppu, cart, ppu->nt, 0);
@@ -604,18 +602,18 @@ static void ppu_fetch_sprite(struct ppu *ppu, struct cart *cart)
 
 	switch (ppu->dot % 8) {
 		case 1:
-			ppu_read_nt_byte(ppu, cart, ROM_SPRITE);
+			ppu_read_nt_byte(ppu, cart, SPRROM);
 			break;
 		case 3:
-			ppu_read_attr_byte(ppu, cart, ROM_SPRITE);
+			ppu_read_attr_byte(ppu, cart, SPRROM);
 			break;
 		case 5: {
 			int32_t row = ppu->scanline - ppu->soam[n][0];
 			s->addr = ppu_sprite_addr(ppu, (uint16_t) (row > 0 ? row : 0), ppu->soam[n][1], ppu->soam[n][2]);
-			s->low_tile = ppu_read_vram(ppu, cart, s->addr, ROM_SPRITE, false);
+			s->low_tile = ppu_read_vram(ppu, cart, s->addr, SPRROM, false);
 			break;
 		} case 7: {
-			uint8_t high_tile = ppu_read_vram(ppu, cart, s->addr + 8, ROM_SPRITE, false);
+			uint8_t high_tile = ppu_read_vram(ppu, cart, s->addr + 8, SPRROM, false);
 
 			if (n < ppu->soam_n)
 				ppu_store_sprite_colors(ppu, ppu->soam[n][2], ppu->soam[n][3], s->id, s->low_tile, high_tile);
@@ -674,7 +672,7 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 		}
 
 		uint8_t color = ppu_read_palette(ppu, addr);
-		ppu->output[dot] = ppu->palette[color];
+		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[ppu->MASK.emphasis][color];
 	}
 }
 
@@ -700,9 +698,6 @@ static void ppu_clock(struct ppu *ppu)
 			if (ppu->decay_low5++ == 58)
 				ppu->open_bus &= 0xC0;
 		}
-
-		if (ppu->scanline < 240)
-			ppu->output = &ppu->pixels[ppu->scanline * 256];
 	}
 }
 
@@ -841,12 +836,31 @@ void ppu_reset(struct ppu *ppu)
 	memcpy(ppu->palette_ram, POWER_UP_PALETTE, 32);
 
 	ppu_generate_emphasis_tables(ppu);
-	ppu->palette = ppu->palettes[0];
-	ppu->output = ppu->pixels;
 
 	ppu->scanline = 0;
 	ppu->dot = 1;
 	ppu->CTRL.incr = 1;
 	ppu->CTRL.sprite_h = 8;
 	ppu->MASK.grayscale = 0x3F;
+}
+
+void *ppu_get_state(struct ppu *ppu, size_t *size)
+{
+	*size = sizeof(struct ppu);
+
+	struct ppu *state = malloc(*size);
+	*state = *ppu;
+
+	return state;
+}
+
+size_t ppu_set_state(struct ppu *ppu, const void *state, size_t size)
+{
+	if (size >= sizeof(struct ppu)) {
+		*ppu = *((struct ppu *) state);
+
+		return sizeof(struct ppu);
+	}
+
+	return 0;
 }
