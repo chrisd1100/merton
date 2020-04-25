@@ -181,6 +181,7 @@ struct cart {
 		uint8_t fill_tile;
 		uint8_t fill_attr;
 		uint8_t exram1;
+		uint8_t ram_banks;
 		uint16_t multiplicand;
 		uint16_t multiplier;
 		uint16_t chr_bank_upper;

@@ -16,6 +16,12 @@ static void mmc5_map_prg32(struct cart *cart, enum mem type, uint16_t addr, uint
 
 static void mmc5_map_prg(struct cart *cart, int32_t slot, uint16_t bank, enum mem type)
 {
+	if (slot == 0)
+		type = RAM;
+
+	if (type == RAM)
+		bank = (cart->mmc5.ram_banks > 1 ? (bank & 0x3) : 0) + ((bank & 0x4) >> 2) * cart->mmc5.ram_banks;
+
 	if (slot == 0) {
 		cart_map(&cart->prg, RAM, 0x6000, bank, 8);
 
@@ -80,6 +86,8 @@ static void mmc5_create(struct cart *cart)
 
 	if (cart->prg.ram.size > 0)
 		cart_map(&cart->prg, RAM, 0x6000, 0, 8);
+
+	cart->mmc5.ram_banks = cart->prg.ram.size <= 0x4000 ? 1 : 4;
 }
 
 static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, uint8_t v)
