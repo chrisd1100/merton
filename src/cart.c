@@ -141,6 +141,8 @@ struct cart {
 	NES_CartDesc hdr;
 	struct asset prg;
 	struct asset chr;
+	size_t dynamic_size;
+	void *mem;
 
 	size_t sram_dirty;
 	uint64_t read_counter;
@@ -454,6 +456,29 @@ static void cart_log_desc(NES_CartDesc *hdr)
 	NES_Log("Battery: %s", hdr->battery ? "true" : "false");
 }
 
+static void cart_set_data_pointers(struct cart *cart)
+{
+	uint8_t *ptr = cart->mem;
+
+	cart->prg.rom.data = ptr;
+	ptr += cart->prg.rom.size;
+
+	cart->prg.ram.data = ptr;
+	ptr += cart->prg.ram.size;
+
+	cart->chr.rom.data = ptr;
+	ptr += cart->chr.rom.size;
+
+	cart->chr.ram.data = ptr;
+	ptr += cart->chr.ram.size;
+
+	cart->chr.ciram.data = ptr;
+	ptr += cart->chr.ciram.size;
+
+	cart->chr.exram.data = ptr;
+	ptr += cart->chr.exram.size;
+}
+
 void cart_create(const void *rom, size_t rom_size,
 	const void *sram, size_t sram_size, const NES_CartDesc *desc, struct cart **cart)
 {
@@ -481,6 +506,7 @@ void cart_create(const void *rom, size_t rom_size,
 	ctx->prg.sram = 0x2000;
 	ctx->prg.wram = 0x01E000;
 	ctx->chr.ciram.size = 0x4000;
+	ctx->chr.exram.size = 0x400; // MMC5 exram lives with chr since it can be mapped to CIRAM
 
 	if (ctx->hdr.useRAMSizes) {
 		ctx->prg.wram = ctx->hdr.prgSize.wram;
@@ -489,6 +515,7 @@ void cart_create(const void *rom, size_t rom_size,
 		ctx->chr.sram = ctx->hdr.chrSize.sram;
 	}
 
+	// Default to 0x8000 CHR RAM size
 	if (ctx->chr.wram == 0)
 		ctx->chr.wram = 0x8000;
 
@@ -498,34 +525,23 @@ void cart_create(const void *rom, size_t rom_size,
 	if (ctx->hdr.offset + ctx->prg.rom.size > rom_size)
 		assert(!"ROM is not large enough to support PRG ROM size");
 
-	// MMC5 exram lives with chr since it can be mapped to CIRAM
-	ctx->chr.exram.data = calloc(0x400, 1);
-	ctx->chr.exram.size = 0x400;
+	if (ctx->hdr.offset + ctx->prg.rom.size + ctx->chr.rom.size > rom_size)
+		assert(!"ROM is not large enough to support CHR ROM size");
 
-	ctx->prg.ram.data = calloc(ctx->prg.ram.size, 1);
+	ctx->dynamic_size = ctx->prg.rom.size + ctx->prg.ram.size +
+		ctx->chr.rom.size + ctx->chr.ram.size + ctx->chr.ciram.size + ctx->chr.exram.size;
+	ctx->mem = calloc(ctx->dynamic_size, 1);
+
+	cart_set_data_pointers(ctx);
+
+	memcpy(ctx->prg.rom.data, (uint8_t *) rom + ctx->hdr.offset, ctx->prg.rom.size);
+	memcpy(ctx->chr.rom.data, (uint8_t *) rom + ctx->hdr.offset + ctx->prg.rom.size, ctx->chr.rom.size);
+
 	if (sram && sram_size > 0 && sram_size <= ctx->prg.sram)
 		memcpy(ctx->prg.ram.data, sram, sram_size);
 
-	ctx->prg.rom.data = calloc(ctx->prg.rom.size, 1);
-	memcpy(ctx->prg.rom.data, (uint8_t *) rom + ctx->hdr.offset, ctx->prg.rom.size);
 	cart_map(&ctx->prg, ROM, 0x8000, 0, 32);
-
-	ctx->chr.ram.data = calloc(ctx->chr.ram.size, 1);
-	ctx->chr.ciram.data = calloc(ctx->chr.ciram.size, 1);
 	cart_map_ciram(&ctx->chr, ctx->hdr.mirror);
-
-	if (ctx->chr.rom.size > 0) {
-		int32_t chr_size = (int32_t) rom_size - (int32_t) ctx->hdr.offset - (int32_t) ctx->prg.rom.size;
-
-		if (chr_size <= 0)
-			assert(!"ROM is not large enough to support CHR ROM size");
-
-		if (chr_size > (int32_t) ctx->chr.rom.size)
-			chr_size = (int32_t) ctx->chr.rom.size;
-
-		ctx->chr.rom.data = calloc(chr_size, 1);
-		memcpy(ctx->chr.rom.data, (uint8_t *) rom + ctx->hdr.offset + ctx->prg.rom.size, chr_size);
-	}
 	cart_map(&ctx->chr, ctx->chr.rom.size > 0 ? ROM : RAM, 0x0000, 0, 8);
 
 	switch (ctx->hdr.mapper) {
@@ -587,16 +603,6 @@ void cart_create(const void *rom, size_t rom_size,
 	}
 }
 
-static void cart_free(struct cart *ctx)
-{
-	free(ctx->prg.rom.data);
-	free(ctx->prg.ram.data);
-	free(ctx->chr.rom.data);
-	free(ctx->chr.ram.data);
-	free(ctx->chr.ciram.data);
-	free(ctx->chr.exram.data);
-}
-
 void cart_destroy(struct cart **cart)
 {
 	if (!cart || !*cart)
@@ -604,7 +610,7 @@ void cart_destroy(struct cart **cart)
 
 	struct cart *ctx = *cart;
 
-	cart_free(ctx);
+	free(ctx->mem);
 
 	free(ctx);
 	*cart = NULL;
@@ -612,31 +618,12 @@ void cart_destroy(struct cart **cart)
 
 void *cart_get_state(struct cart *cart, size_t *size)
 {
-	*size = sizeof(struct cart) + cart->prg.rom.size + cart->prg.ram.size +
-		cart->chr.rom.size + cart->chr.ram.size + cart->chr.ciram.size + cart->chr.exram.size;
+	*size = sizeof(struct cart) + cart->dynamic_size;
 
 	struct cart *state = malloc(*size);
-	uint8_t *u8cart = (uint8_t *) state;
 	*state = *cart;
-	u8cart += sizeof(struct cart);
 
-	memcpy(u8cart, cart->prg.rom.data, cart->prg.rom.size);
-	u8cart += cart->prg.rom.size;
-
-	memcpy(u8cart, cart->prg.ram.data, cart->prg.ram.size);
-	u8cart += cart->prg.ram.size;
-
-	memcpy(u8cart, cart->chr.rom.data, cart->chr.rom.size);
-	u8cart += cart->chr.rom.size;
-
-	memcpy(u8cart, cart->chr.ram.data, cart->chr.ram.size);
-	u8cart += cart->chr.ram.size;
-
-	memcpy(u8cart, cart->chr.ciram.data, cart->chr.ciram.size);
-	u8cart += cart->chr.ciram.size;
-
-	memcpy(u8cart, cart->chr.exram.data, cart->chr.exram.size);
-	u8cart += cart->chr.exram.size;
+	memcpy((uint8_t *) state + sizeof(struct cart), cart->mem, cart->dynamic_size);
 
 	return state;
 }
@@ -644,39 +631,19 @@ void *cart_get_state(struct cart *cart, size_t *size)
 size_t cart_set_state(struct cart *cart, const void *state, size_t size)
 {
 	if (size >= sizeof(struct cart)) {
-		cart_free(cart);
+		struct cart *new_cart = (struct cart *) state;
 
-		const uint8_t *u8state = state;
-		*cart = *((struct cart *) state);
-		size -= sizeof(struct cart);
-		u8state += sizeof(struct cart);
+		if (size >= sizeof(struct cart) + new_cart->dynamic_size ) {
+			free(cart->mem);
+			*cart = *new_cart;
 
-		cart->prg.rom.data = malloc(cart->prg.rom.size);
-		memcpy(cart->prg.rom.data, u8state, cart->prg.rom.size);
-		u8state += cart->prg.rom.size;
+			cart->mem = calloc(cart->dynamic_size, 1);
+			memcpy(cart->mem, (uint8_t *) state + sizeof(struct cart), cart->dynamic_size);
 
-		cart->prg.ram.data = malloc(cart->prg.ram.size);
-		memcpy(cart->prg.ram.data, u8state, cart->prg.ram.size);
-		u8state += cart->prg.ram.size;
+			cart_set_data_pointers(cart);
 
-		cart->chr.rom.data = malloc(cart->chr.rom.size);
-		memcpy(cart->chr.rom.data, u8state, cart->chr.rom.size);
-		u8state += cart->chr.rom.size;
-
-		cart->chr.ram.data = malloc(cart->chr.ram.size);
-		memcpy(cart->chr.ram.data, u8state, cart->chr.ram.size);
-		u8state += cart->chr.ram.size;
-
-		cart->chr.ciram.data = malloc(cart->chr.ciram.size);
-		memcpy(cart->chr.ciram.data, u8state, cart->chr.ciram.size);
-		u8state += cart->chr.ciram.size;
-
-		cart->chr.exram.data = malloc(cart->chr.exram.size);
-		memcpy(cart->chr.exram.data, u8state, cart->chr.exram.size);
-		u8state += cart->chr.exram.size;
-
-		return sizeof(struct cart) + cart->prg.rom.size + cart->prg.ram.size +
-			cart->chr.rom.size + cart->chr.ram.size + cart->chr.ciram.size + cart->chr.exram.size;
+			return sizeof(struct cart) + cart->dynamic_size;
+		}
 	}
 
 	return 0;
