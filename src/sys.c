@@ -185,10 +185,41 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 	}
 }
 
-void sys_pre_tick_write(NES *nes, uint16_t addr)
+uint8_t sys_read_cycle(NES *nes, uint16_t addr)
+{
+	nes->sys.read_addr = addr;
+
+	cpu_phi_1(nes->cpu);
+
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+
+	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
+
+	uint8_t v = sys_read(nes, addr);
+
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+
+	cart_step(nes->cart, nes->cpu);
+
+	cpu_phi_2(nes->cpu);
+
+	nes->sys.cycle++;
+	nes->sys.odd_cycle = !nes->sys.odd_cycle;
+	nes->sys.read_addr = 0;
+
+	return v;
+}
+
+void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 {
 	nes->sys.write_addr = addr;
 	nes->sys.in_write = true;
+
+	cpu_phi_1(nes->cpu);
 
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 	ppu_clock(nes->ppu);
@@ -198,11 +229,12 @@ void sys_pre_tick_write(NES *nes, uint16_t addr)
 	ppu_clock(nes->ppu);
 
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
-}
 
-void sys_post_tick_write(NES *nes)
-{
+	sys_write(nes, addr, v);
+
 	cart_step(nes->cart, nes->cpu);
+
+	cpu_phi_2(nes->cpu);
 
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;
@@ -210,34 +242,9 @@ void sys_post_tick_write(NES *nes)
 	nes->sys.in_write = false;
 }
 
-void sys_pre_tick_read(NES *nes, uint16_t addr)
+void sys_cycle(NES *nes)
 {
-	nes->sys.read_addr = addr;
-
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
-	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
-}
-
-void sys_post_tick_read(NES *nes)
-{
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
-	cart_step(nes->cart, nes->cpu);
-
-	nes->sys.cycle++;
-	nes->sys.odd_cycle = !nes->sys.odd_cycle;
-	nes->sys.read_addr = 0;
-}
-
-void sys_tick(NES *nes)
-{
-	sys_pre_tick_read(nes, 0);
-	sys_post_tick_read(nes);
+	sys_read_cycle(nes, 0);
 }
 
 bool sys_odd_cycle(NES *nes)

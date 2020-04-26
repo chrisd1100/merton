@@ -75,48 +75,31 @@ enum io_mode {
 	IO_STACK, // pushes/pulls from the stack
 };
 
-static void cpu_poll_interrupts(struct cpu *cpu)
+void cpu_phi_1(struct cpu *cpu)
 {
 	cpu->irq_pending = (cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I)) || cpu->NMI;
 }
 
-static uint8_t cpu_read(struct cpu *cpu, NES *nes, uint16_t addr)
+void cpu_phi_2(struct cpu *cpu)
 {
-	cpu_poll_interrupts(cpu);
-
-	sys_pre_tick_read(nes, addr);
-	uint8_t v = sys_read(nes, addr);
-	sys_post_tick_read(nes);
-
-	return v;
-}
-
-static void cpu_write(struct cpu *cpu, NES *nes, uint16_t addr, uint8_t v)
-{
-	cpu_poll_interrupts(cpu);
-
-	sys_pre_tick_write(nes, addr);
-	sys_write(nes, addr, v);
-	sys_post_tick_write(nes);
-
 	cpu->rmw_first = false;
 }
 
-static uint16_t cpu_read16(struct cpu *cpu, NES *nes, uint16_t addr)
+static uint16_t cpu_read16(NES *nes, uint16_t addr)
 {
-	uint16_t h = (uint16_t) cpu_read(cpu, nes, addr + 1) << 8;
-	uint16_t l = (uint16_t) cpu_read(cpu, nes, addr);
+	uint16_t h = (uint16_t) sys_read_cycle(nes, addr + 1) << 8;
+	uint16_t l = (uint16_t) sys_read_cycle(nes, addr);
 
 	return h | l;
 }
 
-static void cpu_indexed_dummy_read(struct cpu *cpu, NES *nes, enum io_mode io_mode, bool pagex, uint16_t addr)
+static void cpu_indexed_dummy_read(NES *nes, enum io_mode io_mode, bool pagex, uint16_t addr)
 {
 	if (io_mode == IO_RMW || io_mode == IO_W) {
-		cpu_read(cpu, nes, pagex ? addr - 0x0100 : addr);
+		sys_read_cycle(nes, pagex ? addr - 0x0100 : addr);
 
 	} else if (io_mode == IO_R && pagex) {
-		cpu_read(cpu, nes, addr - 0x0100);
+		sys_read_cycle(nes, addr - 0x0100);
 	}
 }
 
@@ -128,7 +111,7 @@ static uint16_t cpu_opcode_address(struct cpu *cpu, NES *nes,
 	switch (mode) {
 		case MODE_IMPLIED:
 		case MODE_ACCUMULATOR:
-			cpu_read(cpu, nes, cpu->PC); //dummy read
+			sys_read_cycle(nes, cpu->PC); //dummy read
 			break;
 
 		case MODE_IMMEDIATE:
@@ -137,68 +120,68 @@ static uint16_t cpu_opcode_address(struct cpu *cpu, NES *nes,
 
 		case MODE_RELATIVE: //offset between -128 and +127
 		case MODE_ZERO_PAGE:
-			addr = cpu_read(cpu, nes, cpu->PC++);
+			addr = sys_read_cycle(nes, cpu->PC++);
 			break;
 
 		case MODE_ZERO_PAGE_X: {
-			uint8_t iaddr = cpu_read(cpu, nes, cpu->PC++);
-			cpu_read(cpu, nes, iaddr); //dummy read
+			uint8_t iaddr = sys_read_cycle(nes, cpu->PC++);
+			sys_read_cycle(nes, iaddr); //dummy read
 			addr = ((uint16_t) iaddr + cpu->X) & 0x00FF;
 			break;
 
 		} case MODE_ZERO_PAGE_Y: {
-			uint8_t iaddr = cpu_read(cpu, nes, cpu->PC++);
-			cpu_read(cpu, nes, iaddr); //dummy read
+			uint8_t iaddr = sys_read_cycle(nes, cpu->PC++);
+			sys_read_cycle(nes, iaddr); //dummy read
 			addr = ((uint16_t) iaddr + cpu->Y) & 0x00FF;
 			break;
 
 		} case MODE_ABSOLUTE:
-			addr = cpu_read16(cpu, nes, cpu->PC);
+			addr = cpu_read16(nes, cpu->PC);
 			cpu->PC += 2;
 			break;
 
 		case MODE_ABSOLUTE_X:
-			addr = cpu_read16(cpu, nes, cpu->PC) + cpu->X;
+			addr = cpu_read16(nes, cpu->PC) + cpu->X;
 			cpu->PC += 2;
 
 			*pagex = PAGEX(addr - cpu->X, addr);
-			cpu_indexed_dummy_read(cpu, nes, io_mode, *pagex, addr);
+			cpu_indexed_dummy_read(nes, io_mode, *pagex, addr);
 			break;
 
 		case MODE_ABSOLUTE_Y:
-			addr = cpu_read16(cpu, nes, cpu->PC) + cpu->Y;
+			addr = cpu_read16(nes, cpu->PC) + cpu->Y;
 			cpu->PC += 2;
 
 			*pagex = PAGEX(addr - cpu->Y, addr);
-			cpu_indexed_dummy_read(cpu, nes, io_mode, *pagex, addr);
+			cpu_indexed_dummy_read(nes, io_mode, *pagex, addr);
 			break;
 
 		case MODE_INDIRECT: {
-			uint16_t iaddr = cpu_read16(cpu, nes, cpu->PC);
+			uint16_t iaddr = cpu_read16(nes, cpu->PC);
 			cpu->PC += 2;
 
-			uint8_t addrl = cpu_read(cpu, nes, iaddr);
-			uint8_t addrh = cpu_read(cpu, nes, (iaddr & 0xFF00) | ((iaddr + 1) % 0x0100));
+			uint8_t addrl = sys_read_cycle(nes, iaddr);
+			uint8_t addrh = sys_read_cycle(nes, (iaddr & 0xFF00) | ((iaddr + 1) % 0x0100));
 			addr = (uint16_t) addrl | ((uint16_t) addrh << 8);
 			break;
 
 		} case MODE_INDIRECT_X: {
-			uint8_t pointer = cpu_read(cpu, nes, cpu->PC++);
-			cpu_read(cpu, nes, pointer); // dummy read
+			uint8_t pointer = sys_read_cycle(nes, cpu->PC++);
+			sys_read_cycle(nes, pointer); // dummy read
 			uint8_t pointerx = (pointer + cpu->X) & 0x00FF;
-			uint8_t addrl = cpu_read(cpu, nes, pointerx);
-			uint8_t addrh = cpu_read(cpu, nes, (pointerx + 1) & 0x00FF);
+			uint8_t addrl = sys_read_cycle(nes, pointerx);
+			uint8_t addrh = sys_read_cycle(nes, (pointerx + 1) & 0x00FF);
 			addr = (uint16_t) addrl | ((uint16_t) addrh << 8);
 			break;
 
 		} case MODE_INDIRECT_Y: {
-			uint8_t pointer = cpu_read(cpu, nes, cpu->PC++);
-			uint8_t addrl = cpu_read(cpu, nes, pointer);
-			uint8_t addrh = cpu_read(cpu, nes, (pointer + 1) & 0x00FF);
+			uint8_t pointer = sys_read_cycle(nes, cpu->PC++);
+			uint8_t addrl = sys_read_cycle(nes, pointer);
+			uint8_t addrh = sys_read_cycle(nes, (pointer + 1) & 0x00FF);
 			addr = ((uint16_t) addrl | ((uint16_t) addrh << 8)) + cpu->Y;
 
 			*pagex = PAGEX(addr - cpu->Y, addr);
-			cpu_indexed_dummy_read(cpu, nes, io_mode, *pagex, addr);
+			cpu_indexed_dummy_read(nes, io_mode, *pagex, addr);
 			break;
 		}
 	}
@@ -536,12 +519,12 @@ static void cpu_fill_op_table(struct opcode *OP)
 
 static uint8_t cpu_pull(struct cpu *cpu, NES *nes)
 {
-	return cpu_read(cpu, nes, 0x0100 | (uint16_t) ++cpu->SP);
+	return sys_read_cycle(nes, 0x0100 | (uint16_t) ++cpu->SP);
 }
 
 static void cpu_push(struct cpu *cpu, NES *nes, uint8_t val)
 {
-	cpu_write(cpu, nes, 0x0100 | (uint16_t) cpu->SP--, val);
+	sys_write_cycle(nes, 0x0100 | (uint16_t) cpu->SP--, val);
 }
 
 static uint16_t cpu_pull16(struct cpu *cpu, NES *nes)
@@ -598,12 +581,12 @@ static uint8_t cpu_lsr(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 		cpu_eval_ZN(cpu, cpu->A);
 
 	} else {
-		uint8_t val = cpu_read(cpu, nes, addr);
+		uint8_t val = sys_read_cycle(nes, addr);
 		cpu->rmw_first = true;
-		cpu_write(cpu, nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val >>= 1;
-		cpu_write(cpu, nes, addr, val);
+		sys_write_cycle(nes, addr, val);
 		cpu_eval_ZN(cpu, val);
 
 		return val;
@@ -620,12 +603,12 @@ static uint8_t cpu_asl(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 		cpu_eval_ZN(cpu, cpu->A);
 
 	} else {
-		uint8_t val = cpu_read(cpu, nes, addr);
+		uint8_t val = sys_read_cycle(nes, addr);
 		cpu->rmw_first = true;
-		cpu_write(cpu, nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val <<= 1;
-		cpu_write(cpu, nes, addr, val);
+		sys_write_cycle(nes, addr, val);
 		cpu_eval_ZN(cpu, val);
 
 		return val;
@@ -644,12 +627,12 @@ static uint8_t cpu_rol(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 		cpu_eval_ZN(cpu, cpu->A);
 
 	} else {
-		uint8_t val = cpu_read(cpu, nes, addr);
+		uint8_t val = sys_read_cycle(nes, addr);
 		cpu->rmw_first = true;
-		cpu_write(cpu, nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val = (val << 1) | c;
-		cpu_write(cpu, nes, addr, val);
+		sys_write_cycle(nes, addr, val);
 		cpu_eval_ZN(cpu, val);
 
 		return val;
@@ -668,12 +651,12 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 		cpu_eval_ZN(cpu, cpu->A);
 
 	} else {
-		uint8_t val = cpu_read(cpu, nes, addr);
+		uint8_t val = sys_read_cycle(nes, addr);
 		cpu->rmw_first = true;
-		cpu_write(cpu, nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val = (val >> 1) | (c << 7);
-		cpu_write(cpu, nes, addr, val);
+		sys_write_cycle(nes, addr, val);
 		cpu_eval_ZN(cpu, val);
 
 		return val;
@@ -684,12 +667,12 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 {
-	uint8_t val = cpu_read(cpu, nes, addr);
+	uint8_t val = sys_read_cycle(nes, addr);
 	cpu->rmw_first = true;
-	cpu_write(cpu, nes, addr, val); //dummy write
+	sys_write_cycle(nes, addr, val); //dummy write
 
 	val += 1;
-	cpu_write(cpu, nes, addr, val);
+	sys_write_cycle(nes, addr, val);
 	cpu_eval_ZN(cpu, val);
 
 	return val;
@@ -697,22 +680,22 @@ static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 
 static uint8_t cpu_dec(struct cpu *cpu, NES *nes, uint16_t addr)
 {
-	uint8_t val = cpu_read(cpu, nes, addr) ;
+	uint8_t val = sys_read_cycle(nes, addr) ;
 	cpu->rmw_first = true;
-	cpu_write(cpu, nes, addr, val); //dummy write
+	sys_write_cycle(nes, addr, val); //dummy write
 
 	val -= 1;
-	cpu_write(cpu, nes, addr, val);
+	sys_write_cycle(nes, addr, val);
 	cpu_eval_ZN(cpu, val);
 
 	return val;
 }
 
-static void cpu_sxa_sya(struct cpu *cpu, NES *nes, uint16_t addr, uint8_t r)
+static void cpu_sxa_sya(NES *nes, uint16_t addr, uint8_t r)
 {
 	uint8_t addr_high = addr >> 8;
 
-	cpu_write(cpu, nes, ((r & (addr_high + 1)) << 8) | (addr & 0xFF), r & (addr_high + 1));
+	sys_write_cycle(nes, ((r & (addr_high + 1)) << 8) | (addr & 0xFF), r & (addr_high + 1));
 }
 
 static void cpu_and(struct cpu *cpu, uint8_t v)
@@ -760,7 +743,7 @@ static void cpu_sbc(struct cpu *cpu, uint8_t v)
 static void cpu_branch(struct cpu *cpu, NES *nes, uint16_t addr)
 {
 	bool irq_was_pending = cpu->irq_pending;
-	cpu_read(cpu, nes, cpu->PC);
+	sys_read_cycle(nes, cpu->PC);
 
 	//first try the un-pagecrossed version of the address
 	uint16_t target_pc = cpu->PC + (int8_t) addr;
@@ -768,7 +751,7 @@ static void cpu_branch(struct cpu *cpu, NES *nes, uint16_t addr)
 
 	//branching to a new page always requires another read
 	if (target_pc != cpu->PC) {
-		cpu_read(cpu, nes, cpu->PC);
+		sys_read_cycle(nes, cpu->PC);
 		cpu->PC = target_pc;
 
 	//on a taken non-page crossing branch, the tick above does NOT poll for IRQ
@@ -780,7 +763,7 @@ static void cpu_branch(struct cpu *cpu, NES *nes, uint16_t addr)
 static void cpu_exec(struct cpu *cpu, NES *nes)
 {
 	//attempt to read the next opcode
-	uint8_t code = cpu_read(cpu, nes, cpu->PC++);
+	uint8_t code = sys_read_cycle(nes, cpu->PC++);
 	struct opcode *op = &cpu->OP[code];
 
 	bool pagex = false;
@@ -816,16 +799,16 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case LDA:
-			cpu->A = cpu_read(cpu, nes, addr);
+			cpu->A = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
 
 		case STA:
-			cpu_write(cpu, nes, addr, cpu->A);
+			sys_write_cycle(nes, addr, cpu->A);
 			break;
 
 		case LDX:
-			cpu->X = cpu_read(cpu, nes, addr);
+			cpu->X = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->X);
 			break;
 
@@ -834,7 +817,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case AND:
-			cpu_and(cpu, cpu_read(cpu, nes, addr));
+			cpu_and(cpu, sys_read_cycle(nes, addr));
 			break;
 
 		case BEQ:
@@ -878,12 +861,12 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case LDY:
-			cpu->Y = cpu_read(cpu, nes, addr);
+			cpu->Y = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->Y);
 			break;
 
 		case STY:
-			cpu_write(cpu, nes, addr, cpu->Y);
+			sys_write_cycle(nes, addr, cpu->Y);
 			break;
 
 		case DEY:
@@ -896,7 +879,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case JSR:
-			sys_tick(nes); // internal operation
+			sys_cycle(nes); // internal operation
 			cpu_push16(cpu, nes, cpu->PC - 1);
 			cpu->PC = addr;
 			break;
@@ -920,21 +903,21 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case CMP: {
-			uint8_t val = cpu_read(cpu, nes, addr);
+			uint8_t val = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->A - val);
 			cpu_test_flag(cpu, FLAG_C, cpu->A >= val);
 			break;
 		}
 
 		case CPY: {
-			uint8_t val = cpu_read(cpu, nes, addr);
+			uint8_t val = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->Y - val);
 			cpu_test_flag(cpu, FLAG_C, cpu->Y >= val);
 			break;
 		}
 
 		case CPX: {
-			uint8_t val = cpu_read(cpu, nes, addr);
+			uint8_t val = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->X - val);
 			cpu_test_flag(cpu, FLAG_C, cpu->X >= val);
 			break;
@@ -951,11 +934,11 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case ADC:
-			cpu_adc(cpu, cpu_read(cpu, nes, addr));
+			cpu_adc(cpu, sys_read_cycle(nes, addr));
 			break;
 
 		case SBC:
-			cpu_sbc(cpu, cpu_read(cpu, nes, addr));
+			cpu_sbc(cpu, sys_read_cycle(nes, addr));
 			break;
 
 		case DEX:
@@ -974,20 +957,20 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case RTS:
-			sys_tick(nes); //increment S
+			sys_cycle(nes); //increment S
 			cpu->PC = cpu_pull16(cpu, nes) + 1;
-			cpu_poll_interrupts(cpu); //this is an exception
-			sys_tick(nes); //increment PC
+			cpu_phi_1(cpu); //this is an exception
+			sys_cycle(nes); //increment PC
 			break;
 
 		case PLA:
-			sys_tick(nes); //increment S
+			sys_cycle(nes); //increment S
 			cpu->A = cpu_pull(cpu, nes);
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
 
 		case EOR:
-			cpu_eor(cpu, cpu_read(cpu, nes, addr));
+			cpu_eor(cpu, sys_read_cycle(nes, addr));
 			break;
 
 		case LSR:
@@ -1007,15 +990,15 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case ORA:
-			cpu_ora(cpu, cpu_read(cpu, nes, addr));
+			cpu_ora(cpu, sys_read_cycle(nes, addr));
 			break;
 
 		case STX:
-			cpu_write(cpu, nes, addr, cpu->X);
+			sys_write_cycle(nes, addr, cpu->X);
 			break;
 
 		case RTI:
-			sys_tick(nes); //increment S
+			sys_cycle(nes); //increment S
 			cpu->P = (cpu_pull(cpu, nes) & 0xEF) | FLAG_U;
 			cpu->PC = cpu_pull16(cpu, nes);
 			break;
@@ -1025,7 +1008,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case PLP: {
-			sys_tick(nes); //increment S
+			sys_cycle(nes); //increment S
 			cpu->P = (cpu_pull(cpu, nes) & 0xEF) | FLAG_U;
 			break;
 
@@ -1043,7 +1026,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			cpu_push(cpu, nes, cpu->P | FLAG_B | FLAG_U);
 
 			SET_FLAG(cpu->P, FLAG_I);
-			cpu->PC = cpu_read16(cpu, nes, vector);
+			cpu->PC = cpu_read16(nes, vector);
 
 			//BRK blocks any execution of real interrupts until next instruction
 			cpu->irq_pending = false;
@@ -1055,7 +1038,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case BIT: {
-			uint8_t val = cpu_read(cpu, nes, addr);
+			uint8_t val = sys_read_cycle(nes, addr);
 			cpu_test_flag(cpu, FLAG_V, (val >> 6) & 0x01);
 			cpu_eval_Z(cpu, val & cpu->A);
 			cpu_eval_N(cpu, val);
@@ -1068,23 +1051,23 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 
 		// UNOFFICIAL
 		case DOP:
-			cpu_read(cpu, nes, addr);
+			sys_read_cycle(nes, addr);
 			break;
 
 		case AAC:
-			cpu_and(cpu, cpu_read(cpu, nes, addr));
+			cpu_and(cpu, sys_read_cycle(nes, addr));
 			cpu_test_flag(cpu, FLAG_C, cpu->A & 0x80);
 			break;
 
 		case ASR:
-			cpu->A &= cpu_read(cpu, nes, addr);
+			cpu->A &= sys_read_cycle(nes, addr);
 			cpu_test_flag(cpu, FLAG_C, cpu->A & 0x01);
 			cpu->A >>= 1;
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
 
 		case ARR:
-			cpu->A &= cpu_read(cpu, nes, addr) & cpu->A;
+			cpu->A &= sys_read_cycle(nes, addr) & cpu->A;
 			cpu->A >>= 1;
 			cpu->A |= GET_FLAG(cpu->P, FLAG_C) ? 0x80 : 0x00;
 			cpu_eval_ZN(cpu, cpu->A);
@@ -1108,13 +1091,13 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case ATX:
-			cpu->X = cpu->A = cpu_read(cpu, nes, addr);
+			cpu->X = cpu->A = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
 
 		case AXS: {
 			uint8_t a = cpu->A;
-			uint8_t b = cpu_read(cpu, nes, addr);
+			uint8_t b = sys_read_cycle(nes, addr);
 			uint8_t x = cpu->X;
 			cpu->X = (a & x) - b;
 			cpu_eval_ZN(cpu, cpu->X);
@@ -1138,11 +1121,11 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case AAX:
-			cpu_write(cpu, nes, addr, cpu->A & cpu->X);
+			sys_write_cycle(nes, addr, cpu->A & cpu->X);
 			break;
 
 		case LAX:
-			cpu->A = cpu->X = cpu_read(cpu, nes, addr);
+			cpu->A = cpu->X = sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
 
@@ -1157,36 +1140,36 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case TOP:
-			cpu_read(cpu, nes, addr);
+			sys_read_cycle(nes, addr);
 			break;
 
 		case SYA:
-			cpu_sxa_sya(cpu, nes, addr, cpu->Y);
+			cpu_sxa_sya(nes, addr, cpu->Y);
 			break;
 
 		case SXA:
-			cpu_sxa_sya(cpu, nes, addr, cpu->X);
+			cpu_sxa_sya(nes, addr, cpu->X);
 			break;
 
 		case XAA:
-			cpu->A = cpu->X & cpu_read(cpu, nes, addr);
+			cpu->A = cpu->X & sys_read_cycle(nes, addr);
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
 
 		case AXA:
 			cpu->X &= cpu->A;
-			cpu_write(cpu, nes, addr, cpu->X & 0x07);
+			sys_write_cycle(nes, addr, cpu->X & 0x07);
 			break;
 
 		case LAR:
-			cpu->SP &= cpu_read(cpu, nes, addr);
+			cpu->SP &= sys_read_cycle(nes, addr);
 			cpu->A = cpu->X = cpu->SP;
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
 
 		case XAS:
 			cpu->SP = cpu->A & cpu->X;
-			cpu_write(cpu, nes, addr, cpu->SP & ((addr >> 8) + 1));
+			sys_write_cycle(nes, addr, cpu->SP & ((addr >> 8) + 1));
 			break;
 
 		default:
@@ -1215,8 +1198,8 @@ void cpu_nmi(struct cpu *cpu, bool enabled)
 
 static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 {
-	sys_tick(nes); //internal operation
-	sys_tick(nes); //internal operation
+	sys_cycle(nes); //internal operation
+	sys_cycle(nes); //internal operation
 
 	cpu_push16(cpu, nes, cpu->PC);
 
@@ -1225,7 +1208,7 @@ static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 	cpu_push(cpu, nes, (cpu->P & 0xEF) | FLAG_U);
 
 	SET_FLAG(cpu->P, FLAG_I);
-	cpu->PC = cpu_read16(cpu, nes, vector);
+	cpu->PC = cpu_read16(nes, vector);
 
 	if (vector == NMI_VECTOR)
 		cpu->NMI = false;
@@ -1241,13 +1224,13 @@ void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v)
 	bool irq_was_pending = cpu->irq_pending;
 	cpu->dma = 1;
 
-	sys_tick(nes); //+1 default case
+	sys_cycle(nes); //+1 default case
 
 	if (sys_odd_cycle(nes)) //+1 if odd cycle
-		sys_tick(nes);
+		sys_cycle(nes);
 
 	for (uint16_t x = 0; x < 256; x++, cpu->dma++) //+512 read/write
-		cpu_write(cpu, nes, 0x2014, cpu_read(cpu, nes, v * 0x0100 + x));
+		sys_write_cycle(nes, 0x2014, sys_read_cycle(nes, v * 0x0100 + x));
 
 	cpu->dma = 0;
 	cpu->irq_pending = irq_was_pending;
@@ -1258,26 +1241,26 @@ uint8_t cpu_dma_dmc(struct cpu *cpu, NES *nes, uint16_t addr, bool in_write, boo
 	if (begin_oam || cpu->dma > 0) {
 		if (cpu->dma == 255) { //+0 second-to-second-to-last OAM cycle
 		} else if (cpu->dma == 256) { //+2 last OAM cycle
-			sys_tick(nes);
-			sys_tick(nes);
+			sys_cycle(nes);
+			sys_cycle(nes);
 
 		} else { //+1 otherwise during OAM DMA
-			sys_tick(nes);
+			sys_cycle(nes);
 		}
 	} else if (in_write) { //+2 if CPU is writing
-		sys_tick(nes);
-		sys_tick(nes);
+		sys_cycle(nes);
+		sys_cycle(nes);
 
 		if (cpu->rmw_first)
-			sys_tick(nes);
+			sys_cycle(nes);
 
 	} else { //+3 default case
-		sys_tick(nes);
-		sys_tick(nes);
-		sys_tick(nes);
+		sys_cycle(nes);
+		sys_cycle(nes);
+		sys_cycle(nes);
 	}
 
-	return cpu_read(cpu, nes, addr); //+1
+	return sys_read_cycle(nes, addr); //+1
 }
 
 
@@ -1317,7 +1300,7 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 	cpu->IRQ = 0;
 	cpu->dma = 0;
 
-	cpu->PC = cpu_read16(cpu, nes, RESET_VECTOR);
+	cpu->PC = cpu_read16(nes, RESET_VECTOR);
 
 	if (hard) {
 		cpu->SP = 0xFD;
