@@ -171,7 +171,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 
 	} else if (addr == 0x4014) {
 		nes->sys.io_open_bus = v;
-		cpu_dma_oam(nes->cpu, nes, v, nes->sys.odd_cycle);
+		cpu_dma_oam(nes->cpu, nes, v);
 
 	} else if (addr == 0x4016) {
 		nes->sys.io_open_bus = v;
@@ -191,8 +191,11 @@ void sys_pre_tick_write(NES *nes, uint16_t addr)
 	nes->sys.in_write = true;
 
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
 
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 }
@@ -212,7 +215,9 @@ void sys_pre_tick_read(NES *nes, uint16_t addr)
 	nes->sys.read_addr = addr;
 
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
 
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 }
@@ -220,6 +225,7 @@ void sys_pre_tick_read(NES *nes, uint16_t addr)
 void sys_post_tick_read(NES *nes)
 {
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
 
 	cart_step(nes->cart, nes->cpu);
 
@@ -232,6 +238,11 @@ void sys_tick(NES *nes)
 {
 	sys_pre_tick_read(nes, 0);
 	sys_post_tick_read(nes);
+}
+
+bool sys_odd_cycle(NES *nes)
+{
+	return nes->sys.odd_cycle;
 }
 
 static void sys_reset(struct sys *sys, bool hard)

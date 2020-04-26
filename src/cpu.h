@@ -15,7 +15,7 @@ struct cpu;
 
 void cpu_irq(struct cpu *cpu, enum irq irq, bool enabled);
 void cpu_nmi(struct cpu *cpu, bool enabled);
-void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v, bool odd_cycle);
+void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v);
 uint8_t cpu_dma_dmc(struct cpu *cpu, NES *nes, uint16_t addr, bool in_write, bool begin_oam);
 void cpu_step(struct cpu *cpu, NES *nes);
 void cpu_create(struct cpu **cpu);

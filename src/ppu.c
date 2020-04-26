@@ -681,7 +681,7 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 
-static void ppu_clock(struct ppu *ppu)
+void ppu_clock(struct ppu *ppu)
 {
 	if (++ppu->dot > 340) {
 		ppu->dot = 0;
@@ -789,8 +789,6 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 				ppu->dot++;
 		}
 	}
-
-	ppu_clock(ppu);
 
 	return frame;
 }

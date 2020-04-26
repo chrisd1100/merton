@@ -16,3 +16,4 @@ void sys_post_tick_write(NES *nes);
 void sys_pre_tick_read(NES *nes, uint16_t addr);
 void sys_post_tick_read(NES *nes);
 void sys_tick(NES *nes);
+bool sys_odd_cycle(NES *nes);

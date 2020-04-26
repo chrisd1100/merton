@@ -1236,15 +1236,14 @@ static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 
 // https://forums.nesdev.com/viewtopic.php?f=3&t=6100
 
-void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v, bool odd_cycle)
+void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v)
 {
 	bool irq_was_pending = cpu->irq_pending;
 	cpu->dma = 1;
 
 	sys_tick(nes); //+1 default case
-	odd_cycle = !odd_cycle;
 
-	if (odd_cycle) //+1 if odd cycle
+	if (sys_odd_cycle(nes)) //+1 if odd cycle
 		sys_tick(nes);
 
 	for (uint16_t x = 0; x < 256; x++, cpu->dma++) //+512 read/write
