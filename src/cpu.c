@@ -43,6 +43,9 @@ struct cpu {
 	uint8_t P;   // status (flags)
 
 	uint16_t dma;
+
+	bool irq_p2;
+	bool nmi_p2;
 };
 
 
@@ -77,11 +80,14 @@ enum io_mode {
 
 void cpu_phi_1(struct cpu *cpu)
 {
-	cpu->irq_pending = (cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I)) || cpu->NMI;
+	cpu->irq_pending = cpu->irq_p2 || cpu->nmi_p2;
 }
 
 void cpu_phi_2(struct cpu *cpu)
 {
+	cpu->irq_p2 = cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I);
+	cpu->nmi_p2 = cpu->NMI;
+
 	cpu->rmw_first = false;
 }
 
