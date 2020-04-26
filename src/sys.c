@@ -198,7 +198,7 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 	ppu_clock(nes->ppu);
 
-	cpu_phi_2(nes->cpu);
+	cpu_phi_2(nes->cpu, false);
 
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 	ppu_clock(nes->ppu);
@@ -228,7 +228,7 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 	ppu_clock(nes->ppu);
 
-	cpu_phi_2(nes->cpu);
+	cpu_phi_2(nes->cpu, true);
 
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 	ppu_clock(nes->ppu);

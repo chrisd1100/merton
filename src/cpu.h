@@ -14,7 +14,7 @@ enum irq {
 struct cpu;
 
 void cpu_phi_1(struct cpu *cpu);
-void cpu_phi_2(struct cpu *cpu);
+void cpu_phi_2(struct cpu *cpu, bool write);
 void cpu_irq(struct cpu *cpu, enum irq irq, bool enabled);
 void cpu_nmi(struct cpu *cpu, bool enabled);
 void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v);

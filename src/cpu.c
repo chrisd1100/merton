@@ -84,13 +84,14 @@ void cpu_phi_1(struct cpu *cpu)
 	cpu->irq_pending = cpu->irq_p2 || cpu->nmi_signal;
 }
 
-void cpu_phi_2(struct cpu *cpu)
+void cpu_phi_2(struct cpu *cpu, bool write)
 {
 	cpu->irq_p2 = cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I);
 	cpu->nmi_signal = cpu->nmi_signal || (!cpu->nmi_p2 && cpu->NMI);
 	cpu->nmi_p2 = cpu->NMI;
 
-	cpu->rmw_first = false;
+	if (write)
+		cpu->rmw_first = false;
 }
 
 static uint16_t cpu_read16(NES *nes, uint16_t addr)
