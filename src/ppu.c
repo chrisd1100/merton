@@ -121,7 +121,6 @@ struct ppu {
 	uint8_t read_buffer;
 	uint8_t decay_high2;
 	uint8_t decay_low5;
-	bool supress_nmi;
 
 	uint16_t scanline;
 	uint16_t dot;
@@ -208,16 +207,6 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 	switch (addr) {
 		case 0x2002:
 			ppu->decay_high2 = 0;
-
-			// https://wiki.nesdev.com/w/index.php/PPU_frame_timing#VBL_Flag_Timing
-			if (ppu->scanline == 241 && ppu->dot == 1) {
-				ppu->supress_nmi = true;
-
-			} else if (ppu->scanline == 241 && ppu->dot >= 2 && ppu->dot <= 3) {
-				ppu->supress_nmi = true;
-				cpu_nmi(cpu, false);
-			}
-
 			v = ppu->open_bus = (ppu->open_bus & 0x1F) | ppu->STATUS;
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_V);
 			ppu->w = false;
@@ -274,12 +263,6 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 
 	switch (addr) {
 		case 0x2000:
-			if ((v & 0x80) && GET_FLAG(ppu->STATUS, FLAG_STATUS_V) && !ppu->CTRL.nmi_enabled)
-				cpu_nmi(cpu, true);
-
-			if (!(v & 0x80) && ppu->scanline == 241 && ppu->dot < 5)
-				cpu_nmi(cpu, false);
-
 			ppu->CTRL.nt = v & 0x03;
 			ppu->CTRL.incr = (v & 0x04) ? 32 : 1;
 			ppu->CTRL.sprite_table = (v & 0x08) ? 0x1000 : 0;
@@ -651,8 +634,8 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 	if (rendering && dot <= 255 && !GET_FLAG(ppu->STATUS, FLAG_STATUS_S) && ppu_sprite0_hit(ppu, dot - 1))
 		SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
 
-	if (dot >= 4) {
-		dot -= 4;
+	if (dot >= 1) {
+		dot -= 1;
 
 		if (rendering) {
 			bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
@@ -688,7 +671,6 @@ void ppu_clock(struct ppu *ppu)
 
 		if (++ppu->scanline > 261) {
 			ppu->scanline = 0;
-			ppu->supress_nmi = false;
 			ppu->f = !ppu->f;
 
 			//decay the open bus after 58 frames (~1s)
@@ -745,7 +727,7 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		cart_ppu_scanline_hook(cart, cpu, ppu->scanline);
 
 	if (ppu->scanline <= 239) {
-		if (ppu->dot >= 1 && ppu->dot <= 259)
+		if (ppu->dot >= 1 && ppu->dot <= 256)
 			ppu_render(ppu, ppu->dot, ppu->MASK.rendering);
 
 		if (ppu->MASK.rendering)
@@ -763,12 +745,8 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		}
 
 	} else if (ppu->scanline == 241) {
-		if (ppu->dot == 1 && !ppu->supress_nmi) {
+		if (ppu->dot == 1)
 			SET_FLAG(ppu->STATUS, FLAG_STATUS_V);
-
-			if (ppu->CTRL.nmi_enabled)
-				cpu_nmi(cpu, true);
-		}
 
 	} else if (ppu->scanline == 261) {
 		if (ppu->dot == 0) { //XXX DEFEAT DEVICE: these should be cleared at 1?
@@ -789,6 +767,8 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 				ppu->dot++;
 		}
 	}
+
+	cpu_nmi(cpu, ppu->CTRL.nmi_enabled && GET_FLAG(ppu->STATUS, FLAG_STATUS_V));
 
 	return frame;
 }

@@ -46,6 +46,7 @@ struct cpu {
 
 	bool irq_p2;
 	bool nmi_p2;
+	bool nmi_signal;
 };
 
 
@@ -80,12 +81,13 @@ enum io_mode {
 
 void cpu_phi_1(struct cpu *cpu)
 {
-	cpu->irq_pending = cpu->irq_p2 || cpu->nmi_p2;
+	cpu->irq_pending = cpu->irq_p2 || cpu->nmi_signal;
 }
 
 void cpu_phi_2(struct cpu *cpu)
 {
 	cpu->irq_p2 = cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I);
+	cpu->nmi_signal = cpu->nmi_signal || (!cpu->nmi_p2 && cpu->NMI);
 	cpu->nmi_p2 = cpu->NMI;
 
 	cpu->rmw_first = false;
@@ -1028,7 +1030,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			cpu_push16(cpu, nes, cpu->PC);
 
 			//NMIs can hijack BRKs here, since when this happens the CPU looks at al signals
-			uint16_t vector = cpu->NMI ? NMI_VECTOR : BRK_VECTOR;
+			uint16_t vector = cpu->nmi_signal ? NMI_VECTOR : BRK_VECTOR;
 			cpu_push(cpu, nes, cpu->P | FLAG_B | FLAG_U);
 
 			SET_FLAG(cpu->P, FLAG_I);
@@ -1210,14 +1212,14 @@ static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 	cpu_push16(cpu, nes, cpu->PC);
 
 	//vector hijacking
-	enum irq_vector vector = cpu->NMI ? NMI_VECTOR : BRK_VECTOR;
+	enum irq_vector vector = cpu->nmi_signal ? NMI_VECTOR : BRK_VECTOR;
 	cpu_push(cpu, nes, (cpu->P & 0xEF) | FLAG_U);
 
 	SET_FLAG(cpu->P, FLAG_I);
 	cpu->PC = cpu_read16(nes, vector);
 
 	if (vector == NMI_VECTOR)
-		cpu->NMI = false;
+		cpu->nmi_signal = false;
 }
 
 

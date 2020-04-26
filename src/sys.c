@@ -191,11 +191,6 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 
 	cpu_phi_1(nes->cpu);
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 
 	uint8_t v = sys_read(nes, addr);
@@ -203,9 +198,14 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 	ppu_clock(nes->ppu);
 
-	cart_step(nes->cart, nes->cpu);
-
 	cpu_phi_2(nes->cpu);
+
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+
+	cart_step(nes->cart, nes->cpu);
 
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;
@@ -221,20 +221,21 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 
 	cpu_phi_1(nes->cpu);
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 
 	sys_write(nes, addr, v);
 
-	cart_step(nes->cart, nes->cpu);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
 
 	cpu_phi_2(nes->cpu);
+
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+
+	cart_step(nes->cart, nes->cpu);
 
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;
