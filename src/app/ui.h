@@ -1,8 +1,9 @@
 #pragma once
 
-#include "lib.h"
 #include "config.h"
-#include "../src/nes.h"
+
+#include "lib/lib.h"
+#include "nes/nes.h"
 
 #ifdef __cplusplus
 extern "C" {

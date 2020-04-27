@@ -9,7 +9,7 @@
 #include "ui.h"
 #include "config.h"
 
-#include "../src/nes.h"
+#include "nes/nes.h"
 #include "assets/db/nes20db.h"
 
 struct main {

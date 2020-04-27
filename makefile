@@ -8,29 +8,31 @@ BIN_NAME = \
 	merton.exe
 
 OBJS = \
-	src\cart.obj \
-	src\apu.obj \
-	src\cpu.obj \
-	src\sys.obj \
-	src\ppu.obj \
-	app\main.obj \
-	app\ui.obj \
-	app\crypto.obj \
-	app\windows\window.obj \
-	app\windows\window-quad.obj \
-	app\windows\audio.obj \
-	app\windows\time.obj \
-	app\windows\fs.obj
+	src\nes\cart.obj \
+	src\nes\apu.obj \
+	src\nes\cpu.obj \
+	src\nes\sys.obj \
+	src\nes\ppu.obj \
+	src\app\\main.obj \
+	src\app\ui.obj \
+	src\lib\crypto.obj \
+	src\lib\windows\window.obj \
+	src\lib\windows\window-quad.obj \
+	src\lib\windows\audio.obj \
+	src\lib\windows\time.obj \
+	src\lib\windows\fs.obj
 
 RESOURCES = \
-	app\assets\windows\icon.res \
-	app\assets\windows\versioninfo.res
+	assets\windows\icon.res \
+	assets\windows\versioninfo.res
 
 RFLAGS = \
 	/nologo
 
 CFLAGS = \
-	-Iapp \
+	-I. \
+	-Isrc \
+	-Isrc\lib \
 	-DWIN32_LEAN_AND_MEAN \
 	-DUNICODE \
 	/nologo \
@@ -68,7 +70,7 @@ LD_FLAGS = \
 	/subsystem:windows \
 	/nodefaultlib \
 	/manifest:embed \
-	/manifestinput:app\assets\windows\embed.manifest \
+	/manifestinput:assets\windows\embed.manifest \
 	/nologo
 
 !IFDEF DEBUG
@@ -81,11 +83,11 @@ all: clean clear $(OBJS) $(RESOURCES)
 	link *.obj $(LIBS) $(RESOURCES) /out:$(BIN_NAME) $(LD_FLAGS)
 
 clean:
-	del $(RESOURCES)
-	del *.obj
-	del *.exe
-	del *.ilk
-	del *.pdb
+	-del $(RESOURCES)
+	-del *.obj
+	-del *.exe
+	-del *.ilk
+	-del *.pdb
 
 clear:
 	cls

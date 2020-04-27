@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #include "lib.h"
-#include "../src/nes.h"
+#include "nes/nes.h"
 
 #define CONFIG_VERSION 2
 
