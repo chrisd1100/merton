@@ -1,5 +1,5 @@
 ## Overview
-Merton is a accurate NES emulator written in C with no external dependencies (a trimmed ImGui is included in this repo as an app dependency). The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes every known test](/test) (except for those that test unsupported featuers or mappers) and successfully emulates tricky games. The name comes from the mistranslated spell `Meltdown` from [Final Fantasy VI](https://en.wikipedia.org/wiki/Final_Fantasy_VI).
+Merton is a accurate NES emulator written in C with no external dependencies (a trimmed ImGui is included in this repo as an app dependency). The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes every known test](/test) (except for those that test unsupported featuers or mappers) and successfully emulates tricky games. The name comes from the spell `Merton` from the US version of [Final Fantasy VI](https://en.wikipedia.org/wiki/Final_Fantasy_VI), believed to be a mistranslation of the word `Meltdown`.
 
 ## Building
 Simply type `make` or `nmake` (on Windows) to build the emulator. The makefiles assume a basic C build toolchain, meaning Microsoft Visual Studio on Windows, `gcc` on Linux, and `Xcode` command line tools on macOS.
