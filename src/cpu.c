@@ -1309,6 +1309,12 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 	cpu->IRQ = 0;
 	cpu->dma = 0;
 
+	// Internal operation
+	sys_cycle(nes);
+	sys_cycle(nes);
+	sys_cycle(nes);
+	sys_cycle(nes);
+
 	cpu->PC = cpu_read16(nes, RESET_VECTOR);
 
 	if (hard) {

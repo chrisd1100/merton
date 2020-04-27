@@ -832,7 +832,11 @@ void ppu_reset(struct ppu *ppu)
 
 	ppu_generate_emphasis_tables(ppu);
 
-	ppu->dot = 3;
+	// PPU is clocked at the beginning of the step, start one cycle before
+	ppu->dot = 339;
+	ppu->scanline = 261;
+	ppu->f = true;
+
 	ppu->CTRL.incr = 1;
 	ppu->CTRL.sprite_h = 8;
 	ppu->MASK.grayscale = 0x3F;

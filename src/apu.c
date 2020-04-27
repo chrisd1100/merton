@@ -1090,8 +1090,10 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 	apu->mmc5[1].len.enabled = apu->mmc5[1].len.next_enabled = true;
 	apu->n.len.enabled = apu->n.len.next_enabled = true;
 	apu->cpu_cycle = 0;
+	apu->frame_counter = 0;
 	apu->t.pop = false;
 	apu->frame_irq = false;
+	apu->ext = EXT_NONE;
 
 	apu_write(apu, nes, cpu, 0x4015, 0x00, EXT_NONE);
 
@@ -1103,8 +1105,6 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 	}
 
 	apu->delayed_reset = 0;
-	apu->frame_counter = 4;
-	apu->ext = EXT_NONE;
 }
 
 void *apu_get_state(struct apu *apu, size_t *size)
