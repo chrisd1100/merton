@@ -320,10 +320,10 @@ void cart_chr_write(struct cart *cart, uint16_t addr, uint8_t v)
 
 /*** HOOKS ***/
 
-void cart_ppu_a12_toggle(struct cart *cart)
+void cart_ppu_a12_toggle(struct cart *cart, struct cpu *cpu)
 {
 	switch (cart->hdr.mapper) {
-		case 4: mmc3_ppu_a12_toggle(cart);
+		case 4: mmc3_ppu_a12_toggle(cart, cpu);
 	}
 }
 

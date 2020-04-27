@@ -38,12 +38,8 @@ static void mmc3_create(struct cart *cart)
 		cart_map(&cart->prg, RAM, 0x6000, 0, 8);
 }
 
-static struct cpu *CPU;
-
 static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
 {
-	CPU = cpu;
-
 	if (addr >= 0x6000 && addr < 0x8000) {
 		map_write(&cart->prg, 0, addr, v);
 		cart->sram_dirty = cart->prg.sram;
@@ -99,7 +95,7 @@ static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 	}
 }
 
-static void mmc3_ppu_a12_toggle(struct cart *cart)
+static void mmc3_ppu_a12_toggle(struct cart *cart, struct cpu *cpu)
 {
 	bool set_irq = true;
 
@@ -114,6 +110,6 @@ static void mmc3_ppu_a12_toggle(struct cart *cart)
 		cart->irq.counter--;
 	}
 
-	if (CPU && set_irq && cart->irq.enable && cart->irq.counter == 0)
-		cpu_irq(CPU, IRQ_MAPPER, true);
+	if (set_irq && cart->irq.enable && cart->irq.counter == 0)
+		cpu_irq(cpu, IRQ_MAPPER, true);
 }

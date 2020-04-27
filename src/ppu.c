@@ -121,8 +121,8 @@ struct ppu {
 	uint8_t read_buffer;
 	uint8_t decay_high2;
 	uint8_t decay_low5;
-
 	bool supress_nmi;
+
 	uint16_t scanline;
 	uint16_t dot;
 	bool palette_write;
@@ -147,15 +147,15 @@ static bool ppu_visible(struct ppu *ppu)
 	return ppu->MASK.rendering && (ppu->scanline <= 239 || ppu->scanline == 261);
 }
 
-static void ppu_set_bus_v(struct ppu *ppu, struct cart *cart, uint16_t v)
+static void ppu_set_bus_v(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t v)
 {
 	if (!(ppu->bus_v & 0x1000) && (v & 0x1000))
-		cart_ppu_a12_toggle(cart);
+		cart_ppu_a12_toggle(cart, cpu);
 
 	ppu->bus_v = v;
 }
 
-static void ppu_set_v(struct ppu *ppu, struct cart *cart, uint16_t v, bool glitch)
+static void ppu_set_v(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t v, bool glitch)
 {
 	// https://wiki.nesdev.com/w/index.php/PPU_scrolling#.242007_reads_and_writes
 	if (glitch && ppu_visible(ppu)) {
@@ -166,7 +166,7 @@ static void ppu_set_v(struct ppu *ppu, struct cart *cart, uint16_t v, bool glitc
 		ppu->v = v;
 
 		if (!ppu_visible(ppu))
-			ppu_set_bus_v(ppu, cart, v);
+			ppu_set_bus_v(ppu, cpu, cart, v);
 	}
 }
 
@@ -177,11 +177,12 @@ static uint8_t ppu_read_palette(struct ppu *ppu, uint16_t addr)
 	return ppu->palette_ram[addr] & ppu->MASK.grayscale;
 }
 
-static uint8_t ppu_read_vram(struct ppu *ppu, struct cart *cart, uint16_t addr, enum mem type, bool nt)
+static uint8_t ppu_read_vram(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
+	uint16_t addr, enum mem type, bool nt)
 {
 	if (addr < 0x3F00) {
 		if (addr < 0x2000)
-			ppu_set_bus_v(ppu, cart, addr);
+			ppu_set_bus_v(ppu, cpu, cart, addr);
 
 		return cart_chr_read(cart, addr, type, nt);
 
@@ -190,11 +191,11 @@ static uint8_t ppu_read_vram(struct ppu *ppu, struct cart *cart, uint16_t addr, 
 	}
 }
 
-static void ppu_write_vram(struct ppu *ppu, struct cart *cart, uint16_t addr, uint8_t v)
+static void ppu_write_vram(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr, uint8_t v)
 {
 	if (addr < 0x3F00) {
 		if (addr < 0x2000)
-			ppu_set_bus_v(ppu, cart, addr);
+			ppu_set_bus_v(ppu, cpu, cart, addr);
 
 		cart_chr_write(cart, addr, v);
 
@@ -217,6 +218,7 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 		case 0x2002:
 			ppu->decay_high2 = 0;
 
+			// https://wiki.nesdev.com/w/index.php/PPU_frame_timing#VBL_Flag_Timing
 			if (ppu->scanline == 241 && ppu->dot == 0)
 				ppu->supress_nmi = true;
 
@@ -252,17 +254,17 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 			//buffered read from CHR
 			if (waddr < 0x3F00) {
 				v = ppu->open_bus = ppu->read_buffer;
-				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr, ROM, false);
+				ppu->read_buffer = ppu_read_vram(ppu, cpu, cart, waddr, ROM, false);
 
 			} else {
 				//read buffer gets ciram byte
-				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr - 0x1000, ROM, false);
+				ppu->read_buffer = ppu_read_vram(ppu, cpu, cart, waddr - 0x1000, ROM, false);
 
 				//upper 2 bits get preserved from decay value
-				v = (ppu->open_bus & 0xC0) | (ppu_read_vram(ppu, cart, waddr, ROM, false) & 0x3F);
+				v = (ppu->open_bus & 0xC0) | (ppu_read_vram(ppu, cpu, cart, waddr, ROM, false) & 0x3F);
 			}
 
-			ppu_set_v(ppu, cart, ppu->v + ppu->CTRL.incr, true);
+			ppu_set_v(ppu, cpu, cart, ppu->v + ppu->CTRL.incr, true);
 			break;
 		}
 	}
@@ -335,15 +337,15 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 
 			} else {
 				SET_L(ppu->t, v);
-				ppu_set_v(ppu, cart, ppu->t, false);
+				ppu_set_v(ppu, cpu, cart, ppu->t, false);
 			}
 
 			ppu->w = !ppu->w;
 			break;
 
 		case 0x2007:
-			ppu_write_vram(ppu, cart, ppu->v & 0x3FFF, v);
-			ppu_set_v(ppu, cart, ppu->v + ppu->CTRL.incr, true);
+			ppu_write_vram(ppu, cpu, cart, ppu->v & 0x3FFF, v);
+			ppu_set_v(ppu, cpu, cart, ppu->v + ppu->CTRL.incr, true);
 			break;
 	}
 }
@@ -407,27 +409,28 @@ static void ppu_scroll_copy_y(struct ppu *ppu)
 
 /*** BACKGROUND ***/
 
-static uint8_t ppu_read_nt_byte(struct ppu *ppu, struct cart *cart, enum mem type)
+static uint8_t ppu_read_nt_byte(struct ppu *ppu, struct cpu *cpu, struct cart *cart, enum mem type)
 {
-	return ppu_read_vram(ppu, cart, 0x2000 | (ppu->v & 0x0FFF), type, true);
+	return ppu_read_vram(ppu, cpu, cart, 0x2000 | (ppu->v & 0x0FFF), type, true);
 }
 
-static uint8_t ppu_read_attr_byte(struct ppu *ppu, struct cart *cart, enum mem type)
+static uint8_t ppu_read_attr_byte(struct ppu *ppu, struct cpu *cpu, struct cart *cart, enum mem type)
 {
 	uint16_t addr = 0x23C0 | (ppu->v & 0x0C00) | ((ppu->v >> 4) & 0x0038) | ((ppu->v >> 2) & 0x0007);
 
-	uint8_t attr = ppu_read_vram(ppu, cart, addr, type, false);
+	uint8_t attr = ppu_read_vram(ppu, cpu, cart, addr, type, false);
 	if (GET_CY(ppu->v) & 0x02) attr >>= 4;
 	if (GET_CX(ppu->v) & 0x02) attr >>= 2;
 
 	return attr;
 }
 
-static uint8_t ppu_read_tile_byte(struct ppu *ppu, struct cart *cart, uint8_t nt, uint8_t offset)
+static uint8_t ppu_read_tile_byte(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
+	uint8_t nt, uint8_t offset)
 {
 	uint16_t addr = ppu->CTRL.bg_table + (nt * 16) + GET_FY(ppu->v);
 
-	return ppu_read_vram(ppu, cart, addr + offset, BGROM, false);
+	return ppu_read_vram(ppu, cpu, cart, addr + offset, BGROM, false);
 }
 
 static uint8_t ppu_color(uint8_t low_tile, uint8_t high_tile, uint8_t attr, uint8_t shift)
@@ -447,20 +450,20 @@ static void ppu_store_bg(struct ppu *ppu, uint16_t bg_dot)
 		ppu->bg[bg_dot + (7 - x)] = ppu_color(ppu->bgl, ppu->bgh, ppu->attr, x);
 }
 
-static void ppu_fetch_bg(struct ppu *ppu, struct cart *cart, uint16_t bg_dot)
+static void ppu_fetch_bg(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t bg_dot)
 {
 	switch (ppu->dot % 8) {
 		case 1:
-			ppu->nt = ppu_read_nt_byte(ppu, cart, BGROM);
+			ppu->nt = ppu_read_nt_byte(ppu, cpu, cart, BGROM);
 			break;
 		case 3:
-			ppu->attr = ppu_read_attr_byte(ppu, cart, BGROM);
+			ppu->attr = ppu_read_attr_byte(ppu, cpu, cart, BGROM);
 			break;
 		case 5:
-			ppu->bgl = ppu_read_tile_byte(ppu, cart, ppu->nt, 0);
+			ppu->bgl = ppu_read_tile_byte(ppu, cpu, cart, ppu->nt, 0);
 			break;
 		case 7:
-			ppu->bgh = ppu_read_tile_byte(ppu, cart, ppu->nt, 8);
+			ppu->bgh = ppu_read_tile_byte(ppu, cpu, cart, ppu->nt, 8);
 			break;
 		case 0:
 			ppu_store_bg(ppu, bg_dot);
@@ -593,25 +596,25 @@ static void ppu_eval_sprites(struct ppu *ppu)
 	}
 }
 
-static void ppu_fetch_sprite(struct ppu *ppu, struct cart *cart)
+static void ppu_fetch_sprite(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 {
 	int32_t n = (ppu->dot - 257) / 8;
 	struct sprite *s = &ppu->sprites[n];
 
 	switch (ppu->dot % 8) {
 		case 1:
-			ppu_read_nt_byte(ppu, cart, SPRROM);
+			ppu_read_nt_byte(ppu, cpu, cart, SPRROM);
 			break;
 		case 3:
-			ppu_read_attr_byte(ppu, cart, SPRROM);
+			ppu_read_attr_byte(ppu, cpu, cart, SPRROM);
 			break;
 		case 5: {
 			int32_t row = ppu->scanline - ppu->soam[n][0];
 			s->addr = ppu_sprite_addr(ppu, (uint16_t) (row > 0 ? row : 0), ppu->soam[n][1], ppu->soam[n][2]);
-			s->low_tile = ppu_read_vram(ppu, cart, s->addr, SPRROM, false);
+			s->low_tile = ppu_read_vram(ppu, cpu, cart, s->addr, SPRROM, false);
 			break;
 		} case 7: {
-			uint8_t high_tile = ppu_read_vram(ppu, cart, s->addr + 8, SPRROM, false);
+			uint8_t high_tile = ppu_read_vram(ppu, cpu, cart, s->addr + 8, SPRROM, false);
 
 			if (n < ppu->soam_n)
 				ppu_store_sprite_colors(ppu, ppu->soam[n][2], ppu->soam[n][3], s->id, s->low_tile, high_tile);
@@ -699,13 +702,13 @@ void ppu_clock(struct ppu *ppu)
 	}
 }
 
-static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_render)
+static void ppu_memory_access(struct ppu *ppu, struct cpu *cpu, struct cart *cart, bool pre_render)
 {
 	if (ppu->dot >= 1 && ppu->dot <= 256) {
 		if (ppu->dot == 1)
 			ppu_oam_glitch(ppu);
 
-		ppu_fetch_bg(ppu, cart, ppu->dot + 8);
+		ppu_fetch_bg(ppu, cpu, cart, ppu->dot + 8);
 
 		if (ppu->dot >= 65 && !pre_render)
 			ppu_eval_sprites(ppu);
@@ -714,7 +717,7 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_rende
 			ppu_scroll_v(ppu);
 
 	} else if (ppu->dot >= 257 && ppu->dot <= 320) {
-		ppu_fetch_sprite(ppu, cart);
+		ppu_fetch_sprite(ppu, cpu, cart);
 
 		ppu->OAMADDR = 0;
 
@@ -724,7 +727,7 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_rende
 		}
 
 	} else if (ppu->dot >= 321 && ppu->dot <= 336) {
-		ppu_fetch_bg(ppu, cart, ppu->dot - 328);
+		ppu_fetch_bg(ppu, cpu, cart, ppu->dot - 328);
 	}
 }
 
@@ -747,11 +750,11 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 			ppu_render(ppu, ppu->dot, ppu->MASK.rendering);
 
 		if (ppu->MASK.rendering)
-			ppu_memory_access(ppu, cart, false);
+			ppu_memory_access(ppu, cpu, cart, false);
 
 	} else if (ppu->scanline == 240) {
 		if (ppu->dot == 0) {
-			ppu_set_bus_v(ppu, cart, ppu->v);
+			ppu_set_bus_v(ppu, cpu, cart, ppu->v);
 
 			if (!ppu->palette_write)
 				memset(ppu->pixels, 0, 256 * 240 * 4);
@@ -781,7 +784,7 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 			if (ppu->dot >= 280 && ppu->dot <= 304)
 				ppu_scroll_copy_y(ppu);
 
-			ppu_memory_access(ppu, cart, true);
+			ppu_memory_access(ppu, cpu, cart, true);
 
 			if (ppu->dot == 339 && ppu->f)
 				ppu->dot++;
