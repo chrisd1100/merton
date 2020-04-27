@@ -768,7 +768,7 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		}
 
 	} else if (ppu->scanline == 261) {
-		if (ppu->dot == 0) { //XXX DEFEAT DEVICE: these should be cleared at 1?
+		if (ppu->dot == 0) {
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_O);
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_S);
 		}
