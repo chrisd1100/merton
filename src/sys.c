@@ -19,7 +19,6 @@ struct NES {
 		uint8_t io_open_bus;
 		uint16_t read_addr;
 		bool in_write;
-		bool ppu_align;
 		uint16_t write_addr;
 		uint64_t cycle;
 		uint64_t cycle_2007;
@@ -203,31 +202,20 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 	cart_step(nes->cart, nes->cpu);
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-
-	if (nes->sys.ppu_align) {
-		ppu_clock(nes->ppu);
-		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	}
-	nes->sys.ppu_align = !nes->sys.ppu_align;
-
-	cpu_phi_1(nes->cpu);
-
 	// Begin concurrent tick
+	// Rising edge
+	cpu_phi_1(nes->cpu);
 	uint8_t v = sys_read(nes, addr);
-	ppu_clock(nes->ppu);
 
+	// PPU tick
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
 
+	// Falling edge
 	cpu_phi_2(nes->cpu, false);
 	// End concurrent tick
 
-	if (nes->sys.ppu_align) {
-		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-		ppu_clock(nes->ppu);
-	}
-	nes->sys.ppu_align = !nes->sys.ppu_align;
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;
@@ -244,30 +232,20 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 	cart_step(nes->cart, nes->cpu);
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
-	if (nes->sys.ppu_align) {
-		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-		ppu_clock(nes->ppu);
-	}
-	nes->sys.ppu_align = !nes->sys.ppu_align;
-
+	// Begin concurrent tick
+	// Rising edge
 	cpu_phi_1(nes->cpu);
 
-	// Begin concurrent tick
+	// PPU tick
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
 
+	// Falling edge
 	sys_write(nes, addr, v);
 	cpu_phi_2(nes->cpu, true);
 	// End concurrent tick
 
-	if (nes->sys.ppu_align) {
-		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-		ppu_clock(nes->ppu);
-	}
-	nes->sys.ppu_align = !nes->sys.ppu_align;
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;

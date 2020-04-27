@@ -682,7 +682,7 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 
-void ppu_clock(struct ppu *ppu)
+static void ppu_clock(struct ppu *ppu)
 {
 	if (++ppu->dot > 340) {
 		ppu->dot = 0;
@@ -735,6 +735,8 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 	NES_VideoCallback new_frame, const void *opaque)
 {
 	bool frame = false;
+
+	ppu_clock(ppu);
 
 	if (ppu->dot == 0) {
 		ppu->oam_n = ppu->soam_n = ppu->eval_step = 0;

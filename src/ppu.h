@@ -10,7 +10,6 @@ struct ppu;
 
 uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr);
 void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr, uint8_t v);
-void ppu_clock(struct ppu *ppu);
 bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 	NES_VideoCallback new_frame, const void *opaque);
 void ppu_create(struct ppu **ppu);
