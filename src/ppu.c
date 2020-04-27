@@ -129,6 +129,14 @@ struct ppu {
 };
 
 
+/*** NMI ***/
+
+static void ppu_assert_nmi(struct ppu *ppu, struct cpu *cpu)
+{
+	cpu_nmi(cpu, ppu->CTRL.nmi_enabled && GET_FLAG(ppu->STATUS, FLAG_STATUS_V));
+}
+
+
 /*** VRAM ***/
 
 static void ppu_scroll_h(struct ppu *ppu);
@@ -214,6 +222,7 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 
 			v = ppu->open_bus = (ppu->open_bus & 0x1F) | ppu->STATUS;
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_V);
+			ppu_assert_nmi(ppu, cpu);
 			ppu->w = false;
 			break;
 
@@ -274,6 +283,7 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 			ppu->CTRL.bg_table = (v & 0x10) ? 0x1000 : 0;
 			ppu->CTRL.sprite_h = (v & 0x20) ? 16 : 8;
 			ppu->CTRL.nmi_enabled = v & 0x80;
+			ppu_assert_nmi(ppu, cpu);
 
 			SET_NT(ppu->t, ppu->CTRL.nt);
 			break;
@@ -751,8 +761,10 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		}
 
 	} else if (ppu->scanline == 241) {
-		if (ppu->dot == 1 && !ppu->supress_nmi)
+		if (ppu->dot == 1 && !ppu->supress_nmi) {
 			SET_FLAG(ppu->STATUS, FLAG_STATUS_V);
+			ppu_assert_nmi(ppu, cpu);
+		}
 
 	} else if (ppu->scanline == 261) {
 		if (ppu->dot == 0) { //XXX DEFEAT DEVICE: these should be cleared at 1?
@@ -760,8 +772,10 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_S);
 		}
 
-		if (ppu->dot == 1)
+		if (ppu->dot == 1) {
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_V);
+			ppu_assert_nmi(ppu, cpu);
+		}
 
 		if (ppu->MASK.rendering) {
 			if (ppu->dot >= 280 && ppu->dot <= 304)
@@ -773,8 +787,6 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 				ppu->dot++;
 		}
 	}
-
-	cpu_nmi(cpu, ppu->CTRL.nmi_enabled && GET_FLAG(ppu->STATUS, FLAG_STATUS_V));
 
 	return frame;
 }
