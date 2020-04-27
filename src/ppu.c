@@ -68,6 +68,7 @@ struct spr {
 };
 
 struct ppu {
+	uint16_t output[256];
 	uint32_t pixels[256 * 240];
 	uint32_t palettes[8][64];
 
@@ -636,24 +637,10 @@ static void ppu_oam_glitch(struct ppu *ppu)
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Preface
 
-static bool ppu_sprite0_hit(struct ppu *ppu, uint16_t dot)
-{
-	bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
-	bool show_sprites = !(dot < 8 && !ppu->MASK.clip_sprites) && ppu->MASK.show_sprites;
-	uint8_t color = show_bg ? ppu->bg[dot + ppu->x] : 0;
-
-	return show_sprites && ppu->spr[dot].sprite0 && color != 0;
-}
-
 static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 {
-	uint16_t addr = 0x3F00;
-
-	if (rendering && dot <= 255 && !GET_FLAG(ppu->STATUS, FLAG_STATUS_S) && ppu_sprite0_hit(ppu, dot - 1))
-		SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
-
-	if (dot >= 4) {
-		dot -= 4;
+	if (dot <= 255) {
+		uint16_t addr = 0x3F00;
 
 		if (rendering) {
 			bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
@@ -661,6 +648,9 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 			uint8_t color = show_bg ? ppu->bg[dot + ppu->x] : 0;
 
 			if (show_sprites) {
+				if (ppu->spr[dot].sprite0 && color != 0)
+					SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
+
 				uint8_t sprite_color = ppu->spr[dot].color;
 				if (sprite_color != 0 && (color == 0 || !ppu->spr[dot].priority))
 					color = sprite_color;
@@ -672,7 +662,13 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 			addr = ppu->v;
 		}
 
-		uint8_t color = ppu_read_palette(ppu, addr);
+		ppu->output[dot] = addr;
+	}
+
+	if (dot >= 3) {
+		dot -= 3;
+
+		uint8_t color = ppu_read_palette(ppu, ppu->output[dot]);
 		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[ppu->MASK.emphasis][color];
 	}
 }
@@ -749,7 +745,7 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 
 	if (ppu->scanline <= 239) {
 		if (ppu->dot >= 1 && ppu->dot <= 259)
-			ppu_render(ppu, ppu->dot, ppu->MASK.rendering);
+			ppu_render(ppu, ppu->dot - 1, ppu->MASK.rendering);
 
 		if (ppu->MASK.rendering)
 			ppu_memory_access(ppu, cpu, cart, false);
