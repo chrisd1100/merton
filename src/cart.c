@@ -375,7 +375,6 @@ void cart_sram_get(struct cart *cart, void *buf, size_t size)
 void cart_step(struct cart *cart, struct cpu *cpu)
 {
 	switch (cart->hdr.mapper) {
-		case 4:  mmc3_step(cart, cpu);  break;
 		case 19: namco_step(cart, cpu); break;
 		case 21: vrc_step(cart, cpu);   break;
 		case 23: vrc_step(cart, cpu);   break;

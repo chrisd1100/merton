@@ -209,7 +209,7 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 		case 0x2002:
 			ppu->decay_high2 = 0;
 
-			if (ppu->scanline == 241 && ppu->dot == 1)
+			if (ppu->scanline == 241 && ppu->dot == 0)
 				ppu->supress_nmi = true;
 
 			v = ppu->open_bus = (ppu->open_bus & 0x1F) | ppu->STATUS;
@@ -639,8 +639,8 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 	if (rendering && dot <= 255 && !GET_FLAG(ppu->STATUS, FLAG_STATUS_S) && ppu_sprite0_hit(ppu, dot - 1))
 		SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
 
-	if (dot >= 3) {
-		dot -= 3;
+	if (dot >= 4) {
+		dot -= 4;
 
 		if (rendering) {
 			bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
@@ -733,7 +733,7 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 		cart_ppu_scanline_hook(cart, cpu, ppu->scanline);
 
 	if (ppu->scanline <= 239) {
-		if (ppu->dot >= 1 && ppu->dot <= 258)
+		if (ppu->dot >= 1 && ppu->dot <= 259)
 			ppu_render(ppu, ppu->dot, ppu->MASK.rendering);
 
 		if (ppu->MASK.rendering)

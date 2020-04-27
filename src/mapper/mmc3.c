@@ -38,8 +38,12 @@ static void mmc3_create(struct cart *cart)
 		cart_map(&cart->prg, RAM, 0x6000, 0, 8);
 }
 
+static struct cpu *CPU;
+
 static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
 {
+	CPU = cpu;
+
 	if (addr >= 0x6000 && addr < 0x8000) {
 		map_write(&cart->prg, 0, addr, v);
 		cart->sram_dirty = cart->prg.sram;
@@ -97,28 +101,19 @@ static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 
 static void mmc3_ppu_a12_toggle(struct cart *cart)
 {
-	cart->irq.pending = true;
-}
+	bool set_irq = true;
 
-static void mmc3_step(struct cart *cart, struct cpu *cpu)
-{
-	if (cart->irq.pending) {
-		bool set_irq = true;
+	if (cart->irq.counter == 0 || cart->irq.reload) {
+		if (cart->hdr.submapper == 4 || cart->hdr.submapper == 1)
+			set_irq = cart->irq.reload;
 
-		if (cart->irq.counter == 0 || cart->irq.reload) {
-			if (cart->hdr.submapper == 4 || cart->hdr.submapper == 1)
-				set_irq = cart->irq.reload;
+		cart->irq.reload = false;
+		cart->irq.counter = cart->irq.period;
 
-			cart->irq.reload = false;
-			cart->irq.counter = cart->irq.period;
-
-		} else {
-			cart->irq.counter--;
-		}
-
-		if (set_irq && cart->irq.enable && cart->irq.counter == 0)
-			cpu_irq(cpu, IRQ_MAPPER, true);
-
-		cart->irq.pending = false;
+	} else {
+		cart->irq.counter--;
 	}
+
+	if (CPU && set_irq && cart->irq.enable && cart->irq.counter == 0)
+		cpu_irq(CPU, IRQ_MAPPER, true);
 }
