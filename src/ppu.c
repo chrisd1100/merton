@@ -68,7 +68,7 @@ struct spr {
 };
 
 struct ppu {
-	uint16_t output[256];
+	uint8_t output[256];
 	uint32_t pixels[256 * 240];
 	uint32_t palettes[8][64];
 
@@ -175,7 +175,7 @@ static uint8_t ppu_read_palette(struct ppu *ppu, uint16_t addr)
 {
 	addr &= (addr % 4 == 0) ? 0x0F : 0x1F;
 
-	return ppu->palette_ram[addr] & ppu->MASK.grayscale;
+	return ppu->palette_ram[addr];
 }
 
 static uint8_t ppu_read_vram(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
@@ -188,7 +188,7 @@ static uint8_t ppu_read_vram(struct ppu *ppu, struct cpu *cpu, struct cart *cart
 		return cart_chr_read(cart, addr, type, nt);
 
 	} else {
-		return ppu_read_palette(ppu, addr);
+		return ppu_read_palette(ppu, addr) & ppu->MASK.grayscale;
 	}
 }
 
@@ -662,13 +662,13 @@ static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
 			addr = ppu->v;
 		}
 
-		ppu->output[dot] = addr;
+		ppu->output[dot] = ppu_read_palette(ppu, addr);
 	}
 
 	if (dot >= 3) {
 		dot -= 3;
 
-		uint8_t color = ppu_read_palette(ppu, ppu->output[dot]);
+		uint8_t color = ppu->output[dot] & ppu->MASK.grayscale;
 		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[ppu->MASK.emphasis][color];
 	}
 }
