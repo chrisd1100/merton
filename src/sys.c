@@ -19,6 +19,7 @@ struct NES {
 		uint8_t io_open_bus;
 		uint16_t read_addr;
 		bool in_write;
+		bool ppu_align;
 		uint16_t write_addr;
 		uint64_t cycle;
 		uint64_t cycle_2007;
@@ -185,27 +186,48 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 	}
 }
 
+
+/*** TIMING ***/
+
+// The first cycle after power on / reset is always a read cycle
+
+bool sys_odd_cycle(NES *nes)
+{
+	return nes->sys.odd_cycle;
+}
+
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
 	nes->sys.read_addr = addr;
 
-	cpu_phi_1(nes->cpu);
-
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
-
-	uint8_t v = sys_read(nes, addr);
-
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
 	cart_step(nes->cart, nes->cpu);
 
-	cpu_phi_2(nes->cpu);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+
+	if (nes->sys.ppu_align) {
+		ppu_clock(nes->ppu);
+		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	}
+	nes->sys.ppu_align = !nes->sys.ppu_align;
+
+	cpu_phi_1(nes->cpu);
+
+	// Begin concurrent tick
+	uint8_t v = sys_read(nes, addr);
+	ppu_clock(nes->ppu);
+
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+
+	cpu_phi_2(nes->cpu, false);
+	// End concurrent tick
+
+	if (nes->sys.ppu_align) {
+		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+		ppu_clock(nes->ppu);
+	}
+	nes->sys.ppu_align = !nes->sys.ppu_align;
 
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;
@@ -219,22 +241,33 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	nes->sys.write_addr = addr;
 	nes->sys.in_write = true;
 
-	cpu_phi_1(nes->cpu);
-
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	ppu_clock(nes->ppu);
-
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
-
-	sys_write(nes, addr, v);
-
 	cart_step(nes->cart, nes->cpu);
 
-	cpu_phi_2(nes->cpu);
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+
+	if (nes->sys.ppu_align) {
+		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+		ppu_clock(nes->ppu);
+	}
+	nes->sys.ppu_align = !nes->sys.ppu_align;
+
+	cpu_phi_1(nes->cpu);
+
+	// Begin concurrent tick
+	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_clock(nes->ppu);
+
+	sys_write(nes, addr, v);
+	cpu_phi_2(nes->cpu, true);
+	// End concurrent tick
+
+	if (nes->sys.ppu_align) {
+		nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+		ppu_clock(nes->ppu);
+	}
+	nes->sys.ppu_align = !nes->sys.ppu_align;
 
 	nes->sys.cycle++;
 	nes->sys.odd_cycle = !nes->sys.odd_cycle;
@@ -245,23 +278,6 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 void sys_cycle(NES *nes)
 {
 	sys_read_cycle(nes, 0);
-}
-
-bool sys_odd_cycle(NES *nes)
-{
-	return nes->sys.odd_cycle;
-}
-
-static void sys_reset(struct sys *sys, bool hard)
-{
-	sys->odd_cycle = false;
-	sys->frame = false;
-	sys->in_write = false;
-	sys->read_addr = sys->write_addr = 0;
-	sys->cycle = sys->cycle_2007 = 0;
-
-	if (hard)
-		memset(sys->ram, 0, 0x0800);
 }
 
 
@@ -336,7 +352,15 @@ void NES_Reset(NES *ctx, bool hard)
 	if (!ctx->cart)
 		return;
 
-	sys_reset(&ctx->sys, hard);
+	ctx->sys.odd_cycle = false;
+	ctx->sys.frame = false;
+	ctx->sys.in_write = false;
+	ctx->sys.read_addr = ctx->sys.write_addr = 0;
+	ctx->sys.cycle = ctx->sys.cycle_2007 = 0;
+
+	if (hard)
+		memset(ctx->sys.ram, 0, 0x0800);
+
 	ppu_reset(ctx->ppu);
 	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
 	cpu_reset(ctx->cpu, ctx, hard);
