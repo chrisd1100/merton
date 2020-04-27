@@ -320,10 +320,10 @@ void cart_chr_write(struct cart *cart, uint16_t addr, uint8_t v)
 
 /*** HOOKS ***/
 
-void cart_ppu_a12_toggle(struct cart *cart, struct cpu *cpu)
+void cart_ppu_a12_toggle(struct cart *cart)
 {
 	switch (cart->hdr.mapper) {
-		case 4: mmc3_ppu_a12_toggle(cart, cpu);
+		case 4: mmc3_ppu_a12_toggle(cart);
 	}
 }
 
@@ -375,6 +375,7 @@ void cart_sram_get(struct cart *cart, void *buf, size_t size)
 void cart_step(struct cart *cart, struct cpu *cpu)
 {
 	switch (cart->hdr.mapper) {
+		case 4: mmc3_step(cart, cpu);   break;
 		case 19: namco_step(cart, cpu); break;
 		case 21: vrc_step(cart, cpu);   break;
 		case 23: vrc_step(cart, cpu);   break;

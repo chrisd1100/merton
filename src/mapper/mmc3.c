@@ -95,21 +95,30 @@ static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 	}
 }
 
-static void mmc3_ppu_a12_toggle(struct cart *cart, struct cpu *cpu)
+static void mmc3_ppu_a12_toggle(struct cart *cart)
 {
-	bool set_irq = true;
+	cart->irq.pending = true;
+}
 
-	if (cart->irq.counter == 0 || cart->irq.reload) {
-		if (cart->hdr.submapper == 4 || cart->hdr.submapper == 1)
-			set_irq = cart->irq.reload;
+static void mmc3_step(struct cart *cart, struct cpu *cpu)
+{
+	if (cart->irq.pending) {
+		bool set_irq = true;
 
-		cart->irq.reload = false;
-		cart->irq.counter = cart->irq.period;
+		if (cart->irq.counter == 0 || cart->irq.reload) {
+			if (cart->hdr.submapper == 4 || cart->hdr.submapper == 1)
+				set_irq = cart->irq.reload;
 
-	} else {
-		cart->irq.counter--;
+			cart->irq.reload = false;
+			cart->irq.counter = cart->irq.period;
+
+		} else {
+			cart->irq.counter--;
+		}
+
+		if (set_irq && cart->irq.enable && cart->irq.counter == 0)
+			cpu_irq(cpu, IRQ_MAPPER, true);
+
+		cart->irq.pending = false;
 	}
-
-	if (set_irq && cart->irq.enable && cart->irq.counter == 0)
-		cpu_irq(cpu, IRQ_MAPPER, true);
 }

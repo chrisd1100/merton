@@ -199,16 +199,14 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
 	nes->sys.read_addr = addr;
 
-	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
-	cart_step(nes->cart, nes->cpu);
-
 	// Begin concurrent tick
 	cpu_phi_1(nes->cpu);
+	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 	uint8_t v = sys_read(nes, addr);
 
-	// PPU tick
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
+	cart_step(nes->cart, nes->cpu);
 	cpu_phi_2(nes->cpu, false);
 	// End concurrent tick
 
@@ -227,16 +225,14 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	nes->sys.write_addr = addr;
 	nes->sys.in_write = true;
 
-	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
-	cart_step(nes->cart, nes->cpu);
-
 	// Begin concurrent tick
 	cpu_phi_1(nes->cpu);
+	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 
-	// PPU tick
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
 	sys_write(nes, addr, v);
+	cart_step(nes->cart, nes->cpu);
 	cpu_phi_2(nes->cpu, true);
 	// End concurrent tick
 
