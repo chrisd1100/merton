@@ -203,14 +203,12 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	cart_step(nes->cart, nes->cpu);
 
 	// Begin concurrent tick
-	// Rising edge
 	cpu_phi_1(nes->cpu);
 	uint8_t v = sys_read(nes, addr);
 
 	// PPU tick
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
-	// Falling edge
 	cpu_phi_2(nes->cpu, false);
 	// End concurrent tick
 
@@ -233,13 +231,11 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	cart_step(nes->cart, nes->cpu);
 
 	// Begin concurrent tick
-	// Rising edge
 	cpu_phi_1(nes->cpu);
 
 	// PPU tick
 	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
 
-	// Falling edge
 	sys_write(nes, addr, v);
 	cpu_phi_2(nes->cpu, true);
 	// End concurrent tick
