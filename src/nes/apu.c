@@ -370,10 +370,31 @@ static void apu_dmc_step_timer(struct dmc *d, NES *nes, struct cpu *cpu)
 
 /*** VRC6 ***/
 
-static void apu_vrc6_pulse_step_timer(struct pulse *p)
+struct pulse6 {
+	bool enabled;
+	bool mode;
+	uint8_t volume;
+	uint8_t duty_value;
+	uint8_t duty_cycle;
+	uint8_t output;
+	uint16_t divider;
+	uint16_t frequency;
+};
+
+struct saw {
+	bool enabled;
+	uint8_t clock;
+	uint8_t accum_rate;
+	uint8_t accumulator;
+	uint8_t output;
+	uint16_t divider;
+	uint16_t frequency;
+};
+
+static void apu_vrc6_pulse_step_timer(struct pulse6 *p)
 {
-	if (p->timer.value == 0) {
-		p->timer.value = p->timer.period;
+	if (p->divider == 0) {
+		p->divider = p->frequency;
 
 		if (p->duty_value == 0) {
 			p->duty_value = 15;
@@ -381,32 +402,32 @@ static void apu_vrc6_pulse_step_timer(struct pulse *p)
 			p->duty_value--;
 		}
 
-		p->output = p->enabled && (p->duty_value <= p->env.decay_level || p->duty_mode) ?
-			p->env.v : 0;
+		p->output = p->enabled && (p->duty_value <= p->duty_cycle || p->mode) ?
+			p->volume : 0;
 
 	} else {
-		p->timer.value--;
+		p->divider--;
 	}
 }
 
-static void apu_vrc6_saw_step_timer(struct pulse *p)
+static void apu_vrc6_saw_step_timer(struct saw *s)
 {
-	if (p->timer.value == 0) {
-		p->timer.value = p->timer.period;
+	if (s->divider == 0) {
+		s->divider = s->frequency;
 
-		if (p->duty_value == 0) {
-			p->env.v = 0;
+		if (s->clock == 0) {
+			s->accumulator = 0;
 
-		} else if ((p->duty_value & 1) == 0) {
-			p->env.v += p->env.decay_level;
-			p->output = p->enabled ? (p->env.v & 0xF8) >> 3 : 0;
+		} else if ((s->clock & 1) == 0) {
+			s->accumulator += s->accum_rate;
+			s->output = s->enabled ? (s->accumulator & 0xF8) >> 3 : 0;
 		}
 
-		if (++p->duty_value == 14)
-			p->duty_value = 0;
+		if (++s->clock == 14)
+			s->clock = 0;
 
 	} else {
-		p->timer.value--;
+		s->divider--;
 	}
 }
 
@@ -604,9 +625,9 @@ struct apu {
 	int64_t cpu_cycle;
 	int64_t frame_counter;
 
-	struct pulse p[2];
-	struct pulse mmc5[2];
-	struct pulse vrc6[3];
+	struct pulse p[4];
+	struct pulse6 p6[2];
+	struct saw s;
 	struct triangle t;
 	struct noise n;
 	struct dmc d;
@@ -635,7 +656,7 @@ static void apu_set_frame_irq(struct apu *apu, struct cpu *cpu, bool enabled)
 uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 {
 	uint8_t r = 0;
-	struct pulse *p = ext == EXT_MMC5 ? apu->mmc5 : apu->p;
+	struct pulse *p = ext == EXT_MMC5 ? apu->p + 2 : apu->p;
 
 	if (p[0].len.value > 0) r |= 0x01;
 	if (p[1].len.value > 0) r |= 0x02;
@@ -655,7 +676,7 @@ uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 
 void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext)
 {
-	struct pulse *p = ext == EXT_MMC5 ? apu->mmc5 : apu->p;
+	struct pulse *p = ext == EXT_MMC5 ? apu->p + 2 : apu->p;
 
 	if (ext != EXT_NONE)
 		apu->ext = ext;
@@ -797,35 +818,44 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 			if (apu->irq_disabled)
 				apu_set_frame_irq(apu, cpu, false);
 			break;
+
+		// VRC6
 		case 0x9000: // VRC6 Pulse
 		case 0xA000: {
 			uint8_t i = (addr >> 12) - 0x9;
-			apu->vrc6[i].env.v = v & 0x0F;
-			apu->vrc6[i].env.decay_level = (v & 0x70) >> 4;
-			apu->vrc6[i].duty_mode = v >> 7;
+			apu->p6[i].volume = v & 0x0F;
+			apu->p6[i].duty_cycle = (v & 0x70) >> 4;
+			apu->p6[i].mode = v >> 7;
 			break;
 		}
-		case 0x9001: // VRC6 Pulse, Sawtooth
-		case 0xA001:
-		case 0xB001: {
+		case 0x9001:
+		case 0xA001: {
 			uint8_t i = (addr >> 12) - 0x9;
-			apu->vrc6[i].timer.period &= 0xFF00;
-			apu->vrc6[i].timer.period |= v;
+			apu->p6[i].frequency &= 0xFF00;
+			apu->p6[i].frequency |= v;
 			break;
 		}
 		case 0x9002:
-		case 0xA002:
-		case 0xB002: {
+		case 0xA002: {
 			uint8_t i = (addr >> 12) - 0x9;
-			apu->vrc6[i].timer.period &= 0xF0FF;
-			apu->vrc6[i].timer.period |= (uint16_t) (v & 0x0F) << 8;
-			apu->vrc6[i].enabled = v & 0x80;
+			apu->p6[i].frequency &= 0xF0FF;
+			apu->p6[i].frequency |= (uint16_t) (v & 0x0F) << 8;
+			apu->p6[i].enabled = v & 0x80;
 			break;
 		}
 		case 0x9003:
 			break;
 		case 0xB000: // VRC6 Sawtooth
-			apu->vrc6[2].env.decay_level = v & 0x3F;
+			apu->s.accum_rate = v & 0x3F;
+			break;
+		case 0xB001:
+			apu->s.frequency &= 0xFF00;
+			apu->s.frequency |= v;
+			break;
+		case 0xB002:
+			apu->s.frequency &= 0xF0FF;
+			apu->s.frequency |= (uint16_t) (v & 0x0F) << 8;
+			apu->s.enabled = v & 0x80;
 			break;
 	}
 }
@@ -859,14 +889,14 @@ static void apu_step_all_sweep_and_length(struct apu *apu)
 
 static void apu_step_mmc5(struct apu *apu)
 {
-	apu_step_envelope(&apu->mmc5[0].env);
-	apu_step_envelope(&apu->mmc5[1].env);
-	apu_step_length(&apu->mmc5[0].len);
-	apu_step_length(&apu->mmc5[1].len);
-
 	if (apu->ext == EXT_MMC5) {
-		apu_pulse_output(&apu->mmc5[0], EXT_MMC5);
-		apu_pulse_output(&apu->mmc5[1], EXT_MMC5);
+		apu_step_envelope(&apu->p[2].env);
+		apu_step_envelope(&apu->p[3].env);
+		apu_step_length(&apu->p[2].len);
+		apu_step_length(&apu->p[3].len);
+
+		apu_pulse_output(&apu->p[2], EXT_MMC5);
+		apu_pulse_output(&apu->p[3], EXT_MMC5);
 	}
 }
 
@@ -878,8 +908,8 @@ static void apu_delayed_length_enabled(struct apu *apu)
 	apu->n.len.enabled = apu->n.len.next_enabled;
 
 	if (apu->ext == EXT_MMC5) {
-		apu->mmc5[0].len.enabled = apu->mmc5[0].len.next_enabled;
-		apu->mmc5[1].len.enabled = apu->mmc5[1].len.next_enabled;
+		apu->p[2].len.enabled = apu->p[2].len.next_enabled;
+		apu->p[3].len.enabled = apu->p[3].len.next_enabled;
 	}
 }
 
@@ -947,8 +977,8 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 		apu_dmc_step_timer(&apu->d, nes, cpu);
 
 		if (apu->ext == EXT_MMC5) {
-			apu_pulse_step_timer(&apu->mmc5[0], EXT_MMC5);
-			apu_pulse_step_timer(&apu->mmc5[1], EXT_MMC5);
+			apu_pulse_step_timer(&apu->p[2], EXT_MMC5);
+			apu_pulse_step_timer(&apu->p[3], EXT_MMC5);
 		}
 	}
 
@@ -958,9 +988,9 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 
 	//vrc6
 	if (apu->ext == EXT_VRC6) {
-		apu_vrc6_pulse_step_timer(&apu->vrc6[0]);
-		apu_vrc6_pulse_step_timer(&apu->vrc6[1]);
-		apu_vrc6_saw_step_timer(&apu->vrc6[2]);
+		apu_vrc6_pulse_step_timer(&apu->p6[0]);
+		apu_vrc6_pulse_step_timer(&apu->p6[1]);
+		apu_vrc6_saw_step_timer(&apu->s);
 	}
 
 	//mix
@@ -974,13 +1004,13 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 		p1 = apu->p[1].output;
 
 	if (apu->channels & NES_CHANNEL_EXT_0)
-		ext0 = apu->mmc5[0].output + apu->vrc6[0].output;
+		ext0 = apu->p[2].output + apu->p6[0].output;
 
 	if (apu->channels & NES_CHANNEL_EXT_1)
-		ext1 = apu->mmc5[1].output + apu->vrc6[1].output;
+		ext1 = apu->p[3].output + apu->p6[1].output;
 
 	if (apu->channels & NES_CHANNEL_EXT_2)
-		ext2 = apu->vrc6[2].output;
+		ext2 = apu->s.output;
 
 	if (apu->channels & NES_CHANNEL_TRIANGLE)
 		t = apu->t.output;
@@ -1076,18 +1106,17 @@ void apu_destroy(struct apu **apu)
 
 void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 {
-	memset(apu->p, 0, sizeof(struct pulse) * 2);
-	memset(apu->mmc5, 0, sizeof(struct pulse) * 2);
-	memset(apu->vrc6, 0, sizeof(struct pulse) * 3);
+	memset(apu->p, 0, sizeof(struct pulse) * 4);
+	memset(apu->p6, 0, sizeof(struct pulse6) * 2);
+	memset(&apu->s, 0, sizeof(struct saw));
 	memset(&apu->t, 0, sizeof(struct triangle));
 	memset(&apu->n, 0, sizeof(struct noise));
 	memset(&apu->d, 0, sizeof(struct dmc));
 
+	for (uint8_t x = 0; x < 4; x++)
+		apu->p[x].len.enabled = apu->p[x].len.next_enabled = true;
+
 	apu->n.shift_register = 1;
-	apu->p[0].len.enabled = apu->p[0].len.next_enabled = true;
-	apu->p[1].len.enabled = apu->p[1].len.next_enabled = true;
-	apu->mmc5[0].len.enabled = apu->mmc5[0].len.next_enabled = true;
-	apu->mmc5[1].len.enabled = apu->mmc5[1].len.next_enabled = true;
 	apu->n.len.enabled = apu->n.len.next_enabled = true;
 	apu->cpu_cycle = 0;
 	apu->frame_counter = 0;
