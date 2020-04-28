@@ -123,10 +123,10 @@ struct ppu {
 	uint8_t read_buffer;
 	uint8_t decay_high2;
 	uint8_t decay_low5;
-	bool supress_nmi;
 
 	uint16_t scanline;
 	uint16_t dot;
+	bool supress_nmi;
 	bool output_v;
 	bool new_frame;
 	bool palette_write;
