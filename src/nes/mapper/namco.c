@@ -1,4 +1,5 @@
 // https://wiki.nesdev.com/w/index.php/INES_Mapper_019
+// https://wiki.nesdev.com/w/index.php/INES_Mapper_210
 
 static void namco_create(struct cart *cart)
 {
@@ -6,8 +7,18 @@ static void namco_create(struct cart *cart)
 
 	cart_map(&cart->prg, ROM, 0xE000, last_bank, 8);
 
-	if (cart->prg.ram.size > 0)
-		cart_map(&cart->prg, RAM, 0x6000, 0, 8);
+	if (cart->prg.ram.size > 0) {
+		if (cart->hdr.mapper == 210 && cart->hdr.submapper == 1) {
+			cart_map(&cart->prg, RAM, 0x6000, 0, 2);
+			cart_map(&cart->prg, RAM, 0x6800, 0, 2);
+			cart_map(&cart->prg, RAM, 0x7000, 0, 2);
+			cart_map(&cart->prg, RAM, 0x7800, 0, 2);
+
+		} else if (cart->hdr.mapper == 19) {
+			cart->ram_enable = true;
+			cart_map(&cart->prg, RAM, 0x6000, 0, 8);
+		}
+	}
 }
 
 static void namco_map_ppu(struct cart *cart)
@@ -31,7 +42,10 @@ static void namco_map_ppu(struct cart *cart)
 
 static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
 {
-	if (addr >= 0x6000 && addr < 0x8000) {
+	if (cart->hdr.mapper == 210 && addr < 0x8000)
+		return;
+
+	if (addr >= 0x6000 && addr < 0x8000 && cart->ram_enable) {
 		map_write(&cart->prg, 0, addr, v);
 
 	} else if (addr >= 0x4800) {
@@ -55,24 +69,44 @@ static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, u
 			case 0xA800:
 			case 0xB000:
 			case 0xB800:
-				cart->CHR[(addr - 0x8000) / 0x800] = v;
-				namco_map_ppu(cart);
+				if (cart->hdr.mapper == 210) {
+					cart_map(&cart->chr, ROM, ((addr - 0x8000) / 0x800) * 0x400, v, 1);
+
+				} else {
+					cart->CHR[(addr - 0x8000) / 0x800] = v;
+					namco_map_ppu(cart);
+				}
 				break;
-			case 0xC000: //Nametables
+			case 0xC000: //Nametables (mapper 19), RAM enable (mapper 210.1)
+				if (cart->hdr.mapper == 210 && cart->hdr.submapper == 1)
+					cart->ram_enable = v & 0x1;
 			case 0xC800:
 			case 0xD000:
 			case 0xD800:
-				cart->REG[(addr - 0xC000) / 0x800] = v;
-				namco_map_ppu(cart);
+				if (cart->hdr.mapper == 19) {
+					cart->REG[(addr - 0xC000) / 0x800] = v;
+					namco_map_ppu(cart);
+				}
 				break;
-			case 0xE000: //PRG
+			case 0xE000: //PRG, mirroring (mapper 210.2)
+				if (cart->hdr.mapper == 210 && cart->hdr.submapper == 2) {
+					switch ((v & 0xC0) >> 6) {
+						case 0: cart_map_ciram(&cart->chr, NES_MIRROR_SINGLE0);    break;
+						case 1: cart_map_ciram(&cart->chr, NES_MIRROR_VERTICAL);   break;
+						case 2: cart_map_ciram(&cart->chr, NES_MIRROR_HORIZONTAL); break;
+						case 3: cart_map_ciram(&cart->chr, NES_MIRROR_SINGLE1);    break;
+					}
+				}
+
 				cart_map(&cart->prg, ROM, 0x8000, v & 0x3F, 8);
 				break;
 			case 0xE800:
 				cart_map(&cart->prg, ROM, 0xA000, v & 0x3F, 8);
 
-				cart->chr_mode = (v & 0xC0) >> 6;
-				namco_map_ppu(cart);
+				if (cart->hdr.mapper == 19) {
+					cart->chr_mode = (v & 0xC0) >> 6;
+					namco_map_ppu(cart);
+				}
 				break;
 			case 0xF000:
 				cart_map(&cart->prg, ROM, 0xC000, v & 0x3F, 8);
@@ -80,7 +114,7 @@ static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, u
 			case 0xF800: //Expansion audio etc.
 				break;
 			default:
-				NES_Log("Uncaught Namco 163/129 write %x: %x", addr, v);
+				NES_Log("Uncaught Namco 163/129/175/340 write %x: %x", addr, v);
 		}
 	}
 }
