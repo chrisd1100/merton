@@ -135,20 +135,15 @@ static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel, enum extaudio
 	}
 }
 
-static void apu_pulse_output(struct pulse *p, enum extaudio ext)
-{
-	p->output = (p->len.value == 0 || apu_sweep_mute(p, ext) ||
-		DUTY_TABLE[p->duty_mode][p->duty_value] == 0) ? 0 :
-		p->env.constant_volume ? p->env.v : p->env.decay_level;
-}
-
 static void apu_pulse_step_timer(struct pulse *p, enum extaudio ext)
 {
 	if (p->timer.value == 0) {
 		p->timer.value = p->timer.period;
 		p->duty_value = (p->duty_value + 1) % 8;
 
-		apu_pulse_output(p, ext);
+		p->output = (p->len.value == 0 || apu_sweep_mute(p, ext) ||
+			DUTY_TABLE[p->duty_mode][p->duty_value] == 0) ? 0 :
+			p->env.constant_volume ? p->env.v : p->env.decay_level;
 
 	} else {
 		p->timer.value--;
@@ -180,16 +175,6 @@ static const uint8_t TRIANGLE_TABLE[] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 };
 
-static void apu_triangle_output(struct triangle *t)
-{
-	if (!t->pop && t->duty_value >= 15)
-		t->pop = true;
-
-	uint8_t level = t->pop ? TRIANGLE_TABLE[t->duty_value] : 0;
-
-	t->output = level;
-}
-
 static void apu_triangle_step_timer(struct triangle *t)
 {
 	if (t->timer.value == 0) {
@@ -199,7 +184,10 @@ static void apu_triangle_step_timer(struct triangle *t)
 		if (t->len.value > 0 && t->counter.value > 0 && t->timer.period > 0)
 			t->duty_value = (t->duty_value + 1) % 32;
 
-		apu_triangle_output(t);
+		if (!t->pop && t->duty_value >= 15)
+			t->pop = true;
+
+		t->output = t->pop ? TRIANGLE_TABLE[t->duty_value] : 0;;
 
 	} else {
 		t->timer.value--;
@@ -238,13 +226,6 @@ static const uint16_t NOISE_TABLE[] = {
 	4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068,
 };
 
-static void apu_noise_output(struct noise *n)
-{
-	n->output =
-		(n->len.value == 0 || (n->shift_register & 0x0001)) ? 0 :
-		n->env.constant_volume ? n->env.v : n->env.decay_level;
-}
-
 static void apu_noise_step_timer(struct noise *n)
 {
 	if (n->timer.value > 0)
@@ -256,7 +237,8 @@ static void apu_noise_step_timer(struct noise *n)
 		uint16_t feedback = (n->shift_register & 0x0001) ^ ((n->shift_register >> (n->mode ? 6 : 1)) & 0x0001);
 		n->shift_register = (n->shift_register >> 1) | (feedback << 14);
 
-		apu_noise_output(n);
+		n->output = (n->len.value == 0 || (n->shift_register & 0x0001)) ? 0 :
+			n->env.constant_volume ? n->env.v : n->env.decay_level;
 	}
 }
 
@@ -869,11 +851,6 @@ static void apu_step_all_envelope(struct apu *apu)
 	apu_step_envelope(&apu->p[1].env);
 	apu_triangle_step_counter(&apu->t);
 	apu_step_envelope(&apu->n.env);
-
-	apu_pulse_output(&apu->p[0], EXT_NONE);
-	apu_pulse_output(&apu->p[1], EXT_NONE);
-	apu_triangle_output(&apu->t);
-	apu_noise_output(&apu->n);
 }
 
 static void apu_step_all_sweep_and_length(struct apu *apu)
@@ -894,9 +871,6 @@ static void apu_step_mmc5(struct apu *apu)
 		apu_step_envelope(&apu->p[3].env);
 		apu_step_length(&apu->p[2].len);
 		apu_step_length(&apu->p[3].len);
-
-		apu_pulse_output(&apu->p[2], EXT_MMC5);
-		apu_pulse_output(&apu->p[3], EXT_MMC5);
 	}
 }
 
