@@ -90,8 +90,8 @@ struct ppu {
 		uint8_t emphasis;
 		bool show_bg;
 		bool show_sprites;
-		bool clip_bg;
-		bool clip_sprites;
+		bool show_left_bg;
+		bool show_left_sprites;
 		bool rendering;
 	} MASK;
 
@@ -115,6 +115,7 @@ struct ppu {
 	uint8_t soam_n;
 	uint8_t eval_step;
 	bool overflow;
+	bool has_sprites;
 	struct sprite sprites[8];
 	struct spr spr[256];
 
@@ -126,6 +127,7 @@ struct ppu {
 
 	uint16_t scanline;
 	uint16_t dot;
+	bool output_v;
 	bool new_frame;
 	bool palette_write;
 };
@@ -166,6 +168,7 @@ static void ppu_set_v(struct ppu *ppu, struct cart *cart, uint16_t v, bool glitc
 
 	} else {
 		ppu->v = v;
+		ppu->output_v = ppu->v >= 0x3F00 && ppu->v < 0x4000;
 
 		if (!ppu_visible(ppu))
 			ppu_set_bus_v(ppu, cart, v);
@@ -293,8 +296,8 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 
 		case 0x2001:
 			ppu->MASK.grayscale = (v & 0x01) ? 0x30 : 0x3F;
-			ppu->MASK.clip_bg = v & 0x02;
-			ppu->MASK.clip_sprites = v & 0x04;
+			ppu->MASK.show_left_bg = v & 0x02;
+			ppu->MASK.show_left_sprites = v & 0x04;
 			ppu->MASK.show_bg = v & 0x08;
 			ppu->MASK.show_sprites = v & 0x10;
 			ppu->MASK.emphasis = (v & 0xE0) >> 5;
@@ -525,6 +528,8 @@ static void ppu_store_sprite_colors(struct ppu *ppu, uint8_t attr, uint8_t sprit
 		uint16_t offset = sprite_x + x;
 
 		if (offset < 256 && color != 0) {
+			ppu->has_sprites = true;
+
 			if (!ppu->spr[offset].sprite0)
 				ppu->spr[offset].sprite0 = id == 0 && offset != 255;
 
@@ -636,40 +641,39 @@ static void ppu_oam_glitch(struct ppu *ppu)
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Preface
 
-static void ppu_render(struct ppu *ppu, uint16_t dot, bool rendering)
+static void ppu_render(struct ppu *ppu, uint16_t dot)
 {
-	if (dot <= 255) {
-		uint16_t addr = 0x3F00;
+	uint16_t addr = 0x3F00;
 
-		if (rendering) {
-			bool show_bg = !(dot < 8 && !ppu->MASK.clip_bg) && ppu->MASK.show_bg;
-			bool show_sprites = !(dot < 8 && !ppu->MASK.clip_sprites) && ppu->MASK.show_sprites;
-			uint8_t color = show_bg ? ppu->bg[dot + ppu->x] : 0;
+	if (ppu->MASK.rendering) {
+		uint8_t bg_color = 0;
 
-			if (show_sprites) {
-				if (ppu->spr[dot].sprite0 && color != 0)
-					SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
-
-				uint8_t sprite_color = ppu->spr[dot].color;
-				if (sprite_color != 0 && (color == 0 || !ppu->spr[dot].priority))
-					color = sprite_color;
-			}
-
-			addr += color;
-
-		} else if (ppu->v >= 0x3F00 && ppu->v < 0x4000) {
-			addr = ppu->v;
+		if (ppu->MASK.show_bg && (dot > 7 || ppu->MASK.show_left_bg)) {
+			bg_color = ppu->bg[dot + ppu->x];
+			addr = 0x3F00 + bg_color;
 		}
 
-		ppu->output[dot] = ppu_read_palette(ppu, addr);
+		if (ppu->has_sprites && ppu->MASK.show_sprites && (dot > 7 || ppu->MASK.show_left_sprites)) {
+			struct spr *spr = &ppu->spr[dot];
+
+			if (spr->sprite0 && bg_color != 0)
+				SET_FLAG(ppu->STATUS, FLAG_STATUS_S);
+
+			if (spr->color != 0 && (bg_color == 0 || !spr->priority))
+				addr = 0x3F00 + spr->color;
+		}
+
+	} else if (ppu->output_v) {
+		addr = ppu->v;
 	}
 
-	if (dot >= 3) {
-		dot -= 3;
+	ppu->output[dot] = ppu_read_palette(ppu, addr);
+}
 
-		uint8_t color = ppu->output[dot] & ppu->MASK.grayscale;
-		ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[ppu->MASK.emphasis][color];
-	}
+static void ppu_output(struct ppu *ppu, uint16_t dot)
+{
+	uint8_t color = ppu->output[dot] & ppu->MASK.grayscale;
+	ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[ppu->MASK.emphasis][color];
 }
 
 
@@ -697,7 +701,7 @@ static void ppu_clock(struct ppu *ppu)
 	}
 }
 
-static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_render)
+static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 {
 	if (ppu->dot >= 1 && ppu->dot <= 256) {
 		if (ppu->dot == 1)
@@ -705,7 +709,7 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_rende
 
 		ppu_fetch_bg(ppu, cart, ppu->dot + 8);
 
-		if (ppu->dot >= 65 && !pre_render)
+		if (ppu->dot >= 65 && ppu->scanline != 261)
 			ppu_eval_sprites(ppu);
 
 		if (ppu->dot == 256)
@@ -717,7 +721,10 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_rende
 		ppu->OAMADDR = 0;
 
 		if (ppu->dot == 257) {
-			memset(ppu->spr, 0, sizeof(struct spr) * 256);
+			if (ppu->has_sprites) {
+				memset(ppu->spr, 0, sizeof(struct spr) * 256);
+				ppu->has_sprites = false;
+			}
 			ppu_scroll_copy_x(ppu);
 		}
 
@@ -740,11 +747,14 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 	}
 
 	if (ppu->scanline <= 239) {
-		if (ppu->dot >= 1 && ppu->dot <= 259)
-			ppu_render(ppu, ppu->dot - 1, ppu->MASK.rendering);
+		if (ppu->dot >= 1 && ppu->dot <= 256)
+			ppu_render(ppu, ppu->dot - 1);
+
+		if (ppu->dot >= 4 && ppu->dot <= 259)
+			ppu_output(ppu, ppu->dot - 4);
 
 		if (ppu->MASK.rendering)
-			ppu_memory_access(ppu, cart, false);
+			ppu_memory_access(ppu, cart);
 
 	} else if (ppu->scanline == 240) {
 		if (ppu->dot == 0) {
@@ -777,7 +787,7 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 			if (ppu->dot >= 280 && ppu->dot <= 304)
 				ppu_scroll_copy_y(ppu);
 
-			ppu_memory_access(ppu, cart, true);
+			ppu_memory_access(ppu, cart);
 
 			if (ppu->dot == 339 && ppu->f)
 				ppu->dot++;
