@@ -153,7 +153,7 @@ struct cart {
 	uint8_t chr_mode;
 	uint8_t REG[8];
 	uint8_t PRG[8];
-	uint8_t CHR[8];
+	uint8_t CHR[16];
 
 	struct {
 		bool enable;
@@ -212,6 +212,7 @@ struct cart {
 
 #include "mapper/fcg.c"
 #include "mapper/fme7.c"
+#include "mapper/jaleco.c"
 #include "mapper/mapper.c"
 #include "mapper/mmc1.c"
 #include "mapper/mmc2.c"
@@ -244,6 +245,7 @@ void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_
 		case 5:   mmc5_prg_write(cart, apu, addr, v);       break;
 		case 9:   mmc2_prg_write(cart, addr, v);            break;
 		case 10:  mmc2_prg_write(cart, addr, v);            break;
+		case 18:  jaleco_prg_write(cart, addr, v);          break;
 		case 19:  namco_prg_write(cart, cpu, addr, v);      break;
 		case 21:  vrc_prg_write(cart, cpu, addr, v);        break;
 		case 22:  vrc_prg_write(cart, cpu, addr, v);        break;
@@ -375,17 +377,18 @@ void cart_sram_get(struct cart *cart, void *buf, size_t size)
 void cart_step(struct cart *cart, struct cpu *cpu)
 {
 	switch (cart->hdr.mapper) {
-		case 4: mmc3_step(cart, cpu);   break;
-		case 19: namco_step(cart, cpu); break;
-		case 21: vrc_step(cart, cpu);   break;
-		case 23: vrc_step(cart, cpu);   break;
-		case 24: vrc_step(cart, cpu);   break;
-		case 26: vrc_step(cart, cpu);   break;
-		case 25: vrc_step(cart, cpu);   break;
-		case 69: fme7_step(cart, cpu);  break;
-		case 85: vrc_step(cart, cpu);   break;
+		case 4: mmc3_step(cart, cpu);    break;
+		case 18: jaleco_step(cart, cpu); break;
+		case 19: namco_step(cart, cpu);  break;
+		case 21: vrc_step(cart, cpu);    break;
+		case 23: vrc_step(cart, cpu);    break;
+		case 24: vrc_step(cart, cpu);    break;
+		case 26: vrc_step(cart, cpu);    break;
+		case 25: vrc_step(cart, cpu);    break;
+		case 69: fme7_step(cart, cpu);   break;
+		case 85: vrc_step(cart, cpu);    break;
 		case 16:
-		case 159: fcg_step(cart, cpu);  break;
+		case 159: fcg_step(cart, cpu);   break;
 	}
 
 	cart->cycle++;
@@ -552,6 +555,7 @@ void cart_create(const void *rom, size_t rom_size,
 		case 5:   mmc5_create(ctx);    break;
 		case 9:   mmc2_create(ctx);    break;
 		case 10:  mmc2_create(ctx);    break;
+		case 18:  jaleco_create(ctx);  break;
 		case 19:  namco_create(ctx);   break;
 		case 21:  vrc2_4_create(ctx);  break;
 		case 22:  vrc2_4_create(ctx);  break;
