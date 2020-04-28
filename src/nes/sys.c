@@ -23,7 +23,6 @@ struct NES {
 		uint64_t cycle;
 		uint64_t cycle_2007;
 		bool odd_cycle;
-		bool frame;
 	} sys;
 
 	struct ctrl {
@@ -40,7 +39,6 @@ struct NES {
 	struct apu *apu;
 
 	const void *opaque;
-	NES_VideoCallback new_frame;
 	NES_AudioCallback new_samples;
 };
 
@@ -199,15 +197,15 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
 	nes->sys.read_addr = addr;
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	// Begin concurrent tick
 	cpu_phi_1(nes->cpu);
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 	uint8_t v = sys_read(nes, addr);
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	cart_step(nes->cart, nes->cpu);
 	cpu_phi_2(nes->cpu, false);
@@ -225,14 +223,14 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	nes->sys.write_addr = addr;
 	nes->sys.in_write = true;
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	// Begin concurrent tick
 	cpu_phi_1(nes->cpu);
 	apu_step(nes->apu, nes, nes->cpu, nes->new_samples, nes->opaque);
 
-	nes->sys.frame |= ppu_step(nes->ppu, nes->cpu, nes->cart, nes->new_frame, nes->opaque);
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	sys_write(nes, addr, v);
 	cart_step(nes->cart, nes->cpu);
@@ -253,13 +251,11 @@ void sys_cycle(NES *nes)
 
 /*** PUBLIC ***/
 
-void NES_Create(NES_VideoCallback videoCallback, NES_AudioCallback audioCallback, const void *opaque,
-	uint32_t sampleRate, bool stereo, NES **nes)
+void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sampleRate, bool stereo, NES **nes)
 {
 	NES *ctx = *nes = calloc(1, sizeof(NES));
 
 	ctx->opaque = opaque;
-	ctx->new_frame = videoCallback;
 	ctx->new_samples = audioCallback;
 
 	cpu_create(&ctx->cpu);
@@ -283,14 +279,17 @@ bool NES_CartLoaded(NES *ctx)
 	return ctx->cart;
 }
 
-uint32_t NES_NextFrame(NES *ctx)
+uint32_t NES_NextFrame(NES *ctx, NES_VideoCallback videoCallback, const void *opaque)
 {
 	if (!ctx->cart)
 		return 0;
 
 	uint64_t cycles = ctx->sys.cycle;
 
-	for (ctx->sys.frame = false; !ctx->sys.frame; cpu_step(ctx->cpu, ctx));
+	while (!ppu_new_frame(ctx->ppu))
+		cpu_step(ctx->cpu, ctx);
+
+	videoCallback(ppu_pixels(ctx->ppu), (void *) opaque);
 
 	return (uint32_t) (ctx->sys.cycle - cycles);
 }
@@ -323,7 +322,6 @@ void NES_Reset(NES *ctx, bool hard)
 		return;
 
 	ctx->sys.odd_cycle = false;
-	ctx->sys.frame = false;
 	ctx->sys.in_write = false;
 	ctx->sys.read_addr = ctx->sys.write_addr = 0;
 	ctx->sys.cycle = ctx->sys.cycle_2007 = 0;

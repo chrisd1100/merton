@@ -126,6 +126,7 @@ struct ppu {
 
 	uint16_t scanline;
 	uint16_t dot;
+	bool new_frame;
 	bool palette_write;
 };
 
@@ -725,21 +726,18 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart, bool pre_rende
 	}
 }
 
-bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
-	NES_VideoCallback new_frame, const void *opaque)
+void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 {
-	bool frame = false;
-
 	ppu_clock(ppu);
 
 	if (ppu->dot == 0) {
 		ppu->oam_n = ppu->soam_n = ppu->eval_step = 0;
 		ppu->overflow = false;
 		memset(ppu->soam, 0xFF, 32);
-	}
 
-	if (ppu->dot == 4)
+	} else if (ppu->dot == 4) {
 		cart_ppu_scanline_hook(cart, cpu, ppu->scanline);
+	}
 
 	if (ppu->scanline <= 239) {
 		if (ppu->dot >= 1 && ppu->dot <= 259)
@@ -755,8 +753,7 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 			if (!ppu->palette_write)
 				memset(ppu->pixels, 0, 256 * 240 * 4);
 
-			new_frame(ppu->pixels, (void *) opaque);
-			frame = true;
+			ppu->new_frame = true;
 		}
 
 	} else if (ppu->scanline == 241) {
@@ -786,12 +783,22 @@ bool ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart,
 				ppu->dot++;
 		}
 	}
-
-	return frame;
 }
 
 
 /*** INIT & DESTROY ***/
+
+bool ppu_new_frame(struct ppu *ppu)
+{
+	return ppu->new_frame;
+}
+
+const uint32_t *ppu_pixels(struct ppu *ppu)
+{
+	ppu->new_frame = false;
+
+	return ppu->pixels;
+}
 
 void ppu_create(struct ppu **ppu)
 {
