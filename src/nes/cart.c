@@ -245,7 +245,7 @@ void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_
 		case 5:   mmc5_prg_write(cart, apu, addr, v);       break;
 		case 9:   mmc2_prg_write(cart, addr, v);            break;
 		case 10:  mmc2_prg_write(cart, addr, v);            break;
-		case 18:  jaleco_prg_write(cart, addr, v);          break;
+		case 18:  jaleco_prg_write(cart, cpu, addr, v);     break;
 		case 19:  namco_prg_write(cart, cpu, addr, v);      break;
 		case 21:  vrc_prg_write(cart, cpu, addr, v);        break;
 		case 22:  vrc_prg_write(cart, cpu, addr, v);        break;
