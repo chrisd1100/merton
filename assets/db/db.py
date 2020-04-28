@@ -84,5 +84,17 @@ if __name__ == '__main__':
 		if k in SUPPORTED:
 			nlicensed_support += v
 
-	print('Licensed support:', '%d/%d' % (nlicensed_support, nlicensed), '(%.2f%%)' % (nlicensed_support / nlicensed * 100.0))
-	print('All support:', '%d/%d' % (n_support, n), '(%.2f%%)' % (n_support / n * 100.0))
+	print('Licensed:', '%d/%d' % (nlicensed_support, nlicensed), '(%.2f%%)' % (nlicensed_support / nlicensed * 100.0))
+	print('Licensed + Unlicensed:', '%d/%d' % (n_support, n), '(%.2f%%)' % (n_support / n * 100.0))
+
+	print('\nUnsupported Licensed:')
+	for x in sorted(LICENSED.items(), key=lambda kv: kv[1], reverse=True):
+		if x[0] not in SUPPORTED:
+			print('Mapper:', x[0], '\tCount:', x[1])
+
+	"""
+	print('\nUnsupported:')
+	for x in sorted(ALL.items(), key=lambda kv: kv[1], reverse=True):
+		if x[0] not in SUPPORTED:
+			print('Mapper:', x[0], '\tCount:', x[1])
+	"""
