@@ -93,6 +93,8 @@ static void jaleco_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 
 static void jaleco_step(struct cart *cart, struct cpu *cpu)
 {
+	cpu;
+
 	if (cart->irq.enable) {
 		//uint16_t counter = cart->irq.counter
 
