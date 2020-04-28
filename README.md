@@ -46,4 +46,4 @@ According to [NRS NES 2.0 DB](/assets/db/):
 ¹ PCM not implemented
 ```
 
-Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](https://wiki.nesdev.com/w/index.php/INES_Mapper_163) 280 unlicensed games.
+Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](https://wiki.nesdev.com/w/index.php/INES_Mapper_163) represent 280 unlicensed games.
