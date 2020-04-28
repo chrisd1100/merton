@@ -70,6 +70,13 @@ static void jaleco_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 
 			case 0xF000:
 				//cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.counter = cart->REG[0] | (cart->REG[1] << 4) | (cart->REG[2] << 8) |
+					(cart->REG[3] << 12);
+				break;
+
+			case 0xF001:
+				//cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.enable = v & 0x1;
 				break;
 
 			case 0xF002:
@@ -86,4 +93,12 @@ static void jaleco_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 
 static void jaleco_step(struct cart *cart, struct cpu *cpu)
 {
+	if (cart->irq.enable) {
+		//uint16_t counter = cart->irq.counter
+
+		//if (--counter == 0)
+		//	cpu_irq(cpu, IRQ_MAPPER, true);
+
+		//counter =
+	}
 }
