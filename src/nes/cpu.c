@@ -945,7 +945,6 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 		case RTS:
 			sys_cycle(nes); //increment S
 			cpu->PC = cpu_pull16(cpu, nes) + 1;
-			cpu_phi_1(cpu); //this is an exception
 			sys_cycle(nes); //increment PC
 			break;
 
