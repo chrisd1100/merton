@@ -5,7 +5,7 @@
 #include <assert.h>
 
 
-/*** MAPPING ***/
+// Mapping
 
 #define PRG_SLOT 0x1000
 #define CHR_SLOT 0x0400
@@ -45,11 +45,12 @@ static uint8_t map_read(struct asset *asset, uint8_t index, uint16_t addr, bool 
 	if (m->mapped) {
 		uint8_t *mapped_addr = mem->data + m->offset;
 
-		if (hit) *hit = true;
+		if (hit)
+			*hit = true;
+
 		return mapped_addr[addr & asset->mask];
 	}
 
-	if (hit) *hit = false;
 	return 0;
 }
 
@@ -133,7 +134,7 @@ static uint8_t cart_bus_conflict(struct asset *asset, uint16_t addr, uint8_t v)
 }
 
 
-/*** CART & MAPPERS ***/
+// Cart
 
 #define KB(b) ((b) / 0x0400)
 
@@ -224,7 +225,7 @@ struct cart {
 #include "mapper/vrc7.c"
 
 
-/*** READ & WRITE ***/
+// IO
 
 uint8_t cart_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, bool *mem_hit)
 {
@@ -291,7 +292,7 @@ void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_
 		case 152:
 		case 180:
 		case 184:
-		case 185: mapper_prg_write(cart, addr, v);         break;
+		case 185: mapper_prg_write(cart, addr, v);          break;
 	}
 }
 
@@ -321,7 +322,7 @@ void cart_chr_write(struct cart *cart, uint16_t addr, uint8_t v)
 }
 
 
-/*** HOOKS ***/
+// Hooks
 
 void cart_ppu_a12_toggle(struct cart *cart)
 {
@@ -354,7 +355,7 @@ bool cart_block_2007(struct cart *cart)
 }
 
 
-/*** SRAM ***/
+// SRAM
 
 size_t cart_sram_dirty(struct cart *cart)
 {
@@ -373,7 +374,7 @@ void cart_sram_get(struct cart *cart, void *buf, size_t size)
 }
 
 
-/*** RUN ***/
+// Step
 
 void cart_step(struct cart *cart, struct cpu *cpu)
 {
@@ -396,7 +397,7 @@ void cart_step(struct cart *cart, struct cpu *cpu)
 }
 
 
-/*** INIT & DESTROY ***/
+// Lifecycle
 
 static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 {
@@ -406,7 +407,7 @@ static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 	if (!(rom[0] == 'N' && rom[1] == 'E' && rom[2] == 'S' && rom[3] == 0x1A))
 		assert(!"iNES magic header value 'N' 'E' 'S' 0x1A not found");
 
-	// archaic iNES
+	// Archaic iNES
 	hdr->offset = 16;
 	hdr->prg = rom[4];
 	hdr->chr = rom[5];
@@ -415,7 +416,7 @@ static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 	hdr->offset += (rom[6] & 0x04) ? 512: 0; // Trainer
 	hdr->mapper = rom[6] >> 4;
 
-	// modern iNES
+	// Modern iNES
 	if ((rom[7] & 0x0C) == 0 && rom[12] == 0 && rom[13] == 0 && rom[14] == 0 && rom[15] == 0) {
 		hdr->mapper |= rom[7] & 0xF0;
 
@@ -623,18 +624,6 @@ void cart_destroy(struct cart **cart)
 	*cart = NULL;
 }
 
-void *cart_get_state(struct cart *cart, size_t *size)
-{
-	*size = sizeof(struct cart) + cart->dynamic_size;
-
-	struct cart *state = malloc(*size);
-	*state = *cart;
-
-	memcpy((uint8_t *) state + sizeof(struct cart), cart->mem, cart->dynamic_size);
-
-	return state;
-}
-
 size_t cart_set_state(struct cart *cart, const void *state, size_t size)
 {
 	if (size >= sizeof(struct cart)) {
@@ -654,4 +643,16 @@ size_t cart_set_state(struct cart *cart, const void *state, size_t size)
 	}
 
 	return 0;
+}
+
+void *cart_get_state(struct cart *cart, size_t *size)
+{
+	*size = sizeof(struct cart) + cart->dynamic_size;
+
+	struct cart *state = malloc(*size);
+	*state = *cart;
+
+	memcpy((uint8_t *) state + sizeof(struct cart), cart->mem, cart->dynamic_size);
+
+	return state;
 }

@@ -135,10 +135,10 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 		return nes->sys.open_bus;
 
 	} else if (addr >= 0x4020) {
-		bool mem_hit = false;
-		uint8_t v = cart_prg_read(nes->cart, nes->cpu, nes->apu, addr, &mem_hit);
+		bool hit = false;
+		uint8_t v = cart_prg_read(nes->cart, nes->cpu, nes->apu, addr, &hit);
 
-		if (mem_hit)
+		if (hit)
 			return v;
 	}
 
