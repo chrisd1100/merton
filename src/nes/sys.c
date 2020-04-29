@@ -15,9 +15,9 @@ static NES_LogCallback NES_LOG;
 
 struct NES {
 	struct sys {
-		uint8_t ram[0x0800];
-		uint8_t io_open_bus;
-		bool in_write;
+		uint8_t ram[0x800];
+		uint8_t open_bus;
+		bool write;
 		uint64_t cycle;
 		uint64_t cycle_2007;
 
@@ -55,16 +55,16 @@ static void ctrl_set_state(struct ctrl *ctrl, uint8_t player, uint8_t state)
 {
 	switch (player) {
 		case 0:
-			ctrl->state[0] = ((ctrl->state[0] & 0x00FFFF00) | (0x08 << 16) | state);
+			ctrl->state[0] = ((ctrl->state[0] & 0x00FFFF00) | (0x8 << 16) | state);
 			break;
 		case 1:
-			ctrl->state[1] = ((ctrl->state[1] & 0x00FFFF00) | (0x04 << 16) | state);
+			ctrl->state[1] = ((ctrl->state[1] & 0x00FFFF00) | (0x4 << 16) | state);
 			break;
 		case 2:
-			ctrl->state[0] = ((ctrl->state[0] & 0x000000FF) | (0x08 << 16) | (state << 8));
+			ctrl->state[0] = ((ctrl->state[0] & 0x000000FF) | (0x8 << 16) | (state << 8));
 			break;
 		case 3:
-			ctrl->state[1] = ((ctrl->state[1] & 0x000000FF) | (0x04 << 16) | (state << 8));
+			ctrl->state[1] = ((ctrl->state[1] & 0x000000FF) | (0x4 << 16) | (state << 8));
 			break;
 	}
 }
@@ -89,9 +89,9 @@ static void ctrl_set_safe_state(struct ctrl *ctrl, uint8_t player)
 static uint8_t ctrl_read(struct ctrl *ctrl, uint8_t n)
 {
 	if (ctrl->strobe)
-		return 0x40 | (ctrl->state[n] & 0x01);
+		return 0x40 | (ctrl->state[n] & 1);
 
-	uint8_t r = 0x40 | (ctrl->bits[n] & 0x01);
+	uint8_t r = 0x40 | (ctrl->bits[n] & 1);
 	ctrl->bits[n] = (n < 2 ? 0x80 : 0x80000000) | (ctrl->bits[n] >> 1);
 
 	return r;
@@ -108,7 +108,7 @@ static void ctrl_write(struct ctrl *ctrl, bool strobe)
 }
 
 
-/*** SYSTEM ***/
+/*** MEMORY ***/
 
 // https://wiki.nesdev.com/w/index.php/CPU_memory_map
 
@@ -128,21 +128,22 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 		return ppu_read(nes->ppu, nes->cpu, nes->cart, addr);
 
 	} else if (addr == 0x4015) {
-		nes->sys.io_open_bus = apu_read_status(nes->apu, nes->cpu, EXT_NONE);
-		return nes->sys.io_open_bus;
+		nes->sys.open_bus = apu_read_status(nes->apu, nes->cpu, EXT_NONE);
+		return nes->sys.open_bus;
 
 	} else if (addr == 0x4016 || addr == 0x4017) {
-		nes->sys.io_open_bus = ctrl_read(&nes->ctrl, addr & 1);
-		return nes->sys.io_open_bus;
+		nes->sys.open_bus = ctrl_read(&nes->ctrl, addr & 1);
+		return nes->sys.open_bus;
 
 	} else if (addr >= 0x4020) {
 		bool mem_hit = false;
 		uint8_t v = cart_prg_read(nes->cart, nes->cpu, nes->apu, addr, &mem_hit);
 
-		if (mem_hit) return v;
+		if (mem_hit)
+			return v;
 	}
 
-	return nes->sys.io_open_bus;
+	return nes->sys.open_bus;
 }
 
 void sys_write(NES *nes, uint16_t addr, uint8_t v)
@@ -157,19 +158,19 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 		cart_ppu_write_hook(nes->cart, addr, v); //MMC5 listens here
 
 	} else if (addr < 0x4014 || addr == 0x4015 || addr == 0x4017) {
-		nes->sys.io_open_bus = v;
+		nes->sys.open_bus = v;
 		apu_write(nes->apu, nes, nes->cpu, addr, v, EXT_NONE);
 
 	} else if (addr == 0x4014) {
-		nes->sys.io_open_bus = v;
+		nes->sys.open_bus = v;
 		nes->sys.dma.oam_begin = true;
 
 	} else if (addr == 0x4016) {
-		nes->sys.io_open_bus = v;
-		ctrl_write(&nes->ctrl, v & 0x01);
+		nes->sys.open_bus = v;
+		ctrl_write(&nes->ctrl, v & 1);
 
 	} else if (addr < 0x4020) {
-		nes->sys.io_open_bus = v;
+		nes->sys.open_bus = v;
 
 	} else {
 		cart_prg_write(nes->cart, nes->cpu, nes->apu, addr, v);
@@ -218,7 +219,7 @@ void sys_dma_dmc_begin(NES *nes, uint16_t addr)
 		} else { //+1 otherwise during OAM DMA
 			nes->sys.dma.dmc_delay = 1;
 		}
-	} else if (nes->sys.in_write) { //+2 if CPU is writing
+	} else if (nes->sys.write) { //+2 if CPU is writing
 		nes->sys.dma.dmc_delay = 2;
 
 	} else { //+3 default case
@@ -277,7 +278,7 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 
 void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 {
-	nes->sys.in_write = true;
+	nes->sys.write = true;
 
 	// DMC DMA will only engage on a read cycle, double writes will stall longer
 	if (nes->sys.dma.dmc_begin)
@@ -300,7 +301,7 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	sys_dma_oam(nes, v);
 
 	nes->sys.cycle++;
-	nes->sys.in_write = false;
+	nes->sys.write = false;
 }
 
 void sys_cycle(NES *nes)
@@ -381,11 +382,13 @@ void NES_Reset(NES *ctx, bool hard)
 	if (!ctx->cart)
 		return;
 
-	ctx->sys.in_write = false;
-	ctx->sys.cycle = ctx->sys.cycle_2007 = 0;
+	struct sys prev = ctx->sys;
 
-	if (hard)
-		memset(ctx->sys.ram, 0, 0x0800);
+	memset(&ctx->sys, 0, sizeof(struct sys));
+	memset(&ctx->ctrl, 0, sizeof(struct ctrl));
+
+	if (!hard)
+		memcpy(ctx->sys.ram, prev.ram, 0x800);
 
 	ppu_reset(ctx->ppu);
 	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
