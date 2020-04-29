@@ -32,9 +32,9 @@ static const uint8_t POWER_UP_PALETTE[32] = {
 
 //PPUSTATUS $2002
 enum ppu_status_flags {
-	FLAG_STATUS_O = 0x20, //sprite overflow
-	FLAG_STATUS_S = 0x40, //sprite 0 hit
-	FLAG_STATUS_V = 0x80, //vblank
+	FLAG_STATUS_O = 0x20, // Sprite overflow
+	FLAG_STATUS_S = 0x40, // Sprite 0 hit
+	FLAG_STATUS_V = 0x80, // Vblank
 };
 
 #define GET_CX(reg)       ((reg) & 0x001F)
@@ -98,12 +98,12 @@ struct ppu {
 	uint8_t STATUS;
 	uint8_t OAMADDR;
 
-	uint16_t bus_v;  //the current ppu address bus -- important for A12 toggling signal for MMC3
-	uint16_t v;      //current vram address
-	uint16_t t;      //temporary vram address holds state between STATUS and/or write latch
-	uint8_t x;       //fine x scroll
-	bool w;          //write latch
-	bool f;          //even/odd frame flag
+	uint16_t bus_v; // The current ppu address bus -- important for A12 toggling signal for MMC3
+	uint16_t v;     // Current vram address
+	uint16_t t;     // Temporary vram address holds state between STATUS and/or write latch
+	uint8_t x;      // Fine x scroll
+	bool w;         // Write latch
+	bool f;         // Even/odd frame flag
 
 	uint8_t bgl;
 	uint8_t bgh;
@@ -133,7 +133,7 @@ struct ppu {
 };
 
 
-/*** NMI ***/
+// NMI
 
 static void ppu_assert_nmi(struct ppu *ppu, struct cpu *cpu)
 {
@@ -141,7 +141,7 @@ static void ppu_assert_nmi(struct ppu *ppu, struct cpu *cpu)
 }
 
 
-/*** VRAM ***/
+// VRAM
 
 static void ppu_scroll_h(struct ppu *ppu);
 static void ppu_scroll_v(struct ppu *ppu);
@@ -212,7 +212,7 @@ static void ppu_write_vram(struct ppu *ppu, struct cart *cart, uint16_t addr, ui
 }
 
 
-/*** READ & WRITE ***/
+// IO
 
 uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr)
 {
@@ -255,16 +255,16 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 			uint16_t waddr = ppu->v & 0x3FFF;
 			ppu->decay_high2 = ppu->decay_low5 = 0;
 
-			//buffered read from CHR
+			// Buffered read from CHR
 			if (waddr < 0x3F00) {
 				v = ppu->open_bus = ppu->read_buffer;
 				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr, ROM, false);
 
 			} else {
-				//read buffer gets ciram byte
+				// Read buffer gets ciram byte
 				ppu->read_buffer = ppu_read_vram(ppu, cart, waddr - 0x1000, ROM, false);
 
-				//upper 2 bits get preserved from decay value
+				// Upper 2 bits get preserved from decay value
 				v = (ppu->open_bus & 0xC0) | (ppu_read_vram(ppu, cart, waddr, ROM, false) & 0x3F);
 			}
 
@@ -355,8 +355,7 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 }
 
 
-/*** SCROLLING ***/
-
+// Scrolling
 // https://wiki.nesdev.com/w/index.php/PPU_scrolling
 
 static void ppu_scroll_h(struct ppu *ppu)
@@ -411,7 +410,7 @@ static void ppu_scroll_copy_y(struct ppu *ppu)
 }
 
 
-/*** BACKGROUND ***/
+// Background
 
 static uint8_t ppu_read_nt_byte(struct ppu *ppu, struct cart *cart, enum mem type)
 {
@@ -476,23 +475,22 @@ static void ppu_fetch_bg(struct ppu *ppu, struct cart *cart, uint16_t bg_dot)
 }
 
 
-/*** SPRITES ***/
-
+// Sprites
 // https://wiki.nesdev.com/w/index.php/PPU_OAM
 // https://wiki.nesdev.com/w/index.php/PPU_sprite_evaluation
 
-#define SPRITE_Y(oam, n)               ((oam)[(n) + 0]) //y position of top of sprite
-#define SPRITE_INDEX(oam, n)           ((oam)[(n) + 1]) //8x8 this is the tile number, 8x16 uses bit 0 as pattern table
-#define SPRITE_ATTR(oam, n)            ((oam)[(n) + 2]) //sprite attributes defined below
-#define SPRITE_X(oam, n)               ((oam)[(n) + 3]) //x position of the left side of the sprite
+#define SPRITE_Y(oam, n)               ((oam)[(n) + 0]) // Y position of top of sprite
+#define SPRITE_INDEX(oam, n)           ((oam)[(n) + 1]) // 8x8 this is the tile number, 8x16 uses bit 0 as pattern table
+#define SPRITE_ATTR(oam, n)            ((oam)[(n) + 2]) // Sprite attributes defined below
+#define SPRITE_X(oam, n)               ((oam)[(n) + 3]) // X position of the left side of the sprite
 
-#define SPRITE_ATTR_PALETTE(attr)      ((attr) & 0x03) //4 to 7
-#define SPRITE_ATTR_PRIORITY(attr)     ((attr) & 0x20) //0 in front of bg, 1 behind bg
-#define SPRITE_ATTR_FLIP_H(attr)       ((attr) & 0x40) //flip the sprite horizontally
-#define SPRITE_ATTR_FLIP_V(attr)       ((attr) & 0x80) //flip the sprite vertically
+#define SPRITE_ATTR_PALETTE(attr)      ((attr) & 0x03) // 4 to 7
+#define SPRITE_ATTR_PRIORITY(attr)     ((attr) & 0x20) // 0 in front of bg, 1 behind bg
+#define SPRITE_ATTR_FLIP_H(attr)       ((attr) & 0x40) // Flip the sprite horizontally
+#define SPRITE_ATTR_FLIP_V(attr)       ((attr) & 0x80) // Flip the sprite vertically
 
-#define SPRITE_INDEX_8X16_TABLE(index) ((index) & 0x01) //8x16 sprites use the bit 0 as the table
-#define SPRITE_INDEX_8X16_TILE(index)  ((index) & 0xFE) //8x16 sprites ignore bit 0 for the tile number
+#define SPRITE_INDEX_8X16_TABLE(index) ((index) & 0x01) // 8x16 sprites use the bit 0 as the table
+#define SPRITE_INDEX_8X16_TILE(index)  ((index) & 0xFE) // 8x16 sprites ignore bit 0 for the tile number
 
 static uint16_t ppu_sprite_addr(struct ppu *ppu, uint16_t row, uint8_t index, uint8_t attr)
 {
@@ -637,8 +635,7 @@ static void ppu_oam_glitch(struct ppu *ppu)
 }
 
 
-/*** RENDERING ***/
-
+// Rendering
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Preface
 
 static void ppu_render(struct ppu *ppu, uint16_t dot)
@@ -677,8 +674,7 @@ static void ppu_output(struct ppu *ppu, uint16_t dot)
 }
 
 
-/*** STEP ***/
-
+// Step
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 
 static void ppu_clock(struct ppu *ppu)
@@ -691,7 +687,7 @@ static void ppu_clock(struct ppu *ppu)
 			ppu->supress_nmi = false;
 			ppu->f = !ppu->f;
 
-			//decay the open bus after 58 frames (~1s)
+			// Decay the open bus after 58 frames (~1s)
 			if (ppu->decay_high2++ == 58)
 				ppu->open_bus &= 0x3F;
 
@@ -808,7 +804,7 @@ const uint32_t *ppu_pixels(struct ppu *ppu)
 }
 
 
-/*** LIFECYCLE ***/
+// Lifecycle
 
 void ppu_create(struct ppu **ppu)
 {

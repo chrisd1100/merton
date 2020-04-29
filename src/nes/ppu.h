@@ -8,7 +8,7 @@
 
 struct ppu;
 
-// Read & Write
+// IO
 uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr);
 void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr, uint8_t v);
 
