@@ -15,11 +15,10 @@ struct cpu;
 
 void cpu_irq(struct cpu *cpu, enum irq irq, bool enabled);
 void cpu_nmi(struct cpu *cpu, bool enabled);
-void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v);
-uint8_t cpu_dma_dmc(struct cpu *cpu, NES *nes, uint16_t addr, bool in_write, bool begin_oam);
-void cpu_step(struct cpu *cpu, NES *nes);
+void cpu_halt(struct cpu *cpu, bool halt);
 void cpu_phi_1(struct cpu *cpu);
-void cpu_phi_2(struct cpu *cpu, bool write);
+void cpu_phi_2(struct cpu *cpu);
+void cpu_step(struct cpu *cpu, NES *nes);
 void cpu_create(struct cpu **cpu);
 void cpu_destroy(struct cpu **cpu);
 void cpu_reset(struct cpu *cpu, NES *nes, bool hard);

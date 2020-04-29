@@ -14,6 +14,7 @@ enum extaudio {
 
 struct apu;
 
+void apu_dma_dmc_finish(struct apu *apu, uint8_t v);
 uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext);
 void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext);
 void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,

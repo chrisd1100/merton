@@ -290,7 +290,7 @@ static void apu_dmc_output(struct dmc *d)
 static void apu_dmc_fill_sample_buffer(struct dmc *d, NES *nes, struct cpu *cpu)
 {
 	if (d->reader.sample_buffer_empty && d->current_length > 0) {
-		d->reader.sample_buffer = sys_read_dmc(nes, d->current_address);
+		sys_dma_dmc_begin(nes, d->current_address);
 
 		d->current_address = (d->current_address == 0xFFFF) ? 0x8000 : d->current_address + 1;
 		d->current_length--;
@@ -654,6 +654,11 @@ uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 	}
 
 	return r;
+}
+
+void apu_dma_dmc_finish(struct apu *apu, uint8_t v)
+{
+	apu->d.reader.sample_buffer = v;
 }
 
 void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext)

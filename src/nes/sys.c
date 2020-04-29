@@ -19,10 +19,17 @@ struct NES {
 		uint8_t io_open_bus;
 		uint16_t read_addr;
 		bool in_write;
-		uint16_t write_addr;
 		uint64_t cycle;
 		uint64_t cycle_2007;
-		bool odd_cycle;
+
+		struct {
+			bool oam_begin;
+			bool dmc_begin;
+			bool oam;
+			uint16_t oam_cycle;
+			uint16_t dmc_addr;
+			uint8_t dmc_delay;
+		} dma;
 	} sys;
 
 	struct ctrl {
@@ -139,19 +146,6 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 	return nes->sys.io_open_bus;
 }
 
-uint8_t sys_read_dmc(NES *nes, uint16_t addr)
-{
-	if (nes->sys.read_addr == 0x2007) {
-		ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2007);
-		ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2007);
-	}
-
-	if (nes->sys.read_addr == 0x4016 || nes->sys.read_addr == 0x4017)
-		sys_read(nes, nes->sys.read_addr);
-
-	return cpu_dma_dmc(nes->cpu, nes, addr, nes->sys.in_write, nes->sys.write_addr == 0x4014);
-}
-
 void sys_write(NES *nes, uint16_t addr, uint8_t v)
 {
 	if (addr < 0x2000) {
@@ -169,7 +163,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 
 	} else if (addr == 0x4014) {
 		nes->sys.io_open_bus = v;
-		cpu_dma_oam(nes->cpu, nes, v);
+		nes->sys.dma.oam_begin = true;
 
 	} else if (addr == 0x4016) {
 		nes->sys.io_open_bus = v;
@@ -184,14 +178,80 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 }
 
 
-/*** TIMING ***/
+/*** DMA ***/
 
-// The first cycle after power on / reset is always a read cycle
-
-bool sys_odd_cycle(NES *nes)
+static void sys_dma_oam(NES *nes, uint8_t v)
 {
-	return nes->sys.odd_cycle;
+	// https://forums.nesdev.com/viewtopic.php?f=3&t=6100
+
+	if (!nes->sys.dma.oam_begin)
+		return;
+
+	nes->sys.dma.oam_begin = false;
+	nes->sys.dma.oam = true;
+	cpu_halt(nes->cpu, true);
+
+	sys_cycle(nes); //+1 default case
+
+	if (nes->sys.cycle & 1) //+1 if odd cycle
+		sys_cycle(nes);
+
+	//+512 read/write
+	for (nes->sys.dma.oam_cycle = 0; nes->sys.dma.oam_cycle < 256; nes->sys.dma.oam_cycle++)
+		sys_write_cycle(nes, 0x2014, sys_read_cycle(nes, v * 0x0100 + nes->sys.dma.oam_cycle));
+
+	cpu_halt(nes->cpu, false);
+	nes->sys.dma.oam = false;
 }
+
+void sys_dma_dmc_begin(NES *nes, uint16_t addr)
+{
+	if (!nes->sys.in_write) {
+		if (nes->sys.read_addr == 0x2007)
+			ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2007);
+
+		sys_read(nes, nes->sys.read_addr);
+	}
+
+	nes->sys.dma.dmc_begin = true;
+	nes->sys.dma.dmc_addr = addr;
+
+	if (nes->sys.dma.oam) {
+		if (nes->sys.dma.oam_cycle == 254) { //+0 second-to-second-to-last OAM cycle
+			nes->sys.dma.dmc_delay = 0;
+
+		} else if (nes->sys.dma.oam_cycle == 255) { //+2 last OAM cycle
+			nes->sys.dma.dmc_delay = 2;
+
+		} else { //+1 otherwise during OAM DMA
+			nes->sys.dma.dmc_delay = 1;
+		}
+	} else if (nes->sys.in_write) { //+2 if CPU is writing
+		nes->sys.dma.dmc_delay = 2;
+
+	} else { //+3 default case
+		nes->sys.dma.dmc_delay = 3;
+	}
+}
+
+static void sys_dma_dmc(NES *nes)
+{
+	if (!nes->sys.dma.dmc_begin)
+		return;
+
+	nes->sys.dma.dmc_begin = false;
+	cpu_halt(nes->cpu, true);
+
+	for (uint8_t x = 0; x < nes->sys.dma.dmc_delay; x++)
+		sys_cycle(nes);
+
+	apu_dma_dmc_finish(nes->apu, sys_read_cycle(nes, nes->sys.dma.dmc_addr));
+
+	cpu_halt(nes->cpu, false);
+}
+
+
+/*** TIMING ***/
 
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
@@ -208,20 +268,23 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	cart_step(nes->cart, nes->cpu);
-	cpu_phi_2(nes->cpu, false);
+	cpu_phi_2(nes->cpu);
 	// End concurrent tick
 
+	sys_dma_dmc(nes);
+
 	nes->sys.cycle++;
-	nes->sys.odd_cycle = !nes->sys.odd_cycle;
-	nes->sys.read_addr = 0;
 
 	return v;
 }
 
 void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 {
-	nes->sys.write_addr = addr;
 	nes->sys.in_write = true;
+
+	// DMC DMA will only engage on a read cycle, double writes will stall longer
+	if (nes->sys.dma.dmc_begin)
+		nes->sys.dma.dmc_delay++;
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
@@ -234,12 +297,12 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 
 	sys_write(nes, addr, v);
 	cart_step(nes->cart, nes->cpu);
-	cpu_phi_2(nes->cpu, true);
+	cpu_phi_2(nes->cpu);
 	// End concurrent tick
 
+	sys_dma_oam(nes, v);
+
 	nes->sys.cycle++;
-	nes->sys.odd_cycle = !nes->sys.odd_cycle;
-	nes->sys.write_addr = 0;
 	nes->sys.in_write = false;
 }
 
@@ -321,9 +384,8 @@ void NES_Reset(NES *ctx, bool hard)
 	if (!ctx->cart)
 		return;
 
-	ctx->sys.odd_cycle = false;
 	ctx->sys.in_write = false;
-	ctx->sys.read_addr = ctx->sys.write_addr = 0;
+	ctx->sys.read_addr = 0;
 	ctx->sys.cycle = ctx->sys.cycle_2007 = 0;
 
 	if (hard)

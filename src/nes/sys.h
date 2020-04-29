@@ -9,7 +9,7 @@
 #define UNSET_FLAG(reg, flag) ((reg) &= ~(flag))
 
 uint8_t sys_read(NES *nes, uint16_t addr);
-uint8_t sys_read_dmc(NES *nes, uint16_t addr);
+void sys_dma_dmc_begin(NES *nes, uint16_t addr);
 void sys_write(NES *nes, uint16_t addr, uint8_t v);
 uint8_t sys_read_cycle(NES *nes, uint16_t addr);
 void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v);

@@ -31,7 +31,7 @@ struct cpu {
 	bool NMI;
 	enum irq IRQ;
 	bool irq_pending;
-	bool rmw_first;
+	bool halt;
 
 	struct opcode OP[0x100];
 
@@ -41,8 +41,6 @@ struct cpu {
 	uint8_t X;   // X index (general purpose)
 	uint8_t Y;   // Y index (general purpose)
 	uint8_t P;   // status (flags)
-
-	uint16_t dma;
 
 	bool irq_p2;
 	bool nmi_p2;
@@ -576,7 +574,6 @@ static uint8_t cpu_lsr(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		cpu->rmw_first = true;
 		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val >>= 1;
@@ -598,7 +595,6 @@ static uint8_t cpu_asl(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		cpu->rmw_first = true;
 		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val <<= 1;
@@ -622,7 +618,6 @@ static uint8_t cpu_rol(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		cpu->rmw_first = true;
 		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val = (val << 1) | c;
@@ -646,7 +641,6 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		cpu->rmw_first = true;
 		sys_write_cycle(nes, addr, val); //dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val = (val >> 1) | (c << 7);
@@ -662,7 +656,6 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 {
 	uint8_t val = sys_read_cycle(nes, addr);
-	cpu->rmw_first = true;
 	sys_write_cycle(nes, addr, val); //dummy write
 
 	val += 1;
@@ -675,7 +668,6 @@ static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 static uint8_t cpu_dec(struct cpu *cpu, NES *nes, uint16_t addr)
 {
 	uint8_t val = sys_read_cycle(nes, addr) ;
-	cpu->rmw_first = true;
 	sys_write_cycle(nes, addr, val); //dummy write
 
 	val -= 1;
@@ -1190,6 +1182,29 @@ void cpu_nmi(struct cpu *cpu, bool enabled)
 	cpu->NMI = enabled;
 }
 
+void cpu_halt(struct cpu *cpu, bool halt)
+{
+	cpu->halt = halt;
+}
+
+void cpu_phi_1(struct cpu *cpu)
+{
+	if (cpu->halt)
+		return;
+
+	cpu->irq_pending = cpu->irq_p2 || cpu->nmi_signal;
+}
+
+void cpu_phi_2(struct cpu *cpu)
+{
+	if (cpu->halt)
+		return;
+
+	cpu->irq_p2 = cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I);
+	cpu->nmi_signal = cpu->nmi_signal || (!cpu->nmi_p2 && cpu->NMI);
+	cpu->nmi_p2 = cpu->NMI;
+}
+
 static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 {
 	sys_cycle(nes); //internal operation
@@ -1209,55 +1224,6 @@ static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 }
 
 
-/*** DMA ***/
-
-// https://forums.nesdev.com/viewtopic.php?f=3&t=6100
-
-void cpu_dma_oam(struct cpu *cpu, NES *nes, uint8_t v)
-{
-	bool irq_was_pending = cpu->irq_pending;
-	cpu->dma = 1;
-
-	sys_cycle(nes); //+1 default case
-
-	if (sys_odd_cycle(nes)) //+1 if odd cycle
-		sys_cycle(nes);
-
-	for (uint16_t x = 0; x < 256; x++, cpu->dma++) //+512 read/write
-		sys_write_cycle(nes, 0x2014, sys_read_cycle(nes, v * 0x0100 + x));
-
-	cpu->dma = 0;
-	cpu->irq_pending = irq_was_pending;
-}
-
-uint8_t cpu_dma_dmc(struct cpu *cpu, NES *nes, uint16_t addr, bool in_write, bool begin_oam)
-{
-	if (begin_oam || cpu->dma > 0) {
-		if (cpu->dma == 255) { //+0 second-to-second-to-last OAM cycle
-		} else if (cpu->dma == 256) { //+2 last OAM cycle
-			sys_cycle(nes);
-			sys_cycle(nes);
-
-		} else { //+1 otherwise during OAM DMA
-			sys_cycle(nes);
-		}
-	} else if (in_write) { //+2 if CPU is writing
-		sys_cycle(nes);
-		sys_cycle(nes);
-
-		if (cpu->rmw_first)
-			sys_cycle(nes);
-
-	} else { //+3 default case
-		sys_cycle(nes);
-		sys_cycle(nes);
-		sys_cycle(nes);
-	}
-
-	return sys_read_cycle(nes, addr); //+1
-}
-
-
 /*** RUN ***/
 
 void cpu_step(struct cpu *cpu, NES *nes)
@@ -1271,21 +1237,6 @@ void cpu_step(struct cpu *cpu, NES *nes)
 
 
 /*** INIT & DESTROY ***/
-
-void cpu_phi_1(struct cpu *cpu)
-{
-	cpu->irq_pending = cpu->irq_p2 || cpu->nmi_signal;
-}
-
-void cpu_phi_2(struct cpu *cpu, bool write)
-{
-	cpu->irq_p2 = cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I);
-	cpu->nmi_signal = cpu->nmi_signal || (!cpu->nmi_p2 && cpu->NMI);
-	cpu->nmi_p2 = cpu->NMI;
-
-	if (write)
-		cpu->rmw_first = false;
-}
 
 void cpu_create(struct cpu **cpu)
 {
@@ -1306,8 +1257,8 @@ void cpu_destroy(struct cpu **cpu)
 void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 {
 	cpu->irq_pending = cpu->NMI = false;
+	cpu->halt = false;
 	cpu->IRQ = 0;
-	cpu->dma = 0;
 
 	// Internal operation
 	sys_cycle(nes);
