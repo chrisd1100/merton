@@ -4,14 +4,14 @@
 #include <assert.h>
 
 enum cpu_flags {
-	FLAG_C = 0x01, // carry
-	FLAG_Z = 0x02, // zero
-	FLAG_I = 0x04, // interrupt disable
-	FLAG_D = 0x08, // decimal mode
-	FLAG_B = 0x10, // break command
-	FLAG_U = 0x20, // unused, set to 1 on startup
-	FLAG_V = 0x40, // overflow
-	FLAG_N = 0x80, // negative
+	FLAG_C = 0x01, // Carry
+	FLAG_Z = 0x02, // Zero
+	FLAG_I = 0x04, // Interrupt disable
+	FLAG_D = 0x08, // Decimal mode
+	FLAG_B = 0x10, // Break command
+	FLAG_U = 0x20, // Unused, set to 1 on startup
+	FLAG_V = 0x40, // Overflow
+	FLAG_N = 0x80, // Negative
 };
 
 enum irq_vector {
@@ -35,12 +35,12 @@ struct cpu {
 
 	struct opcode OP[0x100];
 
-	uint16_t PC; // program counter
-	uint8_t SP;  // stack pointer
-	uint8_t A;   // accumulator
+	uint16_t PC; // Program counter
+	uint8_t SP;  // Stack pointer
+	uint8_t A;   // Accumulator
 	uint8_t X;   // X index (general purpose)
 	uint8_t Y;   // Y index (general purpose)
-	uint8_t P;   // status (flags)
+	uint8_t P;   // Status (flags)
 
 	bool irq_p2;
 	bool nmi_p2;
@@ -48,7 +48,7 @@ struct cpu {
 };
 
 
-/*** ADDRESSING **/
+// Addressing
 
 #define PAGEX(a, b) \
 	(((a) & 0xFF00) != ((b) & 0xFF00))
@@ -71,10 +71,10 @@ enum address_mode {
 
 enum io_mode {
 	IO_NONE = 0,
-	IO_R,     // read
-	IO_W,     // write
-	IO_RMW,   // read-modify-write
-	IO_STACK, // pushes/pulls from the stack
+	IO_R,     // Read
+	IO_W,     // Write
+	IO_RMW,   // Read-modify-write
+	IO_STACK, // Pushes/pulls from the stack
 };
 
 static uint16_t cpu_read16(NES *nes, uint16_t addr)
@@ -103,27 +103,27 @@ static uint16_t cpu_opcode_address(struct cpu *cpu, NES *nes,
 	switch (mode) {
 		case MODE_IMPLIED:
 		case MODE_ACCUMULATOR:
-			sys_read_cycle(nes, cpu->PC); //dummy read
+			sys_read_cycle(nes, cpu->PC); // Dummy read
 			break;
 
 		case MODE_IMMEDIATE:
 			addr = cpu->PC++;
 			break;
 
-		case MODE_RELATIVE: //offset between -128 and +127
+		case MODE_RELATIVE: // Offset between -128 and +127
 		case MODE_ZERO_PAGE:
 			addr = sys_read_cycle(nes, cpu->PC++);
 			break;
 
 		case MODE_ZERO_PAGE_X: {
 			uint8_t iaddr = sys_read_cycle(nes, cpu->PC++);
-			sys_read_cycle(nes, iaddr); //dummy read
+			sys_read_cycle(nes, iaddr); // Dummy read
 			addr = ((uint16_t) iaddr + cpu->X) & 0x00FF;
 			break;
 
 		} case MODE_ZERO_PAGE_Y: {
 			uint8_t iaddr = sys_read_cycle(nes, cpu->PC++);
-			sys_read_cycle(nes, iaddr); //dummy read
+			sys_read_cycle(nes, iaddr); // Dummy read
 			addr = ((uint16_t) iaddr + cpu->Y) & 0x00FF;
 			break;
 
@@ -159,7 +159,7 @@ static uint16_t cpu_opcode_address(struct cpu *cpu, NES *nes,
 
 		} case MODE_INDIRECT_X: {
 			uint8_t pointer = sys_read_cycle(nes, cpu->PC++);
-			sys_read_cycle(nes, pointer); // dummy read
+			sys_read_cycle(nes, pointer); //  Dummy read
 			uint8_t pointerx = (pointer + cpu->X) & 0x00FF;
 			uint8_t addrl = sys_read_cycle(nes, pointerx);
 			uint8_t addrh = sys_read_cycle(nes, (pointerx + 1) & 0x00FF);
@@ -182,7 +182,7 @@ static uint16_t cpu_opcode_address(struct cpu *cpu, NES *nes,
 }
 
 
-/*** OPCODES ***/
+// Opcodes
 
 enum opcode_name {
 	SEI = 1, CLD, LDA, STA, LDX, TXS, AND, BEQ, LDY, STY, DEY,
@@ -204,7 +204,7 @@ enum opcode_name {
 
 static void cpu_fill_op_table(struct opcode *OP)
 {
-	// http://nesdev.com/6502_cpu.txt -- the best reference
+	// http://nesdev.com/6502_cpu.txt -- The best reference
 	// http://www.obelisk.me.uk/6502/reference.html
 
 	SET_OP(OP, 0xA9, LDA, MODE_IMMEDIATE,   IO_R);
@@ -385,7 +385,7 @@ static void cpu_fill_op_table(struct opcode *OP)
 	SET_OP(OP, 0xEA, NOP, MODE_IMPLIED,     IO_NONE);
 
 
-	// UNOFFICIAL -- not used by nearly any games, but good for testing
+	// UNOFFICIAL -- Not used by nearly any games, but good for testing
 	// http://nesdev.com/undocumented_opcodes.txt
 
 	SET_OP(OP, 0xE9, SBC, MODE_IMMEDIATE,   IO_R);
@@ -507,7 +507,7 @@ static void cpu_fill_op_table(struct opcode *OP)
 }
 
 
-/*** STACK HELPERS ***/
+// Stack Helpers
 
 static uint8_t cpu_pull(struct cpu *cpu, NES *nes)
 {
@@ -534,7 +534,7 @@ static void cpu_push16(struct cpu *cpu, NES *nes, uint16_t val)
 }
 
 
-/*** FLAG HELPERS ***/
+// Flag Helpers
 
 static void cpu_test_flag(struct cpu *cpu, uint32_t flag, bool test)
 {
@@ -552,7 +552,7 @@ static void cpu_eval_Z(struct cpu *cpu, uint8_t val)
 
 static void cpu_eval_N(struct cpu *cpu, uint8_t val)
 {
-	//test high bit for negative value
+	// Test high bit for negative value
 	cpu_test_flag(cpu, FLAG_N, val & 0x80);
 }
 
@@ -563,7 +563,7 @@ static void cpu_eval_ZN(struct cpu *cpu, uint8_t val)
 }
 
 
-/*** INSTRUCTIONS ***/
+// Instructions
 
 static uint8_t cpu_lsr(struct cpu *cpu, NES *nes, enum address_mode mode, uint16_t addr)
 {
@@ -574,7 +574,7 @@ static uint8_t cpu_lsr(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		sys_write_cycle(nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); // Dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val >>= 1;
 		sys_write_cycle(nes, addr, val);
@@ -595,7 +595,7 @@ static uint8_t cpu_asl(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		sys_write_cycle(nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); // Dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val <<= 1;
 		sys_write_cycle(nes, addr, val);
@@ -618,7 +618,7 @@ static uint8_t cpu_rol(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		sys_write_cycle(nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); // Dummy write
 		cpu_test_flag(cpu, FLAG_C, (val >> 7) & 0x01);
 		val = (val << 1) | c;
 		sys_write_cycle(nes, addr, val);
@@ -641,7 +641,7 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 
 	} else {
 		uint8_t val = sys_read_cycle(nes, addr);
-		sys_write_cycle(nes, addr, val); //dummy write
+		sys_write_cycle(nes, addr, val); // Dummy write
 		cpu_test_flag(cpu, FLAG_C, val & 0x01);
 		val = (val >> 1) | (c << 7);
 		sys_write_cycle(nes, addr, val);
@@ -656,7 +656,7 @@ static uint8_t cpu_ror(struct cpu *cpu, NES *nes, enum address_mode mode, uint16
 static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 {
 	uint8_t val = sys_read_cycle(nes, addr);
-	sys_write_cycle(nes, addr, val); //dummy write
+	sys_write_cycle(nes, addr, val); // Dummy write
 
 	val += 1;
 	sys_write_cycle(nes, addr, val);
@@ -668,7 +668,7 @@ static uint8_t cpu_inc(struct cpu *cpu, NES *nes, uint16_t addr)
 static uint8_t cpu_dec(struct cpu *cpu, NES *nes, uint16_t addr)
 {
 	uint8_t val = sys_read_cycle(nes, addr) ;
-	sys_write_cycle(nes, addr, val); //dummy write
+	sys_write_cycle(nes, addr, val); // Dummy write
 
 	val -= 1;
 	sys_write_cycle(nes, addr, val);
@@ -731,16 +731,17 @@ static void cpu_branch(struct cpu *cpu, NES *nes, uint16_t addr)
 	bool irq_was_pending = cpu->irq_pending;
 	sys_read_cycle(nes, cpu->PC);
 
-	//first try the un-pagecrossed version of the address
+	// First try the un-pagecrossed version of the address
 	uint16_t target_pc = cpu->PC + (int8_t) addr;
 	cpu->PC = (cpu->PC & 0xFF00) | (target_pc & 0x00FF);
 
-	//branching to a new page always requires another read
+	// Branching to a new page always requires another read
 	if (target_pc != cpu->PC) {
 		sys_read_cycle(nes, cpu->PC);
 		cpu->PC = target_pc;
 
-	//on a taken non-page crossing branch, the tick above does NOT poll for IRQ
+	// On a taken non-page crossing branch, the tick above does NOT poll for IRQ
+	// https://wiki.nesdev.com/w/index.php/CPU_interrupts
 	} else {
 		cpu->irq_pending = irq_was_pending;
 	}
@@ -748,7 +749,6 @@ static void cpu_branch(struct cpu *cpu, NES *nes, uint16_t addr)
 
 static void cpu_exec(struct cpu *cpu, NES *nes)
 {
-	//attempt to read the next opcode
 	uint8_t code = sys_read_cycle(nes, cpu->PC++);
 	struct opcode *op = &cpu->OP[code];
 
@@ -865,7 +865,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case JSR:
-			sys_cycle(nes); // internal operation
+			sys_cycle(nes); // Internal operation
 			cpu_push16(cpu, nes, cpu->PC - 1);
 			cpu->PC = addr;
 			break;
@@ -943,13 +943,13 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case RTS:
-			sys_cycle(nes); //increment S
+			sys_cycle(nes); // Increment S
 			cpu->PC = cpu_pull16(cpu, nes) + 1;
-			sys_cycle(nes); //increment PC
+			sys_cycle(nes); // Increment PC
 			break;
 
 		case PLA:
-			sys_cycle(nes); //increment S
+			sys_cycle(nes); // Increment S
 			cpu->A = cpu_pull(cpu, nes);
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
@@ -983,7 +983,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case RTI:
-			sys_cycle(nes); //increment S
+			sys_cycle(nes); // Increment S
 			cpu->P = (cpu_pull(cpu, nes) & 0xEF) | FLAG_U;
 			cpu->PC = cpu_pull16(cpu, nes);
 			break;
@@ -993,7 +993,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case PLP: {
-			sys_cycle(nes); //increment S
+			sys_cycle(nes); // Increment S
 			cpu->P = (cpu_pull(cpu, nes) & 0xEF) | FLAG_U;
 			break;
 
@@ -1006,14 +1006,14 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 
 			cpu_push16(cpu, nes, cpu->PC);
 
-			//NMIs can hijack BRKs here, since when this happens the CPU looks at al signals
+			// NMIs can hijack BRKs here, since the CPU looks at both signals
 			uint16_t vector = cpu->nmi_signal ? NMI_VECTOR : BRK_VECTOR;
 			cpu_push(cpu, nes, cpu->P | FLAG_B | FLAG_U);
 
 			SET_FLAG(cpu->P, FLAG_I);
 			cpu->PC = cpu_read16(nes, vector);
 
-			//BRK blocks any execution of real interrupts until next instruction
+			// BRK blocks any execution of real interrupts until next instruction
 			cpu->irq_pending = false;
 			break;
 
@@ -1164,7 +1164,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 }
 
 
-/*** INTERRUPTS ***/
+// Interrupts
 
 void cpu_irq(struct cpu *cpu, enum irq irq, bool enabled)
 {
@@ -1206,12 +1206,13 @@ void cpu_phi_2(struct cpu *cpu)
 
 static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 {
-	sys_cycle(nes); //internal operation
-	sys_cycle(nes); //internal operation
+	// Internal operation
+	sys_cycle(nes);
+	sys_cycle(nes);
 
 	cpu_push16(cpu, nes, cpu->PC);
 
-	//vector hijacking
+	// Vector hijacking
 	enum irq_vector vector = cpu->nmi_signal ? NMI_VECTOR : BRK_VECTOR;
 	cpu_push(cpu, nes, (cpu->P & 0xEF) | FLAG_U);
 
@@ -1223,7 +1224,7 @@ static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 }
 
 
-/*** RUN ***/
+// Step
 
 void cpu_step(struct cpu *cpu, NES *nes)
 {
@@ -1235,7 +1236,7 @@ void cpu_step(struct cpu *cpu, NES *nes)
 }
 
 
-/*** INIT & DESTROY ***/
+// Lifecycle
 
 void cpu_create(struct cpu **cpu)
 {
@@ -1280,16 +1281,6 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 	SET_FLAG(cpu->P, FLAG_I);
 }
 
-void *cpu_get_state(struct cpu *cpu, size_t *size)
-{
-	*size = sizeof(struct cpu);
-
-	struct cpu *state = malloc(*size);
-	*state = *cpu;
-
-	return state;
-}
-
 size_t cpu_set_state(struct cpu *cpu, const void *state, size_t size)
 {
 	if (size >= sizeof(struct cpu)) {
@@ -1299,4 +1290,14 @@ size_t cpu_set_state(struct cpu *cpu, const void *state, size_t size)
 	}
 
 	return 0;
+}
+
+void *cpu_get_state(struct cpu *cpu, size_t *size)
+{
+	*size = sizeof(struct cpu);
+
+	struct cpu *state = malloc(*size);
+	*state = *cpu;
+
+	return state;
 }
