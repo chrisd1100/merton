@@ -17,7 +17,6 @@ struct NES {
 	struct sys {
 		uint8_t ram[0x0800];
 		uint8_t io_open_bus;
-		uint16_t read_addr;
 		bool in_write;
 		uint64_t cycle;
 		uint64_t cycle_2007;
@@ -206,13 +205,6 @@ static void sys_dma_oam(NES *nes, uint8_t v)
 
 void sys_dma_dmc_begin(NES *nes, uint16_t addr)
 {
-	if (!nes->sys.in_write) {
-		if (nes->sys.read_addr == 0x2007)
-			ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2007);
-
-		sys_read(nes, nes->sys.read_addr);
-	}
-
 	nes->sys.dma.dmc_begin = true;
 	nes->sys.dma.dmc_addr = addr;
 
@@ -234,10 +226,15 @@ void sys_dma_dmc_begin(NES *nes, uint16_t addr)
 	}
 }
 
-static void sys_dma_dmc(NES *nes)
+static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 {
 	if (!nes->sys.dma.dmc_begin)
-		return;
+		return v;
+
+	if (addr == 0x2007)
+		ppu_read(nes->ppu, nes->cpu, nes->cart, addr);
+
+	v = sys_read(nes, addr);
 
 	nes->sys.dma.dmc_begin = false;
 	cpu_halt(nes->cpu, true);
@@ -248,6 +245,8 @@ static void sys_dma_dmc(NES *nes)
 	apu_dma_dmc_finish(nes->apu, sys_read_cycle(nes, nes->sys.dma.dmc_addr));
 
 	cpu_halt(nes->cpu, false);
+
+	return v;
 }
 
 
@@ -255,8 +254,6 @@ static void sys_dma_dmc(NES *nes)
 
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
-	nes->sys.read_addr = addr;
-
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
@@ -271,7 +268,7 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	cpu_phi_2(nes->cpu);
 	// End concurrent tick
 
-	sys_dma_dmc(nes);
+	v = sys_dma_dmc(nes, addr, v);
 
 	nes->sys.cycle++;
 
@@ -385,7 +382,6 @@ void NES_Reset(NES *ctx, bool hard)
 		return;
 
 	ctx->sys.in_write = false;
-	ctx->sys.read_addr = 0;
 	ctx->sys.cycle = ctx->sys.cycle_2007 = 0;
 
 	if (hard)
