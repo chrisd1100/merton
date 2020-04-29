@@ -71,26 +71,37 @@ typedef void (*NES_AudioCallback)(const int16_t *frames, uint32_t count, void *o
 typedef void (*NES_VideoCallback)(const uint32_t *frame, void *opaque);
 typedef void (*NES_LogCallback)(const char *msg);
 
-void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sampleRate, bool stereo, NES **nes);
+// Cart
 void NES_LoadCart(NES *ctx, const void *rom, size_t romSize, const void *sram, size_t sramSize, const NES_CartDesc *hdr);
 bool NES_CartLoaded(NES *ctx);
+
+// Step
 uint32_t NES_NextFrame(NES *ctx, NES_VideoCallback videoCallback, const void *opaque);
+
+// Input
 void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pressed);
 void NES_ControllerState(NES *nes, uint8_t player, uint8_t state);
-void NES_Reset(NES *ctx, bool hard);
+
+// Configuration
 void NES_SetStereo(NES *ctx, bool stereo);
 void NES_SetSampleRate(NES *ctx, uint32_t sampleRate);
 void NES_SetAPUClock(NES *ctx, uint32_t hz);
 void NES_SetChannels(NES *ctx, uint32_t channels);
+
+// SRAM
 size_t NES_SRAMDirty(NES *ctx);
 void NES_GetSRAM(NES *ctx, void *sram, size_t size);
-void NES_Destroy(NES **nes);
 
+// Lifecycle
+void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sampleRate, bool stereo, NES **nes);
+void NES_Destroy(NES **nes);
+void NES_Reset(NES *ctx, bool hard);
+bool NES_SetState(NES *ctx, const void *state, size_t size);
+void *NES_GetState(NES *ctx, size_t *size);
+
+// Logging
 void NES_SetLogCallback(NES_LogCallback logCallback);
 void NES_Log(const char *fmt, ...);
-
-void *NES_GetState(NES *ctx, size_t *size);
-bool NES_SetState(NES *ctx, const void *state, size_t size);
 
 #ifdef __cplusplus
 }

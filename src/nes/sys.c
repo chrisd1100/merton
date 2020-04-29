@@ -49,7 +49,7 @@ struct NES {
 };
 
 
-/*** CONTROLLER ***/
+// Input
 
 static void ctrl_set_state(struct ctrl *ctrl, uint8_t player, uint8_t state)
 {
@@ -108,8 +108,7 @@ static void ctrl_write(struct ctrl *ctrl, bool strobe)
 }
 
 
-/*** MEMORY ***/
-
+// IO
 // https://wiki.nesdev.com/w/index.php/CPU_memory_map
 
 uint8_t sys_read(NES *nes, uint16_t addr)
@@ -178,7 +177,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 }
 
 
-/*** DMA ***/
+// DMA
 
 static void sys_dma_oam(NES *nes, uint8_t v)
 {
@@ -251,7 +250,7 @@ static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 }
 
 
-/*** TIMING ***/
+// Step
 
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
@@ -310,19 +309,7 @@ void sys_cycle(NES *nes)
 }
 
 
-/*** PUBLIC ***/
-
-void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sampleRate, bool stereo, NES **nes)
-{
-	NES *ctx = *nes = calloc(1, sizeof(NES));
-
-	ctx->opaque = opaque;
-	ctx->new_samples = audioCallback;
-
-	cpu_create(&ctx->cpu);
-	ppu_create(&ctx->ppu);
-	apu_create(sampleRate, stereo, &ctx->apu);
-}
+// Cart
 
 void NES_LoadCart(NES *ctx, const void *rom, size_t romSize, const void *sram, size_t sramSize, const NES_CartDesc *hdr)
 {
@@ -340,6 +327,9 @@ bool NES_CartLoaded(NES *ctx)
 	return ctx->cart;
 }
 
+
+// Step
+
 uint32_t NES_NextFrame(NES *ctx, NES_VideoCallback videoCallback, const void *opaque)
 {
 	if (!ctx->cart)
@@ -354,6 +344,9 @@ uint32_t NES_NextFrame(NES *ctx, NES_VideoCallback videoCallback, const void *op
 
 	return (uint32_t) (ctx->sys.cycle - cycles);
 }
+
+
+// Input
 
 void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pressed)
 {
@@ -377,23 +370,8 @@ void NES_ControllerState(NES *nes, uint8_t player, uint8_t state)
 	ctrl_set_safe_state(ctrl, player);
 }
 
-void NES_Reset(NES *ctx, bool hard)
-{
-	if (!ctx->cart)
-		return;
 
-	struct sys prev = ctx->sys;
-
-	memset(&ctx->sys, 0, sizeof(struct sys));
-	memset(&ctx->ctrl, 0, sizeof(struct ctrl));
-
-	if (!hard)
-		memcpy(ctx->sys.ram, prev.ram, 0x800);
-
-	ppu_reset(ctx->ppu);
-	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
-	cpu_reset(ctx->cpu, ctx, hard);
-}
+// Configuration
 
 void NES_SetStereo(NES *ctx, bool stereo)
 {
@@ -415,6 +393,9 @@ void NES_SetChannels(NES *ctx, uint32_t channels)
 	apu_set_channels(ctx->apu, channels);
 }
 
+
+// SRAM
+
 size_t NES_SRAMDirty(NES *ctx)
 {
 	return ctx->cart ? cart_sram_dirty(ctx->cart) : 0;
@@ -424,6 +405,21 @@ void NES_GetSRAM(NES *ctx, void *sram, size_t size)
 {
 	if (ctx->cart)
 		cart_sram_get(ctx->cart, sram, size);
+}
+
+
+// Lifecycle
+
+void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sampleRate, bool stereo, NES **nes)
+{
+	NES *ctx = *nes = calloc(1, sizeof(NES));
+
+	ctx->opaque = opaque;
+	ctx->new_samples = audioCallback;
+
+	cpu_create(&ctx->cpu);
+	ppu_create(&ctx->ppu);
+	apu_create(sampleRate, stereo, &ctx->apu);
 }
 
 void NES_Destroy(NES **nes)
@@ -442,24 +438,75 @@ void NES_Destroy(NES **nes)
 	*nes = NULL;
 }
 
-void NES_SetLogCallback(NES_LogCallback log_callback)
+void NES_Reset(NES *ctx, bool hard)
 {
-	NES_LOG = log_callback;
+	if (!ctx->cart)
+		return;
+
+	struct sys prev = ctx->sys;
+
+	memset(&ctx->sys, 0, sizeof(struct sys));
+	memset(&ctx->ctrl, 0, sizeof(struct ctrl));
+
+	if (!hard)
+		memcpy(ctx->sys.ram, prev.ram, 0x800);
+
+	ppu_reset(ctx->ppu);
+	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
+	cpu_reset(ctx->cpu, ctx, hard);
 }
 
-void NES_Log(const char *fmt, ...)
+bool NES_SetState(NES *ctx, const void *state, size_t size)
 {
-	if (NES_LOG) {
-		va_list args;
-		va_start(args, fmt);
+	if (!ctx->cart)
+		return false;
 
-		char str[NES_LOG_MAX];
-		vsnprintf(str, NES_LOG_MAX, fmt, args);
+	bool r = true;
+	const uint8_t *u8state = state;
 
-		NES_LOG(str);
+	size_t current_size = 0;
+	void *current = NES_GetState(ctx, &current_size);
 
-		va_end(args);
-	}
+	size_t consumed = cpu_set_state(ctx->cpu, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	consumed = apu_set_state(ctx->apu, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	consumed = ppu_set_state(ctx->ppu, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	consumed = cart_set_state(ctx->cart, u8state, size);
+	if (consumed == 0) {r = false; goto except;}
+	size -= consumed;
+	u8state += consumed;
+
+	if (size < sizeof(struct sys)) {r = false; goto except;}
+	const struct sys *sys_state = (const struct sys *) u8state;
+	ctx->sys = *sys_state;
+	size -= sizeof(struct sys);
+	u8state += sizeof(struct sys);
+
+	if (size < sizeof(struct ctrl)) {r = false; goto except;}
+	const struct ctrl *ctrl_state = (const struct ctrl *) u8state;
+	ctx->ctrl = *ctrl_state;
+	size -= sizeof(struct ctrl);
+	u8state += sizeof(struct ctrl);
+
+	except:
+
+	if (!r)
+		NES_SetState(ctx, current, current_size);
+
+	free(current);
+
+	return r;
 }
 
 void *NES_GetState(NES *ctx, size_t *size)
@@ -516,55 +563,25 @@ void *NES_GetState(NES *ctx, size_t *size)
 	return state;
 }
 
-bool NES_SetState(NES *ctx, const void *state, size_t size)
+
+// Logging
+
+void NES_SetLogCallback(NES_LogCallback log_callback)
 {
-	if (!ctx->cart)
-		return false;
+	NES_LOG = log_callback;
+}
 
-	bool r = true;
-	const uint8_t *u8state = state;
+void NES_Log(const char *fmt, ...)
+{
+	if (NES_LOG) {
+		va_list args;
+		va_start(args, fmt);
 
-	size_t current_size = 0;
-	void *current = NES_GetState(ctx, &current_size);
+		char str[NES_LOG_MAX];
+		vsnprintf(str, NES_LOG_MAX, fmt, args);
 
-	size_t consumed = cpu_set_state(ctx->cpu, u8state, size);
-	if (consumed == 0) {r = false; goto except;}
-	size -= consumed;
-	u8state += consumed;
+		NES_LOG(str);
 
-	consumed = apu_set_state(ctx->apu, u8state, size);
-	if (consumed == 0) {r = false; goto except;}
-	size -= consumed;
-	u8state += consumed;
-
-	consumed = ppu_set_state(ctx->ppu, u8state, size);
-	if (consumed == 0) {r = false; goto except;}
-	size -= consumed;
-	u8state += consumed;
-
-	consumed = cart_set_state(ctx->cart, u8state, size);
-	if (consumed == 0) {r = false; goto except;}
-	size -= consumed;
-	u8state += consumed;
-
-	if (size < sizeof(struct sys)) {r = false; goto except;}
-	const struct sys *sys_state = (const struct sys *) u8state;
-	ctx->sys = *sys_state;
-	size -= sizeof(struct sys);
-	u8state += sizeof(struct sys);
-
-	if (size < sizeof(struct ctrl)) {r = false; goto except;}
-	const struct ctrl *ctrl_state = (const struct ctrl *) u8state;
-	ctx->ctrl = *ctrl_state;
-	size -= sizeof(struct ctrl);
-	u8state += sizeof(struct ctrl);
-
-	except:
-
-	if (!r)
-		NES_SetState(ctx, current, current_size);
-
-	free(current);
-
-	return r;
+		va_end(args);
+	}
 }

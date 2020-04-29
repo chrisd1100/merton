@@ -677,7 +677,7 @@ static void ppu_output(struct ppu *ppu, uint16_t dot)
 }
 
 
-/*** RUN ***/
+/*** STEP ***/
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 
@@ -795,9 +795,6 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 	}
 }
 
-
-/*** INIT & DESTROY ***/
-
 bool ppu_new_frame(struct ppu *ppu)
 {
 	return ppu->new_frame;
@@ -809,6 +806,9 @@ const uint32_t *ppu_pixels(struct ppu *ppu)
 
 	return ppu->pixels;
 }
+
+
+/*** LIFECYCLE ***/
 
 void ppu_create(struct ppu **ppu)
 {
@@ -859,16 +859,6 @@ void ppu_reset(struct ppu *ppu)
 	ppu->MASK.grayscale = 0x3F;
 }
 
-void *ppu_get_state(struct ppu *ppu, size_t *size)
-{
-	*size = sizeof(struct ppu);
-
-	struct ppu *state = malloc(*size);
-	*state = *ppu;
-
-	return state;
-}
-
 size_t ppu_set_state(struct ppu *ppu, const void *state, size_t size)
 {
 	if (size >= sizeof(struct ppu)) {
@@ -878,4 +868,14 @@ size_t ppu_set_state(struct ppu *ppu, const void *state, size_t size)
 	}
 
 	return 0;
+}
+
+void *ppu_get_state(struct ppu *ppu, size_t *size)
+{
+	*size = sizeof(struct ppu);
+
+	struct ppu *state = malloc(*size);
+	*state = *ppu;
+
+	return state;
 }
