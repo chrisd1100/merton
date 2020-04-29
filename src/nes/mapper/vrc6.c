@@ -83,37 +83,37 @@ static void vrc6_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, 
 			addr = (addr & 0xFFFC) | ((addr & 0x01) << 1) | ((addr & 0x02) >> 1);
 
 		switch (addr & 0xF003) {
-			case 0x8000: //PRG first bank
+			case 0x8000: // PRG first bank
 			case 0x8001:
 			case 0x8002:
 			case 0x8003:
 				cart_map(&cart->prg, ROM, 0x8000, v & 0x0F, 16);
 				break;
-			case 0x9000: //Pulse0 expansion audio
+			case 0x9000: // Pulse0 expansion audio
 			case 0x9001:
 			case 0x9002:
 			case 0x9003:
-			case 0xA000: //Pulse1 expansion audio
+			case 0xA000: // Pulse1 expansion audio
 			case 0xA001:
 			case 0xA002:
 				apu_write(apu, NULL, NULL, addr, v, EXT_VRC6);
 				break;
-			case 0xC000: //PRG second bank
+			case 0xC000: // PRG second bank
 			case 0xC001:
 			case 0xC002:
 			case 0xC003:
 				cart_map(&cart->prg, ROM, 0xC000, v & 0x1F, 8);
 				break;
-			case 0xB000: //Sawtooth expansion audio
+			case 0xB000: // Sawtooth expansion audio
 			case 0xB001:
 			case 0xB002:
 				apu_write(apu, NULL, NULL, addr, v, EXT_VRC6);
 				break;
-			case 0xB003: //Mirroring, PPU banking
+			case 0xB003: // Mirroring, PPU banking
 				cart->REG[0] = v;
 				vrc6_map_ppu(cart);
 				break;
-			case 0xD000: //CHR banking
+			case 0xD000: // CHR banking
 			case 0xD001:
 			case 0xD002:
 			case 0xD003:
@@ -127,7 +127,7 @@ static void vrc6_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, 
 				cart->CHR[4 + (addr - 0xE000)] = v;
 				vrc6_map_ppu(cart);
 				break;
-			case 0xF000: //IRQ control
+			case 0xF000: // IRQ control
 				cart->irq.value = v;
 				break;
 			case 0xF001:

@@ -94,7 +94,7 @@ static void mapper_create(struct cart *cart)
 			break;
 	}
 
-	// default mirroring
+	// Default mirroring
 	if (M[cart->hdr.mapper].mirror_table > 0)
 		cart_map_ciram(&cart->chr, MIRROR[M[cart->hdr.mapper].mirror_table][0]);
 
@@ -102,7 +102,7 @@ static void mapper_create(struct cart *cart)
 	if (cart->hdr.mapper == 78 && cart->hdr.submapper == 1)
 		M[78].mirror_table = 2;
 
-	//BNROM vs. NINA-001
+	// BNROM vs. NINA-001
 	if (cart->hdr.mapper == 34 && cart->chr.rom.size > 8) {
 		M[34].reg_low = 0x7FFD;
 		M[34].reg_high = 0x7FFF;
@@ -111,7 +111,7 @@ static void mapper_create(struct cart *cart)
 		M[34].chr1_mask = 0x0F;
 	}
 
-	// default SRAM
+	// Default SRAM
 	switch (cart->hdr.mapper) {
 		case 34:
 			if (cart->prg.ram.size > 0)

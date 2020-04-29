@@ -17,12 +17,12 @@ static void fme7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 	if (addr >= 0x6000 && addr < 0x8000 && cart->ram_enable) {
 		map_write(&cart->prg, 0, addr, v);
 
-	} else if (addr >= 0x8000 && addr < 0xA000) { //CMD
+	} else if (addr >= 0x8000 && addr < 0xA000) { // CMD
 		cart->REG[0] = v & 0x0F;
 
-	} else if (addr >= 0xA000 && addr < 0xC000) { //parameter
+	} else if (addr >= 0xA000 && addr < 0xC000) { // Parameter
 		switch (cart->REG[0]) {
-			case 0x0: //CHR
+			case 0x0: // CHR
 			case 0x1:
 			case 0x2:
 			case 0x3:
@@ -32,23 +32,23 @@ static void fme7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 			case 0x7:
 				cart_map(&cart->chr, ROM, cart->REG[0] * 0x0400, v, 1);
 				break;
-			case 0x8: { //PRG0 (RAM or ROM)
+			case 0x8: { // PRG0 (RAM or ROM)
 				enum mem type = v & 0x40 ? RAM : ROM;
 				cart->ram_enable = v & 0x80;
 				cart_map(&cart->prg, type, 0x6000, v & 0x3F, 8);
 
-				if (type == RAM && !cart->ram_enable) { //unmap address space
+				if (type == RAM && !cart->ram_enable) { // Unmap address space
 					map_unmap(&cart->prg, 0, 0x6000);
 					map_unmap(&cart->prg, 0, 0x7000);
 				}
 				break;
 			}
-			case 0x9: //PRG1-3 (ROM)
+			case 0x9: // PRG1-3 (ROM)
 			case 0xA:
 			case 0xB:
 				cart_map(&cart->prg, ROM, 0x8000 + (cart->REG[0] - 0x9) * 0x2000, v & 0x3F, 8);
 				break;
-			case 0xC: //mirroring
+			case 0xC: // Mirroring
 				switch (v & 0x03) {
 					case 0: cart_map_ciram(&cart->chr, NES_MIRROR_VERTICAL);    break;
 					case 1: cart_map_ciram(&cart->chr, NES_MIRROR_HORIZONTAL);  break;
@@ -56,7 +56,7 @@ static void fme7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 					case 3: cart_map_ciram(&cart->chr, NES_MIRROR_SINGLE1);     break;
 				}
 				break;
-			case 0xD: //IRQ
+			case 0xD: // IRQ
 				cart->irq.enable = v & 0x01;
 				cart->irq.cycle = v & 0x80;
 				cpu_irq(cpu, IRQ_MAPPER, false);

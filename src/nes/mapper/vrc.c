@@ -73,7 +73,7 @@ static uint16_t vrc_legacy_repin(uint16_t addr, uint8_t p0a, uint8_t p0b, uint8_
 
 static uint16_t vrc_rejigger_pins(struct cart *cart, uint16_t addr)
 {
-	// precise mapper/submapper selection
+	// Precise mapper/submapper selection
 	switch (cart->vrc.type) {
 		case VRC2A:
 		case VRC2C:
@@ -86,7 +86,7 @@ static uint16_t vrc_rejigger_pins(struct cart *cart, uint16_t addr)
 		case VRC4E: return vrc_repin(addr, 0x0C, 0x08, 0x04);
 	}
 
-	// legacy emulation
+	// Legacy emulation
 	switch (cart->hdr.mapper) {
 		case 23: return vrc_legacy_repin(addr, 0x0C, 0x03, 0x0A, 0x05);
 		case 25: return vrc_legacy_repin(addr, 0x0C, 0x03, 0x05, 0x0A);
@@ -134,18 +134,18 @@ static void vrc_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uin
 		addr = vrc_rejigger_pins(cart, addr);
 
 		switch (addr) {
-			case 0x8000: //PRG first/last banks
+			case 0x8000: // PRG first/last banks
 			case 0x8001:
 			case 0x8002:
 			case 0x8003:
 				cart->PRG[0] = v & 0x1F;
 				vrc_prg_map(cart);
 				break;
-			case 0x9000: //Mirroring
+			case 0x9000: // Mirroring
 			case 0x9001:
 				vrc_mirror(cart, v & (cart->vrc.is2 ? 0x01 : 0x03));
 				break;
-			case 0x9002: //PRG mode
+			case 0x9002: // PRG mode
 			case 0x9003:
 				if (cart->vrc.is2) {
 					vrc_prg_write(cart, cpu, 0x9000, v);
@@ -155,13 +155,13 @@ static void vrc_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uin
 				cart->prg_mode = v & 0x02;
 				vrc_prg_map(cart);
 				break;
-			case 0xA000: //PRG middle bank
+			case 0xA000: // PRG middle bank
 			case 0xA001:
 			case 0xA002:
 			case 0xA003:
 				cart_map(&cart->prg, ROM, 0xA000, v & 0x1F, 8);
 				break;
-			case 0xB000: //CHR
+			case 0xB000: // CHR
 			case 0xB001:
 			case 0xB002:
 			case 0xB003:
@@ -189,7 +189,7 @@ static void vrc_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uin
 				cart_map(&cart->chr, ROM, slot * 0x0400, bank, 1);
 				break;
 			}
-			case 0xF000: //IRQ
+			case 0xF000: // IRQ
 				cart->irq.value = (cart->irq.value & 0xF0) | (v & 0x0F);
 				break;
 			case 0xF001:

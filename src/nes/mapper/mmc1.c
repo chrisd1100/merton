@@ -2,7 +2,7 @@
 
 static void mmc1_map_prg(struct cart *cart, uint8_t bank)
 {
-	//SEROM et al
+	// SEROM et al
 	if (cart->hdr.submapper == 5)
 		return;
 
@@ -28,7 +28,7 @@ static void mmc1_map_chr(struct cart *cart, uint8_t slot, uint8_t bank)
 {
 	enum mem type = cart->chr.rom.size > 0 ? ROM : RAM;
 
-	//SUROM et al
+	// SUROM et al
 	if (type == RAM) {
 		bool use256 = (bank & 0x10) ? true : false;
 
@@ -75,7 +75,7 @@ static void mmc1_create(struct cart *cart)
 
 static void mmc1_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
-	//battery backed sram
+	// Battery backed sram
 	if (addr >= 0x6000 && addr < 0x8000 && cart->ram_enable) {
 		map_write(&cart->prg, 0, addr, v);
 		cart->sram_dirty = cart->prg.sram;
@@ -86,13 +86,13 @@ static void mmc1_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 
 		cart->mmc1.cycle = cart->cycle;
 
-		//high bit begins the sequence
+		// High bit begins the sequence
 		if (v & 0x80) {
 			cart->mmc1.n = 0;
 			cart->REG[0] = 0;
 			mmc1_create(cart);
 
-		// if high bit is not set, continue the sequence
+		// If high bit is not set, continue the sequence
 		} else {
 			cart->REG[0] |= (v & 0x01) << cart->mmc1.n;
 

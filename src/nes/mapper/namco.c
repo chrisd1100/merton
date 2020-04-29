@@ -50,9 +50,9 @@ static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, u
 
 	} else if (addr >= 0x4800) {
 		switch (addr & 0xF800) {
-			case 0x4800: //Expansion audio
+			case 0x4800: // Expansion audio
 				break;
-			case 0x5000: //IRQ
+			case 0x5000: // IRQ
 				cart->irq.counter = (cart->irq.counter & 0xFF00) | v;
 				cpu_irq(cpu, IRQ_MAPPER, false);
 				break;
@@ -61,7 +61,7 @@ static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, u
 				cart->irq.counter = (cart->irq.counter & 0x00FF) | (((uint16_t) v & 0x7F) << 8);
 				cpu_irq(cpu, IRQ_MAPPER, false);
 				break;
-			case 0x8000: //CHR
+			case 0x8000: // CHR
 			case 0x8800:
 			case 0x9000:
 			case 0x9800:
@@ -77,7 +77,7 @@ static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, u
 					namco_map_ppu(cart);
 				}
 				break;
-			case 0xC000: //Nametables (mapper 19), RAM enable (mapper 210.1)
+			case 0xC000: // Nametables (mapper 19), RAM enable (mapper 210.1)
 				if (cart->hdr.mapper == 210 && cart->hdr.submapper == 1)
 					cart->ram_enable = v & 0x1;
 			case 0xC800:
@@ -111,7 +111,7 @@ static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, u
 			case 0xF000:
 				cart_map(&cart->prg, ROM, 0xC000, v & 0x3F, 8);
 				break;
-			case 0xF800: //Expansion audio etc.
+			case 0xF800: // Expansion audio etc.
 				break;
 			default:
 				NES_Log("Uncaught Namco 163/129/175/340 write %x: %x", addr, v);
@@ -128,9 +128,9 @@ static uint8_t namco_prg_read(struct cart *cart, uint16_t addr, bool *mem_hit)
 
 	} else {
 		switch (addr & 0xF800) {
-			case 0x4800: //Expansion audio
+			case 0x4800: // Expansion audio
 				break;
-			case 0x5000: //IRQ
+			case 0x5000: // IRQ
 				return cart->irq.counter & 0xFF;
 			case 0x5800:
 				return cart->irq.counter >> 8;

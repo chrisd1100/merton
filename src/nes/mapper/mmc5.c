@@ -97,7 +97,7 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 
 	} else if (addr < 0x6000) {
 		switch (addr) {
-			case 0x5000: //MMC5 audio pulse, status
+			case 0x5000: // MMC5 audio pulse, status
 			case 0x5002:
 			case 0x5003:
 			case 0x5004:
@@ -106,25 +106,25 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 			case 0x5015:
 				apu_write(apu, NULL, NULL, addr - 0x1000, v, EXT_MMC5);
 				break;
-			case 0x5001: //MMC5 audio unused pulse sweep
+			case 0x5001: // MMC5 audio unused pulse sweep
 			case 0x5005:
 				break;
-			case 0x5010: //MMC5 audio PCM
+			case 0x5010: // MMC5 audio PCM
 			case 0x5011:
 				break;
-			case 0x5100: //PRG mode
+			case 0x5100: // PRG mode
 				cart->prg_mode = v & 0x03;
 				break;
-			case 0x5101: //CHR mode
+			case 0x5101: // CHR mode
 				cart->chr_mode = v & 0x03;
 				break;
-			case 0x5102: //PRG RAM protect
+			case 0x5102: // PRG RAM protect
 			case 0x5103:
 				break;
-			case 0x5104: //EXRAM mode
+			case 0x5104: // EXRAM mode
 				cart->mmc5.exram_mode = v & 0x03;
 				break;
-			case 0x5105: //Mirroring mode
+			case 0x5105: // Mirroring mode
 				for (uint8_t x = 0; x < 4; x++) {
 					switch ((v >> (x * 2)) & 0x03) {
 						case 0: cart_map_ciram_slot(&cart->chr, x, 0);          break;
@@ -134,15 +134,15 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 					}
 				}
 				break;
-			case 0x5106: //Fill mode tile
+			case 0x5106: // Fill mode tile
 				cart->mmc5.fill_tile = v;
 				break;
-			case 0x5107: //Fill mode color
+			case 0x5107: // Fill mode color
 				cart->mmc5.fill_attr = v & 0x03;
 				cart->mmc5.fill_attr |= cart->mmc5.fill_attr << 2;
 				cart->mmc5.fill_attr |= cart->mmc5.fill_attr << 4;
 				break;
-			case 0x5113: //PRG bankswitch
+			case 0x5113: // PRG bankswitch
 			case 0x5114:
 			case 0x5115:
 			case 0x5116:
@@ -151,7 +151,7 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 				mmc5_map_prg(cart, addr - 0x5113, v & 0x7F, ram ? RAM : ROM);
 				break;
 			}
-			case 0x5120: //CHR bankswitch
+			case 0x5120: // CHR bankswitch
 			case 0x5121:
 			case 0x5122:
 			case 0x5123:
@@ -173,7 +173,7 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 			case 0x5130:
 				cart->mmc5.chr_bank_upper = (uint16_t) (v & 0x03) << 8;
 				break;
-			case 0x5200: //Vertical split mode
+			case 0x5200: // Vertical split mode
 				cart->mmc5.vs.enable = v & 0x80;
 				cart->mmc5.vs.right = v & 0x40;
 				cart->mmc5.vs.tile = v & 0x1F;
@@ -184,19 +184,19 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 			case 0x5202:
 				cart->mmc5.vs.bank = v;
 				break;
-			case 0x5203: //IRQ line number
+			case 0x5203: // IRQ line number
 				cart->irq.scanline = v;
 				break;
-			case 0x5204: //IRQ enable
+			case 0x5204: // IRQ enable
 				cart->irq.enable = v & 0x80;
 				break;
-			case 0x5205: //Math
+			case 0x5205: // Math
 				cart->mmc5.multiplicand = v;
 				break;
 			case 0x5206:
 				cart->mmc5.multiplier = v;
 				break;
-			case 0x5800: //Just Breed unknown
+			case 0x5800: // Just Breed unknown
 				break;
 			default:
 				NES_Log("Uncaught MMC5 write %x", addr);
@@ -220,27 +220,27 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu
 
 	} else {
 		switch (addr) {
-			case 0x5000: //MMC5 audio pulse
+			case 0x5000: // MMC5 audio pulse
 			case 0x5002:
 			case 0x5003:
 			case 0x5004:
 			case 0x5006:
 			case 0x5007:
 				break;
-			case 0x5001: //MMC5 audio unused pulse sweep
+			case 0x5001: // MMC5 audio unused pulse sweep
 			case 0x5005:
 				break;
-			case 0x5015: //MMC5 audio status
+			case 0x5015: // MMC5 audio status
 				return apu_read_status(apu, NULL, EXT_MMC5);
-			case 0x5010: //MMC5 audio PCM
+			case 0x5010: // MMC5 audio PCM
 			case 0x5011:
 				break;
-			case 0x5113: //PRG bankswitch
+			case 0x5113: // PRG bankswitch
 			case 0x5114:
 			case 0x5115:
 			case 0x5116:
 			case 0x5117:
-			case 0x5120: //CHR bankswitch
+			case 0x5120: // CHR bankswitch
 			case 0x5121:
 			case 0x5122:
 			case 0x5123:
@@ -331,7 +331,7 @@ static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type
 	bool hit = false;
 	uint8_t v = map_read(&cart->chr, 0, addr, &hit);
 
-	if (!hit) { //unmapped falls through to fill mode
+	if (!hit) { // Unmapped falls through to fill mode
 		v = !cart->mmc5.nt_latch ? cart->mmc5.fill_tile : cart->mmc5.fill_attr;
 		cart->mmc5.nt_latch = true;
 	}
@@ -342,10 +342,10 @@ static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type
 static void mmc5_ppu_write_hook(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	switch (addr) {
-		case 0x2000: //PPUCTRL
+		case 0x2000: // PPUCTRL
 			cart->mmc5.large_sprites = v & 0x20;
 			break;
-		case 0x2001: //PPUMASK
+		case 0x2001: // PPUMASK
 			cart->mmc5.rendering_enabled = v & 0x18;
 
 			if (!cart->mmc5.rendering_enabled)
