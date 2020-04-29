@@ -74,11 +74,11 @@ static void ctrl_set_safe_state(struct ctrl *ctrl, uint8_t player)
 	uint8_t prev_state = ctrl->safe_buttons[player];
 	ctrl->safe_buttons[player] = ctrl->buttons[player];
 
-	// cancel out up + down
+	// Cancel out up + down
 	if ((ctrl->safe_buttons[player] & 0x30) == 0x30)
 		ctrl->safe_buttons[player] &= 0xCF;
 
-	// cancel out left + right
+	// Cancel out left + right
 	if ((ctrl->safe_buttons[player] & 0xC0) == 0xC0)
 		ctrl->safe_buttons[player] &= 0x3F;
 
@@ -119,7 +119,7 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 	} else if (addr < 0x4000) {
 		addr = 0x2000 + addr % 8;
 
-		// double 2007 read glitch and mapper 185 copy protection
+		// Double 2007 read glitch and mapper 185 copy protection
 		if (addr == 0x2007 && (nes->sys.cycle - nes->sys.cycle_2007 == 1 || cart_block_2007(nes->cart)))
 			return ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2003);
 
@@ -190,12 +190,12 @@ static void sys_dma_oam(NES *nes, uint8_t v)
 	nes->sys.dma.oam = true;
 	cpu_halt(nes->cpu, true);
 
-	sys_cycle(nes); //+1 default case
+	sys_cycle(nes); // +1 default case
 
-	if (nes->sys.cycle & 1) //+1 if odd cycle
+	if (nes->sys.cycle & 1) // +1 if odd cycle
 		sys_cycle(nes);
 
-	//+512 read/write
+	// +512 read/write
 	for (nes->sys.dma.oam_cycle = 0; nes->sys.dma.oam_cycle < 256; nes->sys.dma.oam_cycle++)
 		sys_write_cycle(nes, 0x2014, sys_read_cycle(nes, v * 0x0100 + nes->sys.dma.oam_cycle));
 
@@ -209,19 +209,19 @@ void sys_dma_dmc_begin(NES *nes, uint16_t addr)
 	nes->sys.dma.dmc_addr = addr;
 
 	if (nes->sys.dma.oam) {
-		if (nes->sys.dma.oam_cycle == 254) { //+0 second-to-second-to-last OAM cycle
+		if (nes->sys.dma.oam_cycle == 254) { // +0 second-to-second-to-last OAM cycle
 			nes->sys.dma.dmc_delay = 0;
 
-		} else if (nes->sys.dma.oam_cycle == 255) { //+2 last OAM cycle
+		} else if (nes->sys.dma.oam_cycle == 255) { // +2 last OAM cycle
 			nes->sys.dma.dmc_delay = 2;
 
-		} else { //+1 otherwise during OAM DMA
+		} else { // +1 otherwise during OAM DMA
 			nes->sys.dma.dmc_delay = 1;
 		}
-	} else if (nes->sys.write) { //+2 if CPU is writing
+	} else if (nes->sys.write) { // +2 if CPU is writing
 		nes->sys.dma.dmc_delay = 2;
 
-	} else { //+3 default case
+	} else { // +3 default case
 		nes->sys.dma.dmc_delay = 3;
 	}
 }
