@@ -8,7 +8,7 @@ static int16_t PULSE_TABLE[31];
 static int16_t TND_TABLE[203];
 
 
-/*** LENGTH COUNTER ***/
+// Length Counter
 
 struct length {
 	bool enabled;
@@ -29,7 +29,7 @@ static void apu_step_length(struct length *len)
 }
 
 
-/*** ENVELOPE ***/
+// Envelope
 
 struct envelope {
 	bool constant_volume;
@@ -64,7 +64,7 @@ static void apu_step_envelope(struct envelope *env)
 }
 
 
-/*** PULSE (SQUARE) CHANNELS ***/
+// Pulse Channels
 
 struct timer {
 	uint16_t period;
@@ -151,7 +151,7 @@ static void apu_pulse_step_timer(struct pulse *p, enum extaudio ext)
 }
 
 
-/*** TRIANGLE CHANNEL ***/
+// Triangle Channel
 
 struct triangle {
 	bool enabled;
@@ -180,7 +180,7 @@ static void apu_triangle_step_timer(struct triangle *t)
 	if (t->timer.value == 0) {
 		t->timer.value = t->timer.period;
 
-		//timer.period of 0 cause high pitched tones
+		// timer.period of 0 cause high pitched tones
 		if (t->len.value > 0 && t->counter.value > 0 && t->timer.period > 0)
 			t->duty_value = (t->duty_value + 1) % 32;
 
@@ -208,7 +208,7 @@ static void apu_triangle_step_counter(struct triangle *t)
 }
 
 
-/*** NOISE CHANNEL ***/
+// Noise Channel
 
 struct noise {
 	bool enabled;
@@ -243,7 +243,7 @@ static void apu_noise_step_timer(struct noise *n)
 }
 
 
-/*** DMC (SAMPLES) CHANNEL ***/
+// DMC Channel
 
 struct dmc {
 	bool enabled;
@@ -330,7 +330,7 @@ static void apu_dmc_step_timer(struct dmc *d, NES *nes, struct cpu *cpu)
 
 		d->out.shift_register >>= 1;
 
-		//out cycle has ended
+		// Out cycle has ended
 		if (d->out.bits_remaining == 0) {
 			d->out.bits_remaining = 8;
 
@@ -350,7 +350,7 @@ static void apu_dmc_step_timer(struct dmc *d, NES *nes, struct cpu *cpu)
 }
 
 
-/*** VRC6 ***/
+// VRC6
 
 struct pulse6 {
 	bool enabled;
@@ -414,14 +414,14 @@ static void apu_vrc6_saw_step_timer(struct saw *s)
 }
 
 
-/*** DAC (SAMPLING) ***/
+// DAC
 
-#define TIME_BITS     20
-#define TIME_UNIT     (1 << TIME_BITS)
-#define BASS_SHIFT    14
-#define DELTA_BITS    15
-#define PHASE_COUNT   32
-#define OUTPUT_SIZE   1024
+#define TIME_BITS   20
+#define TIME_UNIT   (1 << TIME_BITS)
+#define BASS_SHIFT  14
+#define DELTA_BITS  15
+#define PHASE_COUNT 32
+#define OUTPUT_SIZE 1024
 
 struct dac {
 	bool stereo;
@@ -536,7 +536,7 @@ static void apu_dac_output_channel(struct dac *dac, uint8_t chan, int32_t offset
 	int16_t s = apu_clampi32(dac->integrator[chan] >> DELTA_BITS);
 	dac->output[offset * 2 + chan] = s;
 	dac->integrator[chan] += dac->samples[chan][offset];
-	dac->integrator[chan] -= s << (DELTA_BITS - BASS_SHIFT); //high pass filter
+	dac->integrator[chan] -= s << (DELTA_BITS - BASS_SHIFT); // High pass filter
 }
 
 static void apu_dac_spatialize(struct dac *dac, int32_t x)
@@ -594,7 +594,7 @@ static void apu_dac_step(struct dac *dac, int16_t l, int16_t r, NES_AudioCallbac
 }
 
 
-/*** READ & WRITE ***/
+// IO
 
 struct apu {
 	bool mode;
@@ -617,6 +617,11 @@ struct apu {
 	enum extaudio ext;
 	struct dac dac;
 };
+
+void apu_dma_dmc_finish(struct apu *apu, uint8_t v)
+{
+	apu->d.reader.sample_buffer = v;
+}
 
 static void apu_reload_length(struct apu *apu, struct length *len, bool channel_enabled, uint8_t v)
 {
@@ -656,11 +661,6 @@ uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 	return r;
 }
 
-void apu_dma_dmc_finish(struct apu *apu, uint8_t v)
-{
-	apu->d.reader.sample_buffer = v;
-}
-
 void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext)
 {
 	struct pulse *p = ext == EXT_MMC5 ? apu->p + 2 : apu->p;
@@ -672,7 +672,8 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 		return;
 
 	switch (addr) {
-		case 0x4000: // Pulse
+		// Pulse, MMC5 Pulse
+		case 0x4000:
 		case 0x4004: {
 			uint8_t i = addr == 0x4000 ? 0 : 1;
 
@@ -711,7 +712,9 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 			p[i].duty_value = 0;
 			break;
 		}
-		case 0x4008: // Triangle
+
+		// Triangle
+		case 0x4008:
 			apu->t.len.next_enabled = !(v & 0x80);
 			apu->t.counter.period = v & 0x7F;
 			break;
@@ -725,7 +728,9 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 			apu->t.timer.period = (apu->t.timer.period & 0x00FF) | ((uint16_t) (v & 0x07) << 8);
 			apu->t.counter.reload = true;
 			break;
-		case 0x400C: // Noise
+
+		// Noise
+		case 0x400C:
 			apu->n.len.next_enabled = !(v & 0x20);
 			apu->n.env.loop = v & 0x20;
 			apu->n.env.constant_volume = v & 0x10;
@@ -741,7 +746,9 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 			apu_reload_length(apu, &apu->n.len, apu->n.enabled, v);
 			apu->n.env.start = true;
 			break;
-		case 0x4010: // DMC
+
+		// DMC
+		case 0x4010:
 			apu->d.irq = v & 0x80;
 
 			if (!apu->d.irq) {
@@ -762,7 +769,9 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 		case 0x4013:
 			apu->d.sample_length = ((uint16_t) v << 4) | 0x0001;
 			break;
-		case 0x4015: // Status
+
+		// Status
+		case 0x4015:
 			p[0].enabled = v & 0x01;
 			p[1].enabled = v & 0x02;
 
@@ -797,7 +806,9 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 				}
 			}
 			break;
-		case 0x4017: // Frame Counter
+
+		// Frame Counter
+		case 0x4017:
 			apu->next_mode = v & 0x80;
 			apu->irq_disabled = v & 0x40;
 			apu->delayed_reset = (apu->cpu_cycle & 1) ? 3 : 4;
@@ -806,8 +817,8 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 				apu_set_frame_irq(apu, cpu, false);
 			break;
 
-		// VRC6
-		case 0x9000: // VRC6 Pulse
+		// VRC6 Pulse
+		case 0x9000:
 		case 0xA000: {
 			uint8_t i = (addr >> 12) - 0x9;
 			apu->p6[i].volume = v & 0x0F;
@@ -832,7 +843,9 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 		}
 		case 0x9003:
 			break;
-		case 0xB000: // VRC6 Sawtooth
+
+		// VRC6 Sawtooth
+		case 0xB000:
 			apu->s.accum_rate = v & 0x3F;
 			break;
 		case 0xB001:
@@ -848,7 +861,7 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 }
 
 
-/*** RUN ***/
+// Step
 
 static void apu_step_all_envelope(struct apu *apu)
 {
@@ -949,7 +962,7 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	apu->cpu_cycle++;
 	apu->frame_counter++;
 
-	//pulse & dmc step every other clock
+	// Pulse & dmc step every other clock
 	if (apu->cpu_cycle & 1) {
 		apu_pulse_step_timer(&apu->p[0], EXT_NONE);
 		apu_pulse_step_timer(&apu->p[1], EXT_NONE);
@@ -961,18 +974,18 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 		}
 	}
 
-	//triangle & noise step every clock
+	// Triangle & noise step every clock
 	apu_triangle_step_timer(&apu->t);
 	apu_noise_step_timer(&apu->n);
 
-	//vrc6
+	// VRC6
 	if (apu->ext == EXT_VRC6) {
 		apu_vrc6_pulse_step_timer(&apu->p6[0]);
 		apu_vrc6_pulse_step_timer(&apu->p6[1]);
 		apu_vrc6_saw_step_timer(&apu->s);
 	}
 
-	//mix
+	// Mix
 	int16_t l = 0, r = 0;
 	uint8_t t = 0, n = 0, d = 0, p0 = 0, p1 = 0, ext0 = 0, ext1 = 0, ext2 = 0;
 
@@ -1011,20 +1024,20 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 
 	apu_dac_step(&apu->dac, l, r, new_samples, opaque);
 
-	//process the frame counter
+	// Process the frame counter
 	if (!(apu->delayed_reset > 0 && apu->delayed_reset < 3 && apu->mode))
 		apu_step_frame_counter(apu, cpu);
 
-	//enabling/disabling length happens with a 1 cycle delay
+	// Enabling/disabling length happens with a 1 cycle delay
 	apu_delayed_length_enabled(apu);
 
-	//writing to 4017 causes a delayed reset of the frame counter
+	// Writing to $4017 causes a delayed reset of the frame counter
 	apu->mode = apu->next_mode;
 	if (apu->delayed_reset > 0) {
 		if (--apu->delayed_reset == 0) {
 			apu->frame_counter = 0;
 
-			//quarter/half frame triggers up front if mode is set
+			// Quarter/half frame triggers up front if mode is set
 			if (apu->mode) {
 				apu_step_all_envelope(apu);
 				apu_step_all_sweep_and_length(apu);
@@ -1034,7 +1047,7 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 }
 
 
-/*** INIT & DESTROY ***/
+// Configuration
 
 void apu_set_stereo(struct apu *apu, bool stereo)
 {
@@ -1047,14 +1060,14 @@ void apu_set_sample_rate(struct apu *apu, uint32_t sample_rate)
 	apu_dac_clock_math(&apu->dac);
 }
 
-uint32_t apu_get_channels(struct apu *apu)
-{
-	return apu->channels;
-}
-
 void apu_set_channels(struct apu *apu, uint32_t channels)
 {
 	apu->channels = channels;
+}
+
+uint32_t apu_get_channels(struct apu *apu)
+{
+	return apu->channels;
 }
 
 void apu_set_clock(struct apu *apu, uint32_t hz)
@@ -1062,6 +1075,9 @@ void apu_set_clock(struct apu *apu, uint32_t hz)
 	apu->dac.clock = hz;
 	apu_dac_clock_math(&apu->dac);
 }
+
+
+// Lifecycle
 
 void apu_create(uint32_t sample_rate, bool stereo, struct apu **apu)
 {
@@ -1115,16 +1131,6 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 	apu->delayed_reset = 0;
 }
 
-void *apu_get_state(struct apu *apu, size_t *size)
-{
-	*size = sizeof(struct apu);
-
-	struct apu *state = malloc(*size);
-	*state = *apu;
-
-	return state;
-}
-
 size_t apu_set_state(struct apu *apu, const void *state, size_t size)
 {
 	if (size >= sizeof(struct apu)) {
@@ -1134,4 +1140,14 @@ size_t apu_set_state(struct apu *apu, const void *state, size_t size)
 	}
 
 	return 0;
+}
+
+void *apu_get_state(struct apu *apu, size_t *size)
+{
+	*size = sizeof(struct apu);
+
+	struct apu *state = malloc(*size);
+	*state = *apu;
+
+	return state;
 }
