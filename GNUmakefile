@@ -5,19 +5,21 @@ NAME = \
 	merton
 
 OBJS = \
-	src/cart.o \
-	src/apu.o \
-	src/sys.o \
-	src/cpu.o \
-	src/ppu.o \
-	app/main.o \
-	app/ui.o \
-	app/crypto.o \
-	app/unix/fs.o \
-	app/unix/time.o
+	src/nes/cart.o \
+	src/nes/apu.o \
+	src/nes/sys.o \
+	src/nes/cpu.o \
+	src/nes/ppu.o \
+	src/app/main.o \
+	src/app/ui.o \
+	src/lib/crypto.o \
+	src/lib/unix/fs.o \
+	src/lib/unix/time.o
 
 FLAGS = \
-	-Iapp \
+	-I. \
+	-Isrc \
+	-Isrc/lib \
 	-Wall \
 	-Wextra \
 	-D_POSIX_C_SOURCE=200112L \
@@ -28,9 +30,9 @@ FLAGS = \
 ifeq ($(UNAME), Linux)
 
 OBJS := $(OBJS) \
-	app/unix/linux/window.o \
-	app/unix/linux/window-quad.o \
-	app/unix/linux/audio.o
+	src/lib/unix/linux/window.o \
+	src/lib/unix/linux/window-quad.o \
+	src/lib/unix/linux/audio.o
 
 LIBS = \
 	-lm
@@ -42,10 +44,10 @@ ifeq ($(UNAME), Darwin)
 export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
 
 OBJS := $(OBJS) \
-	app/deps/imgui/imgui_impl_metal.o \
-	app/unix/macos/window.o \
-	app/unix/macos/window-quad.o \
-	app/unix/macos/audio.o
+	src/app/deps/imgui/imgui_impl_metal.o \
+	src/lib/unix/macos/window.o \
+	src/lib/unix/macos/window-quad.o \
+	src/lib/unix/macos/audio.o
 
 LIBS = \
 	-lc++ \
