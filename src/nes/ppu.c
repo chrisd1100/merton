@@ -669,13 +669,13 @@ static void ppu_render(struct ppu *ppu, uint16_t dot)
 	ppu->output[dot] = ppu_read_palette(ppu, addr);
 }
 
-static void ppu_output(struct ppu *ppu, uint16_t dot, bool scanlines)
+static void ppu_output(struct ppu *ppu, uint16_t dot, uint32_t odd_mask)
 {
 	uint8_t color = ppu->output[dot] & ppu->MASK.grayscale;
 	uint32_t pixel = ppu->palettes[ppu->MASK.emphasis][color];
 
-	if (scanlines && (ppu->scanline & 1))
-		pixel = (pixel & 0x00FFFFFF) | 0xBF000000;
+	if (ppu->scanline & 1)
+		pixel &= odd_mask;
 
 	ppu->pixels[ppu->scanline][dot] = pixel;
 }
@@ -754,7 +754,7 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 			ppu_render(ppu, ppu->dot - 1);
 
 		if (ppu->dot >= 4 && ppu->dot <= 259)
-			ppu_output(ppu, ppu->dot - 4, false);
+			ppu_output(ppu, ppu->dot - 4, 0xBFFFFFFF);
 
 		if (ppu->MASK.rendering)
 			ppu_memory_access(ppu, cart);
