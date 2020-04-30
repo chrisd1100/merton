@@ -212,20 +212,17 @@ static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc 
 
 		if (crc32 == *((uint32_t *) row)) {
 			desc->offset = offset;
-			desc->prg = row[4];
-			desc->chr = row[9];
+			desc->prgROMSize = row[4] * 0x4000;
+			desc->chrROMSize = row[9] * 0x2000;
 			desc->mapper = *((uint16_t *) (row + 14));
 			desc->submapper = row[16] & 0xF;
 			desc->mirror = (row[16] & 0x10) ? NES_MIRROR_VERTICAL :
 				(row[16] & 0x20) ? NES_MIRROR_FOUR : NES_MIRROR_HORIZONTAL;
 			desc->battery = row[16] & 0x80;
-			desc->prgSize.wram = *((uint16_t *) (row + 5)) * 8;
-			desc->prgSize.sram = *((uint16_t *) (row + 7)) * 8;
-			desc->chrSize.wram = *((uint16_t *) (row + 10)) * 8;
-			desc->chrSize.sram = *((uint16_t *) (row + 12)) * 8;
-
-			desc->useRAMSizes = desc->prgSize.wram > 0 || desc->prgSize.sram > 0 ||
-				desc->chrSize.wram > 0 || desc->chrSize.sram > 0;
+			desc->prgWRAMSize = *((uint16_t *) (row + 5)) * 8;
+			desc->prgSRAMSize = *((uint16_t *) (row + 7)) * 8;
+			desc->chrWRAMSize = *((uint16_t *) (row + 10)) * 8;
+			desc->chrSRAMSize = *((uint16_t *) (row + 12)) * 8;
 
 			return true;
 		}

@@ -48,21 +48,16 @@ typedef enum {
 
 typedef struct {
 	size_t offset;
-	uint8_t prg;
-	uint8_t chr;
+	uint32_t prgROMSize;
+	uint32_t chrROMSize;
+	uint32_t prgWRAMSize;
+	uint32_t prgSRAMSize;
+	uint32_t chrWRAMSize;
+	uint32_t chrSRAMSize;
 	NES_Mirror mirror;
 	uint16_t mapper;
 	uint8_t submapper;
 	bool battery;
-	bool useRAMSizes;
-	struct {
-		uint32_t wram;
-		uint32_t sram;
-	} prgSize;
-	struct {
-		uint32_t wram;
-		uint32_t sram;
-	} chrSize;
 } NES_CartDesc;
 
 typedef struct NES NES;

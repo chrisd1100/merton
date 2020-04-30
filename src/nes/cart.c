@@ -409,8 +409,8 @@ static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 
 	// Archaic iNES
 	hdr->offset = 16;
-	hdr->prg = rom[4];
-	hdr->chr = rom[5];
+	hdr->prgROMSize = rom[4] * 0x4000;
+	hdr->chrROMSize = rom[5] * 0x2000;
 	hdr->mirror = (rom[6] & 0x08) ? NES_MIRROR_FOUR : (rom[6] & 0x01) ? NES_MIRROR_VERTICAL : NES_MIRROR_HORIZONTAL;
 	hdr->battery = rom[6] & 0x02;
 	hdr->offset += (rom[6] & 0x04) ? 512: 0; // Trainer
@@ -422,33 +422,32 @@ static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 
 	// NES 2.0
 	} else if (((rom[7] & 0x0C) >> 2) == 0x02) {
-		hdr->useRAMSizes = true;
 		hdr->mapper |= rom[7] & 0xF0;
 		hdr->mapper |= (rom[8] & 0x0F) << 8;
 		hdr->submapper = rom[8] >> 4;
 
 		uint8_t volatile_shift = rom[10] & 0x0F;
-		hdr->prgSize.wram = volatile_shift ? 64 << volatile_shift : 0;
+		hdr->prgWRAMSize = volatile_shift ? 64 << volatile_shift : 0;
 
 		uint8_t non_volatile_shift = (rom[10] & 0xF0) >> 4;
-		hdr->prgSize.sram = non_volatile_shift ? 64 << non_volatile_shift : 0;
+		hdr->prgSRAMSize = non_volatile_shift ? 64 << non_volatile_shift : 0;
 
 		volatile_shift = rom[11] & 0x0F;
-		hdr->chrSize.wram = volatile_shift ? 64 << volatile_shift : 0;
+		hdr->chrWRAMSize = volatile_shift ? 64 << volatile_shift : 0;
 
 		non_volatile_shift = (rom[11] & 0xF0) >> 4;
-		hdr->chrSize.sram = non_volatile_shift ? 64 << non_volatile_shift : 0;
+		hdr->chrSRAMSize = non_volatile_shift ? 64 << non_volatile_shift : 0;
 	}
 }
 
-static void cart_log_desc(NES_CartDesc *hdr)
+static void cart_log_desc(NES_CartDesc *hdr, bool log_ram_sizes)
 {
-	NES_Log("PRG ROM Size: %uKB", KB(hdr->prg * 0x4000));
-	NES_Log("CHR ROM Size: %uKB", KB(hdr->chr * 0x2000));
+	NES_Log("PRG ROM Size: %uKB", KB(hdr->prgROMSize));
+	NES_Log("CHR ROM Size: %uKB", KB(hdr->chrROMSize));
 
-	if (hdr->useRAMSizes) {
-		NES_Log("PRG RAM V / NV: %uKB / %uKB", KB(hdr->prgSize.wram), KB(hdr->prgSize.sram));
-		NES_Log("CHR RAM V / NV: %uKB / %uKB", KB(hdr->chrSize.wram), KB(hdr->chrSize.sram));
+	if (log_ram_sizes) {
+		NES_Log("PRG RAM V / NV: %uKB / %uKB", KB(hdr->prgWRAMSize), KB(hdr->prgSRAMSize));
+		NES_Log("CHR RAM V / NV: %uKB / %uKB", KB(hdr->chrWRAMSize), KB(hdr->chrSRAMSize));
 	}
 
 	NES_Log("Mapper: %u", hdr->mapper);
@@ -504,24 +503,26 @@ void cart_create(const void *rom, size_t rom_size,
 		cart_parse_header(rom, &ctx->hdr);
 	}
 
-	cart_log_desc(&ctx->hdr);
-
-	ctx->prg.rom.size = ctx->hdr.prg * 0x4000;
-	ctx->chr.rom.size = ctx->hdr.chr * 0x2000;
-
-	ctx->prg.sram = 0x2000;
-	ctx->prg.wram = 0x01E000;
+	ctx->prg.rom.size = ctx->hdr.prgROMSize;
+	ctx->chr.rom.size = ctx->hdr.chrROMSize;
 	ctx->chr.ciram.size = 0x4000;
 	ctx->chr.exram.size = 0x400; // MMC5 exram lives with chr since it can be mapped to CIRAM
 
-	if (ctx->hdr.useRAMSizes) {
-		ctx->prg.wram = ctx->hdr.prgSize.wram;
-		ctx->prg.sram = ctx->hdr.prgSize.sram;
-		ctx->chr.wram = ctx->hdr.chrSize.wram;
-		ctx->chr.sram = ctx->hdr.chrSize.sram;
-	}
+	ctx->prg.wram = ctx->hdr.prgWRAMSize;
+	ctx->prg.sram = ctx->hdr.prgSRAMSize;
+	ctx->chr.wram = ctx->hdr.chrWRAMSize;
+	ctx->chr.sram = ctx->hdr.chrSRAMSize;
 
-	// Default to 0x8000 CHR RAM size
+	cart_log_desc(&ctx->hdr, ctx->prg.wram > 0 || ctx->prg.sram > 0 ||
+		ctx->chr.wram > 0 || ctx->chr.sram > 0);
+
+	// Defaults to be safe with poor iNES headers
+	if (ctx->prg.sram == 0)
+		ctx->prg.sram = 0x2000;
+
+	if (ctx->prg.wram == 0)
+		ctx->prg.wram = 0x1E000;
+
 	if (ctx->chr.wram == 0)
 		ctx->chr.wram = 0x8000;
 
