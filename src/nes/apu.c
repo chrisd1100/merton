@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-static int16_t PULSE_TABLE[31];
-static int16_t TND_TABLE[203];
-
 
 // Length Counter
 
@@ -425,6 +422,9 @@ static void apu_vrc6_saw_step_timer(struct saw *s)
 
 struct dac {
 	bool stereo;
+	int16_t pvol[31];
+	int16_t tndvol[203];
+	int16_t sinc[PHASE_COUNT + 1][16];
 	uint32_t clock;
 	uint32_t sample_rate;
 	uint32_t frame_samples;
@@ -437,7 +437,7 @@ struct dac {
 	int16_t output[OUTPUT_SIZE];
 };
 
-static int16_t SINC[PHASE_COUNT + 1][16] = {
+static const int16_t SINC[PHASE_COUNT + 1][8] = {
 	{43, -115,  350, -488, 1136, -914,  5861, 21022},
 	{44, -118,  348, -473, 1076, -799,  5274, 21001},
 	{45, -121,  344, -454, 1011, -677,  4706, 20936},
@@ -489,17 +489,19 @@ static int16_t apu_clampf64(double pcm)
 	return apu_clampi32(lrint(pcm * 32768.0));
 }
 
-static void apu_dac_create(void)
+static void apu_dac_create(struct dac *dac)
 {
 	for (int32_t x = 0; x < 31; x++)
-		PULSE_TABLE[x] = apu_clampf64(95.52 / (8128.0 / (float) x + 100.0));
+		dac->pvol[x] = apu_clampf64(95.52 / (8128.0 / (float) x + 100.0));
 
 	for (int32_t x = 0; x < 203; x++)
-		TND_TABLE[x] = apu_clampf64(163.67 / (24329.0 / (float) x + 100.0));
+		dac->tndvol[x] = apu_clampf64(163.67 / (24329.0 / (float) x + 100.0));
 
 	for (int32_t x = 0; x < PHASE_COUNT + 1; x++) {
-		for (int32_t y = 0; y < 8; y++)
-			SINC[PHASE_COUNT - x][15 - y] = SINC[x][y];
+		for (int32_t y = 0; y < 8; y++) {
+			dac->sinc[x][y] = SINC[x][y];
+			dac->sinc[PHASE_COUNT - x][15 - y] = dac->sinc[x][y];
+		}
 	}
 }
 
@@ -525,7 +527,7 @@ static void apu_dac_add_sample(struct dac *dac, uint32_t offset, uint8_t chan, i
 		delta -= delta2;
 
 		for (uint8_t x = 0; x < 16; x++)
-			out[x] += SINC[phase][x] * delta + SINC[phase + 1][x] * delta2;
+			out[x] += dac->sinc[phase][x] * delta + dac->sinc[phase + 1][x] * delta2;
 	}
 
 	dac->prev_sample[chan] = sample;
@@ -591,6 +593,44 @@ static void apu_dac_step(struct dac *dac, int16_t l, int16_t r, NES_AudioCallbac
 
 	if (dac->cycle++ > dac->frame_samples)
 		apu_dac_generate_output(dac, offset, new_samples, opaque);
+}
+
+static void apu_dac_mix(struct dac *dac, NES_AudioCallback new_samples, const void *opaque,
+	uint32_t channels, uint8_t p0, uint8_t p1, uint8_t p2, uint8_t p3, uint8_t p6_0, uint8_t p6_1,
+	uint8_t s, uint8_t t, uint8_t n, uint8_t d)
+{
+	uint8_t ext0 = (channels & NES_CHANNEL_EXT_0) ? p2 + p6_0 : 0;
+	uint8_t ext1 = (channels & NES_CHANNEL_EXT_1) ? p3 + p6_1 : 0;
+
+	if (!(channels & NES_CHANNEL_PULSE_0))
+		p0 = 0;
+
+	if (!(channels & NES_CHANNEL_PULSE_1))
+		p1 = 0;
+
+	if (!(channels & NES_CHANNEL_EXT_2))
+		s = 0;
+
+	if (!(channels & NES_CHANNEL_TRIANGLE))
+		t = 0;
+
+	if (!(channels & NES_CHANNEL_NOISE))
+		n = 0;
+
+	if (!(channels & NES_CHANNEL_DMC))
+		d = 0;
+
+	if (dac->stereo) {
+		int16_t l = dac->tndvol[3 * t + 2 * n] + dac->pvol[p0] - dac->pvol[ext0] - dac->pvol[s];
+		int16_t r = dac->tndvol[d] + dac->pvol[p1] - dac->pvol[ext1];
+
+		apu_dac_step(dac, l, r, new_samples, opaque);
+	} else {
+		int16_t m = dac->tndvol[3 * t + 2 * n + d] + dac->pvol[p0 + p1] - dac->pvol[ext0] -
+			dac->pvol[ext1] - dac->pvol[s];
+
+		apu_dac_step(dac, m, 0, new_samples, opaque);
+	}
 }
 
 
@@ -985,45 +1025,6 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 		apu_vrc6_saw_step_timer(&apu->s);
 	}
 
-	// Mix
-	int16_t l = 0, r = 0;
-	uint8_t t = 0, n = 0, d = 0, p0 = 0, p1 = 0, ext0 = 0, ext1 = 0, ext2 = 0;
-
-	if (apu->channels & NES_CHANNEL_PULSE_0)
-		p0 = apu->p[0].output;
-
-	if (apu->channels & NES_CHANNEL_PULSE_1)
-		p1 = apu->p[1].output;
-
-	if (apu->channels & NES_CHANNEL_EXT_0)
-		ext0 = apu->p[2].output + apu->p6[0].output;
-
-	if (apu->channels & NES_CHANNEL_EXT_1)
-		ext1 = apu->p[3].output + apu->p6[1].output;
-
-	if (apu->channels & NES_CHANNEL_EXT_2)
-		ext2 = apu->s.output;
-
-	if (apu->channels & NES_CHANNEL_TRIANGLE)
-		t = apu->t.output;
-
-	if (apu->channels & NES_CHANNEL_NOISE)
-		n = apu->n.output;
-
-	if (apu->channels & NES_CHANNEL_DMC)
-		d = apu->d.output;
-
-	if (apu->dac.stereo) {
-		l = TND_TABLE[3 * t + 2 * n] + PULSE_TABLE[p0] - PULSE_TABLE[ext0] - PULSE_TABLE[ext2];
-		r = TND_TABLE[d] + PULSE_TABLE[p1] - PULSE_TABLE[ext1];
-
-	} else {
-		l = TND_TABLE[3 * t + 2 * n + d] + PULSE_TABLE[p0 + p1] - PULSE_TABLE[ext0] -
-			PULSE_TABLE[ext1] - PULSE_TABLE[ext2];
-	}
-
-	apu_dac_step(&apu->dac, l, r, new_samples, opaque);
-
 	// Process the frame counter
 	if (!(apu->delayed_reset > 0 && apu->delayed_reset < 3 && apu->mode))
 		apu_step_frame_counter(apu, cpu);
@@ -1044,6 +1045,11 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 			}
 		}
 	}
+
+	// Mix
+	apu_dac_mix(&apu->dac, new_samples, opaque, apu->channels, apu->p[0].output,
+		apu->p[1].output, apu->p[2].output, apu->p[3].output, apu->p6[0].output,
+		apu->p6[1].output, apu->s.output, apu->t.output, apu->n.output, apu->d.output);
 }
 
 
@@ -1087,7 +1093,7 @@ void apu_create(uint32_t sample_rate, bool stereo, struct apu **apu)
 	apu_set_channels(ctx, NES_CHANNEL_ALL);
 	apu_set_stereo(ctx, stereo);
 	apu_set_clock(ctx, NES_CLOCK);
-	apu_dac_create();
+	apu_dac_create(&ctx->dac);
 }
 
 void apu_destroy(struct apu **apu)
