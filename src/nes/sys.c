@@ -401,8 +401,8 @@ void NES_Create(const NES_Config *cfg, NES **nes)
 	NES *ctx = *nes = calloc(1, sizeof(NES));
 
 	cpu_create(&ctx->cpu);
-	ppu_create(&ctx->ppu);
-	apu_create(&ctx->apu, cfg);
+	ppu_create(cfg, &ctx->ppu);
+	apu_create(cfg, &ctx->apu);
 }
 
 void NES_Destroy(NES **nes)

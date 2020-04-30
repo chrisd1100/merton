@@ -27,7 +27,7 @@ const int16_t *apu_frames(struct apu *apu, uint32_t *count);
 void apu_set_config(struct apu *apu, const NES_Config *cfg);
 
 // Lifecycle
-void apu_create(struct apu **apu, const NES_Config *cfg);
+void apu_create(const NES_Config *cfg, struct apu **apu);
 void apu_destroy(struct apu **apu);
 void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard);
 size_t apu_set_state(struct apu *apu, const void *state, size_t size);

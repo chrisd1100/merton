@@ -46,6 +46,7 @@ struct ppu {
 	uint8_t output[256];
 	uint32_t pixels[240][256];
 	uint32_t palettes[8][64];
+	uint32_t odd_mask;
 
 	uint8_t palette_ram[32];
 	uint8_t oam[256];
@@ -669,13 +670,13 @@ static void ppu_render(struct ppu *ppu, uint16_t dot)
 	ppu->output[dot] = ppu_read_palette(ppu, addr);
 }
 
-static void ppu_output(struct ppu *ppu, uint16_t dot, uint32_t odd_mask)
+static void ppu_output(struct ppu *ppu, uint16_t dot)
 {
 	uint8_t color = ppu->output[dot] & ppu->MASK.grayscale;
 	uint32_t pixel = ppu->palettes[ppu->MASK.emphasis][color];
 
 	if (ppu->scanline & 1)
-		pixel &= odd_mask;
+		pixel &= ppu->odd_mask;
 
 	ppu->pixels[ppu->scanline][dot] = pixel;
 }
@@ -754,7 +755,7 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 			ppu_render(ppu, ppu->dot - 1);
 
 		if (ppu->dot >= 4 && ppu->dot <= 259)
-			ppu_output(ppu, ppu->dot - 4, 0xBFFFFFFF);
+			ppu_output(ppu, ppu->dot - 4);
 
 		if (ppu->MASK.rendering)
 			ppu_memory_access(ppu, cart);
@@ -811,11 +812,20 @@ const uint32_t *ppu_pixels(struct ppu *ppu)
 }
 
 
+// Configuration
+
+void ppu_set_config(struct ppu *ppu, const NES_Config *cfg)
+{
+	ppu->odd_mask = ((uint32_t) (0xFF - cfg->scanlines) << 24) | 0xFFFFFF;
+}
+
+
 // Lifecycle
 
-void ppu_create(struct ppu **ppu)
+void ppu_create(const NES_Config *cfg, struct ppu **ppu)
 {
-	*ppu = calloc(1, sizeof(struct ppu));
+	struct ppu *ctx = *ppu = calloc(1, sizeof(struct ppu));
+	ppu_set_config(ctx, cfg);
 }
 
 void ppu_destroy(struct ppu **ppu)
@@ -846,7 +856,10 @@ static void ppu_generate_emphasis_tables(struct ppu *ppu)
 
 void ppu_reset(struct ppu *ppu)
 {
+	uint32_t odd_mask = ppu->odd_mask;
+
 	memset(ppu, 0, sizeof(struct ppu));
+	ppu->odd_mask = odd_mask;
 
 	memcpy(ppu->palette_ram, POWER_UP_PALETTE, 32);
 

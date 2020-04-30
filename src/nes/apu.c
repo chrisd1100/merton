@@ -1079,7 +1079,7 @@ void apu_set_config(struct apu *apu, const NES_Config *cfg)
 
 // Lifecycle
 
-void apu_create(struct apu **apu, const NES_Config *cfg)
+void apu_create(const NES_Config *cfg, struct apu **apu)
 {
 	struct apu *ctx = *apu = calloc(1, sizeof(struct apu));
 
