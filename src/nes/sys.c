@@ -254,8 +254,8 @@ static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
+	// Concurrent cycle
 	uint8_t v = sys_read(nes, addr);
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
@@ -266,20 +266,25 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	apu_step(nes->apu, nes, nes->cpu);
 
 	nes->sys.cycle++;
+	// End concurrent cycle
 
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
+
+	// DMC DMA will engage after then next read tick
 	return sys_dma_dmc(nes, addr, v);
 }
 
 void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 {
-	nes->sys.write = true;
-
 	// DMC DMA will only engage on a read cycle, double writes will stall longer
 	if (nes->sys.dma.dmc_begin)
 		nes->sys.dma.dmc_delay++;
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
+
+	// Concurrent cycle
+	nes->sys.write = true;
+
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	sys_write(nes, addr, v);
@@ -290,8 +295,11 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 
 	nes->sys.cycle++;
 	nes->sys.write = false;
+	// End concurrent cycle
 
-	// OAM DMA takes place immediately after the write tick
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
+
+	// OAM DMA will engage after the write tick
 	sys_dma_oam(nes, v);
 }
 

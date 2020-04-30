@@ -226,7 +226,7 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 			ppu->decay_high2 = 0;
 
 			// https://wiki.nesdev.com/w/index.php/PPU_frame_timing#VBL_Flag_Timing
-			if (ppu->scanline == 241 && ppu->dot == 0)
+			if (ppu->scanline == 241 && ppu->dot == 1)
 				ppu->supress_nmi = true;
 
 			v = ppu->open_bus = (ppu->open_bus & 0x1F) | ppu->STATUS;
@@ -239,7 +239,7 @@ uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t a
 			ppu->decay_high2 = ppu->decay_low5 = 0;
 
 			if (ppu_visible(ppu)) {
-				int32_t pos = ppu->dot - 257;
+				int32_t pos = ppu->dot - 258;
 				int32_t n = pos / 8;
 				int32_t m = (pos % 8 > 3) ? 3 : pos % 8;
 
@@ -738,8 +738,6 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 
 void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 {
-	ppu_clock(ppu);
-
 	ppu->rendering = ppu->MASK.show_bg || ppu->MASK.show_sprites;
 
 	if (ppu->dot == 0) {
@@ -798,6 +796,8 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 				ppu->dot++;
 		}
 	}
+
+	ppu_clock(ppu);
 }
 
 bool ppu_new_frame(struct ppu *ppu)
@@ -865,11 +865,6 @@ void ppu_reset(struct ppu *ppu)
 	memcpy(ppu->palette_ram, POWER_UP_PALETTE, 32);
 
 	ppu_generate_emphasis_tables(ppu);
-
-	// PPU is clocked at the beginning of the step, start one cycle before
-	ppu->dot = 339;
-	ppu->scanline = 261;
-	ppu->f = true;
 
 	ppu->CTRL.incr = 1;
 	ppu->CTRL.sprite_h = 8;
