@@ -665,7 +665,7 @@ void apu_dma_dmc_finish(struct apu *apu, uint8_t v)
 
 static void apu_reload_length(struct apu *apu, struct length *len, bool channel_enabled, uint8_t v)
 {
-	bool in_length_cycle = apu->frame_counter == 14912 || apu->frame_counter == (apu->mode ? 37280 : 29828);
+	bool in_length_cycle = apu->frame_counter == 14912 || apu->frame_counter == (apu->mode ? 37280 : 29827);
 
 	len->skip_clock = len->value == 0 && in_length_cycle;
 	bool ignore_reload = len->value != 0 && in_length_cycle;
