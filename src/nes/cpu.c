@@ -1249,9 +1249,9 @@ void cpu_destroy(struct cpu **cpu)
 
 void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 {
-	cpu->irq_pending = cpu->NMI = false;
-	cpu->halt = false;
 	cpu->IRQ = 0;
+	cpu->irq_pending = cpu->NMI = cpu->irq_p2 = cpu->nmi_p2 =
+		cpu->nmi_signal = cpu->halt = false;
 
 	// Internal operation
 	sys_cycle(nes);
@@ -1264,7 +1264,7 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 
 	if (hard) {
 		cpu->SP = 0xFD;
-		cpu->P = 0;
+		cpu->A = cpu->X = cpu->Y = cpu->P = 0;
 		SET_FLAG(cpu->P, FLAG_B);
 		SET_FLAG(cpu->P, FLAG_U);
 

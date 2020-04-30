@@ -495,8 +495,8 @@ static void cart_set_data_pointers(struct cart *cart)
 	}
 }
 
-void cart_create(const void *rom, size_t rom_size,
-	const void *sram, size_t sram_size, const NES_CartDesc *desc, struct cart **cart)
+void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram_size,
+	const NES_CartDesc *desc, struct cart **cart)
 {
 	struct cart *ctx = *cart = calloc(1, sizeof(struct cart));
 	ctx->prg.mask = PRG_SLOT - 1;

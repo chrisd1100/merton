@@ -38,8 +38,8 @@ size_t cart_sram_dirty(struct cart *cart);
 void cart_sram_get(struct cart *cart, void *sram, size_t size);
 
 // Lifecycle
-void cart_create(const void *rom, size_t rom_size,
-	const void *sram, size_t sram_size, const NES_CartDesc *hdr, struct cart **cart);
+void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram_size,
+	const NES_CartDesc *desc, struct cart **cart);
 void cart_destroy(struct cart **cart);
 size_t cart_set_state(struct cart *cart, const void *state, size_t size);
 void *cart_get_state(struct cart *cart, size_t *size);
