@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 // VRAM address helpers
 #define GET_CX(reg)       ((reg) & 0x001F)
@@ -43,7 +44,7 @@ struct spr {
 
 struct ppu {
 	uint8_t output[256];
-	uint32_t pixels[256 * 240];
+	uint32_t pixels[240][256];
 	uint32_t palettes[8][64];
 
 	uint8_t palette_ram[32];
@@ -668,10 +669,15 @@ static void ppu_render(struct ppu *ppu, uint16_t dot)
 	ppu->output[dot] = ppu_read_palette(ppu, addr);
 }
 
-static void ppu_output(struct ppu *ppu, uint16_t dot)
+static void ppu_output(struct ppu *ppu, uint16_t dot, bool scanlines)
 {
 	uint8_t color = ppu->output[dot] & ppu->MASK.grayscale;
-	ppu->pixels[ppu->scanline * 256 + dot] = ppu->palettes[ppu->MASK.emphasis][color];
+	uint32_t pixel = ppu->palettes[ppu->MASK.emphasis][color];
+
+	if (scanlines && (ppu->scanline & 1))
+		pixel = (pixel & 0x00FFFFFF) | 0xBF000000;
+
+	ppu->pixels[ppu->scanline][dot] = pixel;
 }
 
 
@@ -748,7 +754,7 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 			ppu_render(ppu, ppu->dot - 1);
 
 		if (ppu->dot >= 4 && ppu->dot <= 259)
-			ppu_output(ppu, ppu->dot - 4);
+			ppu_output(ppu, ppu->dot - 4, false);
 
 		if (ppu->MASK.rendering)
 			ppu_memory_access(ppu, cart);
@@ -801,7 +807,7 @@ const uint32_t *ppu_pixels(struct ppu *ppu)
 {
 	ppu->new_frame = false;
 
-	return ppu->pixels;
+	return (const uint32_t *) ppu->pixels;
 }
 
 

@@ -16,6 +16,7 @@ struct window_quad {
 	ID3D11Texture2D *texture;
 	ID3D11Resource *resource;
 	ID3D11ShaderResourceView *srv;
+	ID3D11BlendState *blend;
 };
 
 HRESULT window_quad_init(ID3D11Device *device, struct window_quad **quad)
@@ -78,6 +79,19 @@ HRESULT window_quad_init(ID3D11Device *device, struct window_quad **quad)
 
 	sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	e = ID3D11Device_CreateSamplerState(device, &sdesc, &ctx->ss_linear);
+	if (e != S_OK) goto except;
+
+	D3D11_BLEND_DESC bdesc = {0};
+	bdesc.AlphaToCoverageEnable = false;
+	bdesc.RenderTarget[0].BlendEnable = true;
+	bdesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	bdesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	bdesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	bdesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	bdesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	bdesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	bdesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	e = ID3D11Device_CreateBlendState(device, &bdesc, &ctx->blend);
 	if (e != S_OK) goto except;
 
 	except:
@@ -204,6 +218,9 @@ static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *conte
 	ID3D11DeviceContext_IASetPrimitiveTopology(context, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	ID3D11DeviceContext_OMSetRenderTargets(context, 1, &rtv, NULL);
 
+	float blend_factor[4] = {0};
+	ID3D11DeviceContext_OMSetBlendState(context, ctx->blend, blend_factor, 0xFFFFFFFF);
+
 	FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	ID3D11DeviceContext_ClearRenderTargetView(context, rtv, clear_color);
 	ID3D11DeviceContext_DrawIndexed(context, 6, 0, 0);
@@ -251,6 +268,9 @@ void window_quad_destroy(struct window_quad **quad)
 	struct window_quad *ctx = *quad;
 
 	window_quad_destroy_resource(ctx);
+
+	if (ctx->blend)
+		ID3D11BlendState_Release(ctx->blend);
 
 	if (ctx->ss_linear)
 		ID3D11SamplerState_Release(ctx->ss_linear);
