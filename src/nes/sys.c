@@ -228,8 +228,10 @@ static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 	if (!nes->sys.dma.dmc_begin)
 		return v;
 
-	if (addr == 0x2007)
+	if (addr == 0x2007) {
+		nes->sys.cycle_2007 = 0;
 		ppu_read(nes->ppu, nes->cpu, nes->cart, addr);
+	}
 
 	v = sys_read(nes, addr);
 
@@ -251,8 +253,6 @@ static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
-	apu_step(nes->apu, nes, nes->cpu);
-
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
@@ -263,11 +263,11 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	cart_step(nes->cart, nes->cpu);
 	cpu_poll_interrupts(nes->cpu);
 
-	v = sys_dma_dmc(nes, addr, v);
+	apu_step(nes->apu, nes, nes->cpu);
 
 	nes->sys.cycle++;
 
-	return v;
+	return sys_dma_dmc(nes, addr, v);
 }
 
 void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
@@ -278,8 +278,6 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	if (nes->sys.dma.dmc_begin)
 		nes->sys.dma.dmc_delay++;
 
-	apu_step(nes->apu, nes, nes->cpu);
-
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
@@ -288,10 +286,13 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	cart_step(nes->cart, nes->cpu);
 	cpu_poll_interrupts(nes->cpu);
 
-	sys_dma_oam(nes, v);
+	apu_step(nes->apu, nes, nes->cpu);
 
 	nes->sys.cycle++;
 	nes->sys.write = false;
+
+	// OAM DMA takes place immediately after the write tick
+	sys_dma_oam(nes, v);
 }
 
 void sys_cycle(NES *nes)

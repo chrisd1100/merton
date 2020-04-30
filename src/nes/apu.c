@@ -669,7 +669,7 @@ void apu_dma_dmc_finish(struct apu *apu, uint8_t v)
 
 static void apu_reload_length(struct apu *apu, struct length *len, bool channel_enabled, uint8_t v)
 {
-	bool in_length_cycle = apu->frame_counter == 14912 || apu->frame_counter == (apu->mode ? 37280 : 29827);
+	bool in_length_cycle = apu->frame_counter == 14913 || apu->frame_counter == (apu->mode ? 37281 : 29828);
 
 	len->skip_clock = len->value == 0 && in_length_cycle;
 	bool ignore_reload = len->value != 0 && in_length_cycle;
@@ -1002,9 +1002,6 @@ static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
 
 void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
 {
-	apu->cpu_cycle++;
-	apu->frame_counter++;
-
 	// Pulse & dmc step every other clock
 	if (apu->cpu_cycle & 1) {
 		apu_pulse_step_timer(&apu->p[0], EXT_NONE);
@@ -1053,6 +1050,10 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
 	apu_dac_mix(&apu->dac, apu->channels, apu->p[0].output,
 		apu->p[1].output, apu->p[2].output, apu->p[3].output, apu->p6[0].output,
 		apu->p6[1].output, apu->s.output, apu->t.output, apu->n.output, apu->d.output);
+
+	apu->cpu_cycle++;
+	apu->frame_counter++;
+
 }
 
 const int16_t *apu_frames(struct apu *apu, uint32_t *count)

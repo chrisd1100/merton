@@ -1258,6 +1258,7 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 	sys_cycle(nes);
 	sys_cycle(nes);
 	sys_cycle(nes);
+	sys_cycle(nes);
 
 	cpu->PC = cpu_read16(nes, RESET_VECTOR);
 
