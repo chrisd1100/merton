@@ -20,8 +20,8 @@ uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext);
 void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext);
 
 // Step
-void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
-	NES_AudioCallback new_samples, const void *opaque);
+void apu_step(struct apu *apu, NES *nes, struct cpu *cpu);
+const int16_t *apu_frames(struct apu *apu, uint32_t *count);
 
 // Configuration
 void apu_set_config(struct apu *apu, const NES_Config *cfg);

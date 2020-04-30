@@ -81,7 +81,8 @@ void NES_LoadCart(NES *ctx, const void *rom, size_t romSize, const void *sram, s
 bool NES_CartLoaded(NES *ctx);
 
 // Step
-uint32_t NES_NextFrame(NES *ctx, NES_VideoCallback videoCallback, const void *opaque);
+uint32_t NES_NextFrame(NES *ctx, NES_VideoCallback videoCallback,
+	NES_AudioCallback audioCallback, const void *opaque);
 
 // Input
 void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pressed);
@@ -95,7 +96,7 @@ size_t NES_SRAMDirty(NES *ctx);
 void NES_GetSRAM(NES *ctx, void *sram, size_t size);
 
 // Lifecycle
-void NES_Create(NES_AudioCallback audioCallback, const void *opaque, const NES_Config *cfg, NES **nes);
+void NES_Create(const NES_Config *cfg, NES **nes);
 void NES_Destroy(NES **nes);
 void NES_Reset(NES *ctx, bool hard);
 bool NES_SetState(NES *ctx, const void *state, size_t size);

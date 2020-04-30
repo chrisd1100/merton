@@ -399,7 +399,7 @@ int32_t main(int32_t argc, char **argv)
 	r = audio_create(&ctx.audio, ctx.cfg.nes.sampleRate);
 	if (r != LIB_OK) goto except;
 
-	NES_Create(main_nes_audio, &ctx, &ctx.cfg.nes, &ctx.nes);
+	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
 
 	ui_create();
@@ -415,7 +415,7 @@ int32_t main(int32_t argc, char **argv)
 			main_audio_adjustment(&ctx);
 
 			if (!ctx.paused) {
-				ctx.cycles += NES_NextFrame(ctx.nes, main_nes_video, &ctx);
+				ctx.cycles += NES_NextFrame(ctx.nes, main_nes_video, main_nes_audio, &ctx);
 
 			} else {
 				main_nes_video(NULL, &ctx);

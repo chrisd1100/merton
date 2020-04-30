@@ -419,6 +419,7 @@ static void apu_vrc6_saw_step_timer(struct saw *s)
 #define DELTA_BITS  15
 #define PHASE_COUNT 32
 #define OUTPUT_SIZE 1024
+#define BUF_SIZE    ((44800 * sizeof(int16_t) * 2) / 30)
 
 struct dac {
 	bool stereo;
@@ -435,6 +436,8 @@ struct dac {
 	int32_t integrator[2];
 	int32_t samples[2][2048];
 	int16_t output[OUTPUT_SIZE];
+	int16_t buf[BUF_SIZE];
+	size_t buf_offset;
 };
 
 static const int16_t SINC[PHASE_COUNT + 1][8] = {
@@ -558,7 +561,7 @@ static void apu_dac_spatialize(struct dac *dac, int32_t x)
 	}
 }
 
-static void apu_dac_generate_output(struct dac *dac, uint32_t offset, NES_AudioCallback new_samples, const void *opaque)
+static void apu_dac_generate_output(struct dac *dac, uint32_t offset)
 {
 	int32_t samples = offset >> TIME_BITS;
 	dac->offset = offset & (TIME_UNIT - 1);
@@ -578,10 +581,12 @@ static void apu_dac_generate_output(struct dac *dac, uint32_t offset, NES_AudioC
 		}
 	}
 
-	new_samples(dac->output, samples, (void *) opaque);
+	size_t size = samples * sizeof(int16_t) * 2;
+	memcpy(dac->buf + dac->buf_offset, dac->output, size);
+	dac->buf_offset += size / 2;
 }
 
-static void apu_dac_step(struct dac *dac, int16_t l, int16_t r, NES_AudioCallback new_samples, const void *opaque)
+static void apu_dac_step(struct dac *dac, int16_t l, int16_t r)
 {
 	uint32_t offset = dac->cycle * dac->factor + dac->offset;
 
@@ -592,12 +597,11 @@ static void apu_dac_step(struct dac *dac, int16_t l, int16_t r, NES_AudioCallbac
 	apu_dac_add_sample(dac, offset, 1, r, false);
 
 	if (dac->cycle++ > dac->frame_samples)
-		apu_dac_generate_output(dac, offset, new_samples, opaque);
+		apu_dac_generate_output(dac, offset);
 }
 
-static void apu_dac_mix(struct dac *dac, NES_AudioCallback new_samples, const void *opaque,
-	uint32_t channels, uint8_t p0, uint8_t p1, uint8_t p2, uint8_t p3, uint8_t p6_0, uint8_t p6_1,
-	uint8_t s, uint8_t t, uint8_t n, uint8_t d)
+static void apu_dac_mix(struct dac *dac, uint32_t channels, uint8_t p0, uint8_t p1,
+	uint8_t p2, uint8_t p3, uint8_t p6_0, uint8_t p6_1, uint8_t s, uint8_t t, uint8_t n, uint8_t d)
 {
 	uint8_t ext0 = (channels & NES_CHANNEL_EXT_0) ? p2 + p6_0 : 0;
 	uint8_t ext1 = (channels & NES_CHANNEL_EXT_1) ? p3 + p6_1 : 0;
@@ -624,12 +628,12 @@ static void apu_dac_mix(struct dac *dac, NES_AudioCallback new_samples, const vo
 		int16_t l = dac->tndvol[3 * t + 2 * n] + dac->pvol[p0] - dac->pvol[ext0] - dac->pvol[s];
 		int16_t r = dac->tndvol[d] + dac->pvol[p1] - dac->pvol[ext1];
 
-		apu_dac_step(dac, l, r, new_samples, opaque);
+		apu_dac_step(dac, l, r);
 	} else {
 		int16_t m = dac->tndvol[3 * t + 2 * n + d] + dac->pvol[p0 + p1] - dac->pvol[ext0] -
 			dac->pvol[ext1] - dac->pvol[s];
 
-		apu_dac_step(dac, m, 0, new_samples, opaque);
+		apu_dac_step(dac, m, 0);
 	}
 }
 
@@ -996,8 +1000,7 @@ static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
 	}
 }
 
-void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
-	NES_AudioCallback new_samples, const void *opaque)
+void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
 {
 	apu->cpu_cycle++;
 	apu->frame_counter++;
@@ -1047,9 +1050,17 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	}
 
 	// Mix
-	apu_dac_mix(&apu->dac, new_samples, opaque, apu->channels, apu->p[0].output,
+	apu_dac_mix(&apu->dac, apu->channels, apu->p[0].output,
 		apu->p[1].output, apu->p[2].output, apu->p[3].output, apu->p6[0].output,
 		apu->p6[1].output, apu->s.output, apu->t.output, apu->n.output, apu->d.output);
+}
+
+const int16_t *apu_frames(struct apu *apu, uint32_t *count)
+{
+	*count = (uint32_t) (apu->dac.buf_offset / 2);
+	apu->dac.buf_offset = 0;
+
+	return apu->dac.buf;
 }
 
 
