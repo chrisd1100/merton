@@ -9,6 +9,9 @@
 #define NES_FRAME_HEIGHT 240
 #define NES_CLOCK        1789773
 
+#define NES_CONFIG_DEFAULTS \
+	{true, 44100, NES_CLOCK, NES_CHANNEL_ALL}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -60,6 +63,13 @@ typedef struct {
 	bool battery;
 } NES_CartDesc;
 
+typedef struct {
+	bool stereo;
+	uint32_t sampleRate;
+	uint32_t APUClock;
+	uint32_t channels;
+} NES_Config;
+
 typedef struct NES NES;
 
 typedef void (*NES_AudioCallback)(const int16_t *frames, uint32_t count, void *opaque);
@@ -78,17 +88,14 @@ void NES_ControllerButton(NES *nes, uint8_t player, NES_Button button, bool pres
 void NES_ControllerState(NES *nes, uint8_t player, uint8_t state);
 
 // Configuration
-void NES_SetStereo(NES *ctx, bool stereo);
-void NES_SetSampleRate(NES *ctx, uint32_t sampleRate);
-void NES_SetAPUClock(NES *ctx, uint32_t hz);
-void NES_SetChannels(NES *ctx, uint32_t channels);
+void NES_SetConfig(NES *ctx, const NES_Config *cfg);
 
 // SRAM
 size_t NES_SRAMDirty(NES *ctx);
 void NES_GetSRAM(NES *ctx, void *sram, size_t size);
 
 // Lifecycle
-void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sampleRate, bool stereo, NES **nes);
+void NES_Create(NES_AudioCallback audioCallback, const void *opaque, const NES_Config *cfg, NES **nes);
 void NES_Destroy(NES **nes);
 void NES_Reset(NES *ctx, bool hard);
 bool NES_SetState(NES *ctx, const void *state, size_t size);

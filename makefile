@@ -13,7 +13,7 @@ OBJS = \
 	src\nes\cpu.obj \
 	src\nes\sys.obj \
 	src\nes\ppu.obj \
-	src\app\\main.obj \
+	src\app\main.obj \
 	src\app\ui.obj \
 	src\lib\crypto.obj \
 	src\lib\windows\window.obj \

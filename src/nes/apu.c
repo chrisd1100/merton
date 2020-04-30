@@ -1055,44 +1055,24 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 
 // Configuration
 
-void apu_set_stereo(struct apu *apu, bool stereo)
+void apu_set_config(struct apu *apu, const NES_Config *cfg)
 {
-	apu->dac.stereo = stereo;
-}
+	apu->dac.stereo = cfg->stereo;
+	apu->dac.sample_rate = cfg->sampleRate;
+	apu->dac.clock = cfg->APUClock;
+	apu->channels = cfg->channels;
 
-void apu_set_sample_rate(struct apu *apu, uint32_t sample_rate)
-{
-	apu->dac.sample_rate = sample_rate;
-	apu_dac_clock_math(&apu->dac);
-}
-
-void apu_set_channels(struct apu *apu, uint32_t channels)
-{
-	apu->channels = channels;
-}
-
-uint32_t apu_get_channels(struct apu *apu)
-{
-	return apu->channels;
-}
-
-void apu_set_clock(struct apu *apu, uint32_t hz)
-{
-	apu->dac.clock = hz;
 	apu_dac_clock_math(&apu->dac);
 }
 
 
 // Lifecycle
 
-void apu_create(uint32_t sample_rate, bool stereo, struct apu **apu)
+void apu_create(struct apu **apu, const NES_Config *cfg)
 {
 	struct apu *ctx = *apu = calloc(1, sizeof(struct apu));
-	ctx->dac.sample_rate = sample_rate;
 
-	apu_set_channels(ctx, NES_CHANNEL_ALL);
-	apu_set_stereo(ctx, stereo);
-	apu_set_clock(ctx, NES_CLOCK);
+	apu_set_config(ctx, cfg);
 	apu_dac_create(&ctx->dac);
 }
 

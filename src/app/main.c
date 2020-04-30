@@ -179,8 +179,8 @@ static void main_audio_adjustment(struct main *ctx)
 {
 	uint32_t queued = audio_queued_frames(ctx->audio);
 
-	uint32_t audio_start = 100 * (ctx->cfg.sample_rate / 1000);
-	uint32_t audio_buffer = 50 * (ctx->cfg.sample_rate / 1000);
+	uint32_t audio_start = 100 * (ctx->cfg.nes.sampleRate / 1000);
+	uint32_t audio_buffer = 50 * (ctx->cfg.nes.sampleRate / 1000);
 
 	if (queued >= audio_start && !audio_playing(ctx->audio))
 		audio_play(ctx->audio);
@@ -193,8 +193,10 @@ static void main_audio_adjustment(struct main *ctx)
 
 		if (ctx->ts != 0) {
 			int32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
-			if (abs(cycles_sec - NES_CLOCK) < 5000)
-				NES_SetAPUClock(ctx->nes, cycles_sec + (queued >= audio_buffer ? CLOCK_UP : CLOCK_DOWN));
+			if (abs(cycles_sec - NES_CLOCK) < 5000) {
+				ctx->cfg.nes.APUClock = cycles_sec + (queued >= audio_buffer ? CLOCK_UP : CLOCK_DOWN);
+				NES_SetConfig(ctx->nes, &ctx->cfg.nes);
+			}
 		}
 
 		ctx->cycles = 0;
@@ -308,9 +310,9 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 					memset(ctx->cropped, 0, sizeof(ctx->cropped));
 
 			// Audio device must be reset on sample rate changes
-			if (event->cfg.sample_rate != ctx->cfg.sample_rate) {
+			if (event->cfg.nes.sampleRate != ctx->cfg.nes.sampleRate) {
 				audio_destroy(&ctx->audio);
-				audio_create(&ctx->audio, event->cfg.sample_rate);
+				audio_create(&ctx->audio, event->cfg.nes.sampleRate);
 			}
 
 			// Fullscreen/windowed transitions
@@ -394,10 +396,10 @@ int32_t main(int32_t argc, char **argv)
 		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, &ctx.window);
 	if (r != LIB_OK) goto except;
 
-	r = audio_create(&ctx.audio, ctx.cfg.sample_rate);
+	r = audio_create(&ctx.audio, ctx.cfg.nes.sampleRate);
 	if (r != LIB_OK) goto except;
 
-	NES_Create(main_nes_audio, &ctx, ctx.cfg.sample_rate, ctx.cfg.stereo, &ctx.nes);
+	NES_Create(main_nes_audio, &ctx, &ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
 
 	ui_create();

@@ -373,24 +373,9 @@ void NES_ControllerState(NES *nes, uint8_t player, uint8_t state)
 
 // Configuration
 
-void NES_SetStereo(NES *ctx, bool stereo)
+void NES_SetConfig(NES *ctx, const NES_Config *cfg)
 {
-	apu_set_stereo(ctx->apu, stereo);
-}
-
-void NES_SetSampleRate(NES *ctx, uint32_t sampleRate)
-{
-	apu_set_sample_rate(ctx->apu, sampleRate);
-}
-
-void NES_SetAPUClock(NES *ctx, uint32_t hz)
-{
-	apu_set_clock(ctx->apu, hz);
-}
-
-void NES_SetChannels(NES *ctx, uint32_t channels)
-{
-	apu_set_channels(ctx->apu, channels);
+	apu_set_config(ctx->apu, cfg);
 }
 
 
@@ -410,7 +395,7 @@ void NES_GetSRAM(NES *ctx, void *sram, size_t size)
 
 // Lifecycle
 
-void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sampleRate, bool stereo, NES **nes)
+void NES_Create(NES_AudioCallback audioCallback, const void *opaque, const NES_Config *cfg, NES **nes)
 {
 	NES *ctx = *nes = calloc(1, sizeof(NES));
 
@@ -419,7 +404,7 @@ void NES_Create(NES_AudioCallback audioCallback, const void *opaque, uint32_t sa
 
 	cpu_create(&ctx->cpu);
 	ppu_create(&ctx->ppu);
-	apu_create(sampleRate, stereo, &ctx->apu);
+	apu_create(&ctx->apu, cfg);
 }
 
 void NES_Destroy(NES **nes)

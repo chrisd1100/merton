@@ -633,69 +633,69 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 			if (MenuItem(args->cfg->mute ? "Unmute" : "Mute", "Ctrl+M"))
 				event->cfg.mute = !event->cfg.mute;
 
-			if (MenuItem("Stereo", "", args->cfg->stereo, true)) {
-				event->cfg.stereo = !event->cfg.stereo;
-				NES_SetStereo(args->nes, event->cfg.stereo);
+			if (MenuItem("Stereo", "", args->cfg->nes.stereo, true)) {
+				event->cfg.nes.stereo = !event->cfg.nes.stereo;
+				NES_SetConfig(args->nes, &event->cfg.nes);
 			}
 
 			if (BeginMenu("Sample Rate", true)) {
 				int32_t sample_rate = 0;
 
-				if (MenuItem("48000", "", args->cfg->sample_rate == 48000, true))
+				if (MenuItem("48000", "", args->cfg->nes.sampleRate == 48000, true))
 					sample_rate = 48000;
 
-				if (MenuItem("44100", "", args->cfg->sample_rate == 44100, true))
+				if (MenuItem("44100", "", args->cfg->nes.sampleRate == 44100, true))
 					sample_rate = 44100;
 
-				if (MenuItem("22050", "", args->cfg->sample_rate == 22050, true))
+				if (MenuItem("22050", "", args->cfg->nes.sampleRate == 22050, true))
 					sample_rate = 22050;
 
-				if (MenuItem("16000", "", args->cfg->sample_rate == 16000, true))
+				if (MenuItem("16000", "", args->cfg->nes.sampleRate == 16000, true))
 					sample_rate = 16000;
 
-				if (MenuItem("11025", "", args->cfg->sample_rate == 11025, true))
+				if (MenuItem("11025", "", args->cfg->nes.sampleRate == 11025, true))
 					sample_rate = 11025;
 
-				if (MenuItem("8000", "", args->cfg->sample_rate == 8000, true))
+				if (MenuItem("8000", "", args->cfg->nes.sampleRate == 8000, true))
 					sample_rate = 8000;
 
 				if (sample_rate != 0) {
-					event->cfg.sample_rate = sample_rate;
-					NES_SetSampleRate(args->nes, sample_rate);
+					event->cfg.nes.sampleRate = sample_rate;
+					NES_SetConfig(args->nes, &event->cfg.nes);
 				}
 
 				ImGui::EndMenu();
 			}
 
 			if (BeginMenu("Channels", true)) {
-				uint32_t channels = event->cfg.channels;
+				uint32_t channels = event->cfg.nes.channels;
 
-				if (MenuItem("Square 1", "", args->cfg->channels & NES_CHANNEL_PULSE_0, true))
-					event->cfg.channels ^= NES_CHANNEL_PULSE_0;
+				if (MenuItem("Square 1", "", args->cfg->nes.channels & NES_CHANNEL_PULSE_0, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_PULSE_0;
 
-				if (MenuItem("Square 2", "", args->cfg->channels & NES_CHANNEL_PULSE_1, true))
-					event->cfg.channels ^= NES_CHANNEL_PULSE_1;
+				if (MenuItem("Square 2", "", args->cfg->nes.channels & NES_CHANNEL_PULSE_1, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_PULSE_1;
 
-				if (MenuItem("Triangle", "", args->cfg->channels & NES_CHANNEL_TRIANGLE, true))
-					event->cfg.channels ^= NES_CHANNEL_TRIANGLE;
+				if (MenuItem("Triangle", "", args->cfg->nes.channels & NES_CHANNEL_TRIANGLE, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_TRIANGLE;
 
-				if (MenuItem("Noise", "", args->cfg->channels & NES_CHANNEL_NOISE, true))
-					event->cfg.channels ^= NES_CHANNEL_NOISE;
+				if (MenuItem("Noise", "", args->cfg->nes.channels & NES_CHANNEL_NOISE, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_NOISE;
 
-				if (MenuItem("DMC", "", args->cfg->channels & NES_CHANNEL_DMC, true))
-					event->cfg.channels ^= NES_CHANNEL_DMC;
+				if (MenuItem("DMC", "", args->cfg->nes.channels & NES_CHANNEL_DMC, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_DMC;
 
-				if (MenuItem("Mapper 1", "", args->cfg->channels & NES_CHANNEL_EXT_0, true))
-					event->cfg.channels ^= NES_CHANNEL_EXT_0;
+				if (MenuItem("Mapper 1", "", args->cfg->nes.channels & NES_CHANNEL_EXT_0, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_EXT_0;
 
-				if (MenuItem("Mapper 2", "", args->cfg->channels & NES_CHANNEL_EXT_1, true))
-					event->cfg.channels ^= NES_CHANNEL_EXT_1;
+				if (MenuItem("Mapper 2", "", args->cfg->nes.channels & NES_CHANNEL_EXT_1, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_EXT_1;
 
-				if (MenuItem("Mapper 3", "", args->cfg->channels & NES_CHANNEL_EXT_2, true))
-					event->cfg.channels ^= NES_CHANNEL_EXT_2;
+				if (MenuItem("Mapper 3", "", args->cfg->nes.channels & NES_CHANNEL_EXT_2, true))
+					event->cfg.nes.channels ^= NES_CHANNEL_EXT_2;
 
-				if (channels != event->cfg.channels)
-					NES_SetChannels(args->nes, event->cfg.channels);
+				if (channels != event->cfg.nes.channels)
+					NES_SetConfig(args->nes, &event->cfg.nes);
 
 				ImGui::EndMenu();
 			}

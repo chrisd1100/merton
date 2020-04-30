@@ -6,7 +6,7 @@
 #include "lib.h"
 #include "nes/nes.h"
 
-#define CONFIG_VERSION 2
+#define CONFIG_VERSION 3
 
 enum config_shader {
 	CONFIG_SHADER_NONE = 0,
@@ -22,6 +22,9 @@ enum log_visibility {
 struct config {
 	// Version
 	uint16_t version;
+
+	// NES Config
+	NES_Config nes;
 
 	// System
 	bool bg_pause;
@@ -51,14 +54,12 @@ struct config {
 
 	// Audio
 	bool mute;
-	bool stereo;
-	int32_t sample_rate;
-	uint32_t channels;
 };
 #pragma pack()
 
 #define CONFIG_DEFAULTS { \
 	CONFIG_VERSION, \
+	NES_CONFIG_DEFAULTS, \
 	true, \
 	true, \
 	true, \
@@ -71,7 +72,4 @@ struct config {
 	{NES_FRAME_WIDTH * 3, NES_FRAME_HEIGHT * 3}, \
 	{8, 0, 8, 0}, \
 	false, \
-	true, \
-	44100, \
-	NES_CHANNEL_ALL, \
 }

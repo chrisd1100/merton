@@ -24,14 +24,10 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu,
 	NES_AudioCallback new_samples, const void *opaque);
 
 // Configuration
-void apu_set_stereo(struct apu *apu, bool stereo);
-void apu_set_sample_rate(struct apu *apu, uint32_t sample_rate);
-void apu_set_channels(struct apu *apu, uint32_t channels);
-uint32_t apu_get_channels(struct apu *apu);
-void apu_set_clock(struct apu *apu, uint32_t hz);
+void apu_set_config(struct apu *apu, const NES_Config *cfg);
 
 // Lifecycle
-void apu_create(uint32_t sample_rate, bool stereo, struct apu **apu);
+void apu_create(struct apu **apu, const NES_Config *cfg);
 void apu_destroy(struct apu **apu);
 void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard);
 size_t apu_set_state(struct apu *apu, const void *state, size_t size);
