@@ -629,9 +629,6 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 				if (MenuItem("100%", "", args->cfg->nes.scanlines == 255, true))
 					event->cfg.nes.scanlines = 255;
 
-				if (event->cfg.nes.scanlines != args->cfg->nes.scanlines)
-					NES_SetConfig(args->nes, &event->cfg.nes);
-
 				ImGui::EndMenu();
 			}
 
@@ -657,43 +654,32 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 			if (MenuItem(args->cfg->mute ? "Unmute" : "Mute", "Ctrl+M"))
 				event->cfg.mute = !event->cfg.mute;
 
-			if (MenuItem("Stereo", "", args->cfg->nes.stereo, true)) {
+			if (MenuItem("Stereo", "", args->cfg->nes.stereo, true))
 				event->cfg.nes.stereo = !event->cfg.nes.stereo;
-				NES_SetConfig(args->nes, &event->cfg.nes);
-			}
 
 			if (BeginMenu("Sample Rate", true)) {
-				int32_t sample_rate = 0;
-
 				if (MenuItem("48000", "", args->cfg->nes.sampleRate == 48000, true))
-					sample_rate = 48000;
+					event->cfg.nes.sampleRate = 48000;
 
 				if (MenuItem("44100", "", args->cfg->nes.sampleRate == 44100, true))
-					sample_rate = 44100;
+					event->cfg.nes.sampleRate = 44100;
 
 				if (MenuItem("22050", "", args->cfg->nes.sampleRate == 22050, true))
-					sample_rate = 22050;
+					event->cfg.nes.sampleRate = 22050;
 
 				if (MenuItem("16000", "", args->cfg->nes.sampleRate == 16000, true))
-					sample_rate = 16000;
+					event->cfg.nes.sampleRate = 16000;
 
 				if (MenuItem("11025", "", args->cfg->nes.sampleRate == 11025, true))
-					sample_rate = 11025;
+					event->cfg.nes.sampleRate = 11025;
 
 				if (MenuItem("8000", "", args->cfg->nes.sampleRate == 8000, true))
-					sample_rate = 8000;
-
-				if (sample_rate != 0) {
-					event->cfg.nes.sampleRate = sample_rate;
-					NES_SetConfig(args->nes, &event->cfg.nes);
-				}
+					event->cfg.nes.sampleRate = 8000;
 
 				ImGui::EndMenu();
 			}
 
 			if (BeginMenu("Channels", true)) {
-				uint32_t channels = event->cfg.nes.channels;
-
 				if (MenuItem("Square 1", "", args->cfg->nes.channels & NES_CHANNEL_PULSE_0, true))
 					event->cfg.nes.channels ^= NES_CHANNEL_PULSE_0;
 
@@ -717,9 +703,6 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 				if (MenuItem("Mapper 3", "", args->cfg->nes.channels & NES_CHANNEL_EXT_2, true))
 					event->cfg.nes.channels ^= NES_CHANNEL_EXT_2;
-
-				if (channels != event->cfg.nes.channels)
-					NES_SetConfig(args->nes, &event->cfg.nes);
 
 				ImGui::EndMenu();
 			}
@@ -826,6 +809,9 @@ void ui_component_root(const struct ui_args *args,
 
 	if (memcmp(args->cfg, &event.cfg, sizeof(struct config)))
 		event.type = UI_EVENT_CONFIG;
+
+	if (memcmp(&event.cfg.nes, &args->cfg->nes, sizeof(NES_Config)))
+		NES_SetConfig(args->nes, &event.cfg.nes);
 
 	if (event.type != UI_EVENT_NONE)
 		event_callback(&event, (void *) opaque);
