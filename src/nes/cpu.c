@@ -1186,19 +1186,12 @@ void cpu_halt(struct cpu *cpu, bool halt)
 	cpu->halt = halt;
 }
 
-void cpu_phi_1(struct cpu *cpu)
+void cpu_poll_interrupts(struct cpu *cpu)
 {
 	if (cpu->halt)
 		return;
 
 	cpu->irq_pending = cpu->irq_p2 || cpu->nmi_signal;
-}
-
-void cpu_phi_2(struct cpu *cpu)
-{
-	if (cpu->halt)
-		return;
-
 	cpu->irq_p2 = cpu->IRQ && !GET_FLAG(cpu->P, FLAG_I);
 	cpu->nmi_signal = cpu->nmi_signal || (!cpu->nmi_p2 && cpu->NMI);
 	cpu->nmi_p2 = cpu->NMI;

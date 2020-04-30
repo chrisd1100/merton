@@ -68,7 +68,6 @@ struct ppu {
 		bool show_sprites;
 		bool show_left_bg;
 		bool show_left_sprites;
-		bool rendering;
 	} MASK;
 
 	uint8_t STATUS;
@@ -102,6 +101,7 @@ struct ppu {
 
 	uint16_t scanline;
 	uint16_t dot;
+	bool rendering;
 	bool supress_nmi;
 	bool output_v;
 	bool new_frame;
@@ -151,7 +151,7 @@ static void ppu_scroll_v(struct ppu *ppu);
 
 static bool ppu_visible(struct ppu *ppu)
 {
-	return ppu->MASK.rendering && (ppu->scanline <= 239 || ppu->scanline == 261);
+	return ppu->rendering && (ppu->scanline <= 239 || ppu->scanline == 261);
 }
 
 static void ppu_set_bus_v(struct ppu *ppu, struct cart *cart, uint16_t v)
@@ -304,7 +304,6 @@ void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t add
 			ppu->MASK.show_bg = v & 0x08;
 			ppu->MASK.show_sprites = v & 0x10;
 			ppu->MASK.emphasis = (v & 0xE0) >> 5;
-			ppu->MASK.rendering = ppu->MASK.show_bg || ppu->MASK.show_sprites;
 			break;
 
 		case 0x2003:
@@ -645,7 +644,7 @@ static void ppu_render(struct ppu *ppu, uint16_t dot)
 {
 	uint16_t addr = 0x3F00;
 
-	if (ppu->MASK.rendering) {
+	if (ppu->rendering) {
 		uint8_t bg_color = 0;
 
 		if (ppu->MASK.show_bg && (dot > 7 || ppu->MASK.show_left_bg)) {
@@ -741,6 +740,8 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 {
 	ppu_clock(ppu);
 
+	ppu->rendering = ppu->MASK.show_bg || ppu->MASK.show_sprites;
+
 	if (ppu->dot == 0) {
 		ppu->oam_n = ppu->soam_n = ppu->eval_step = 0;
 		ppu->overflow = false;
@@ -757,7 +758,7 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 		if (ppu->dot >= 4 && ppu->dot <= 259)
 			ppu_output(ppu, ppu->dot - 4);
 
-		if (ppu->MASK.rendering)
+		if (ppu->rendering)
 			ppu_memory_access(ppu, cart);
 
 	} else if (ppu->scanline == 240) {
@@ -787,7 +788,7 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 			ppu_assert_nmi(ppu, cpu);
 		}
 
-		if (ppu->MASK.rendering) {
+		if (ppu->rendering) {
 			if (ppu->dot >= 280 && ppu->dot <= 304)
 				ppu_scroll_copy_y(ppu);
 

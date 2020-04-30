@@ -17,8 +17,7 @@ struct cpu;
 void cpu_irq(struct cpu *cpu, enum irq irq, bool enabled);
 void cpu_nmi(struct cpu *cpu, bool enabled);
 void cpu_halt(struct cpu *cpu, bool halt);
-void cpu_phi_1(struct cpu *cpu);
-void cpu_phi_2(struct cpu *cpu);
+void cpu_poll_interrupts(struct cpu *cpu);
 
 // Step
 void cpu_step(struct cpu *cpu, NES *nes);

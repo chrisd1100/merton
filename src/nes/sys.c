@@ -251,19 +251,17 @@ static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
+	apu_step(nes->apu, nes, nes->cpu);
+
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
-	// Begin concurrent tick
-	cpu_phi_1(nes->cpu);
-	apu_step(nes->apu, nes, nes->cpu);
 	uint8_t v = sys_read(nes, addr);
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	cart_step(nes->cart, nes->cpu);
-	cpu_phi_2(nes->cpu);
-	// End concurrent tick
+	cpu_poll_interrupts(nes->cpu);
 
 	v = sys_dma_dmc(nes, addr, v);
 
@@ -280,19 +278,15 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	if (nes->sys.dma.dmc_begin)
 		nes->sys.dma.dmc_delay++;
 
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
-
-	// Begin concurrent tick
-	cpu_phi_1(nes->cpu);
 	apu_step(nes->apu, nes, nes->cpu);
 
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cpu, nes->cart);
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
 	sys_write(nes, addr, v);
 	cart_step(nes->cart, nes->cpu);
-	cpu_phi_2(nes->cpu);
-	// End concurrent tick
+	cpu_poll_interrupts(nes->cpu);
 
 	sys_dma_oam(nes, v);
 
