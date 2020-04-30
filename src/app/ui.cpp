@@ -607,10 +607,34 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 				ImGui::EndMenu();
 			}
+
 			if (BeginMenu("Shader", true)) {
 				MenuItem("None", "", true, true);
 				ImGui::EndMenu();
 			}
+
+			if (BeginMenu("Scanlines", true)) {
+				if (MenuItem("0%", "", args->cfg->nes.scanlines == 0, true))
+					event->cfg.nes.scanlines = 0;
+
+				if (MenuItem("25%", "", args->cfg->nes.scanlines == 64, true))
+					event->cfg.nes.scanlines = 64;
+
+				if (MenuItem("50%", "", args->cfg->nes.scanlines == 128, true))
+					event->cfg.nes.scanlines = 128;
+
+				if (MenuItem("75%", "", args->cfg->nes.scanlines == 191, true))
+					event->cfg.nes.scanlines = 191;
+
+				if (MenuItem("100%", "", args->cfg->nes.scanlines == 255, true))
+					event->cfg.nes.scanlines = 255;
+
+				if (event->cfg.nes.scanlines != args->cfg->nes.scanlines)
+					NES_SetConfig(args->nes, &event->cfg.nes);
+
+				ImGui::EndMenu();
+			}
+
 			if (BeginMenu("Clear Overscan", true)) {
 				if (MenuItem("Top", "", args->cfg->overscan.top, true))
 					event->cfg.overscan.top = !event->cfg.overscan.top;

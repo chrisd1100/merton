@@ -377,6 +377,7 @@ void NES_ControllerState(NES *nes, uint8_t player, uint8_t state)
 void NES_SetConfig(NES *ctx, const NES_Config *cfg)
 {
 	apu_set_config(ctx->apu, cfg);
+	ppu_set_config(ctx->ppu, cfg);
 }
 
 
