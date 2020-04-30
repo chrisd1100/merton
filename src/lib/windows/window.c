@@ -130,6 +130,12 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 			custom_return = true;
 			r = DefRawInputProc(&ri, 1, sizeof(RAWINPUTHEADER));
 			break;
+		case WM_DROPFILES:
+			char name[1024];
+
+			if (DragQueryFileA((HDROP) wparam, 0, name, 1024)) {
+			}
+			break;
 		default:
 			break;
 	}
@@ -228,6 +234,8 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	ctx->hwnd = CreateWindowEx(0, WINDOW_CLASS_NAME, titlew, WS_VISIBLE | style,
 		x, y, width, height, NULL, NULL, ctx->instance, ctx);
 	if (!ctx->hwnd) {r = LIB_ERR; goto except;}
+
+	DragAcceptFiles(ctx->hwnd, TRUE);
 
 	RAWINPUTDEVICE rid[3] = {0};
 	// Joystick
