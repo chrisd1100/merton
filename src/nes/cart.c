@@ -20,6 +20,7 @@ struct memory {
 
 struct map {
 	enum mem type;
+	struct memory *mem;
 	size_t offset;
 	bool mapped;
 };
@@ -39,16 +40,12 @@ struct asset {
 static uint8_t map_read(struct asset *asset, uint8_t index, uint16_t addr, bool *hit)
 {
 	struct map *m = &asset->map[index][addr >> asset->shift];
-	struct memory *mem = ((m->type & EXRAM) == EXRAM) ? &asset->exram :
-		((m->type & CIRAM) == CIRAM) ? &asset->ciram : (m->type & RAM) ? &asset->ram : &asset->rom;
 
 	if (m->mapped) {
-		uint8_t *mapped_addr = mem->data + m->offset;
-
 		if (hit)
 			*hit = true;
 
-		return mapped_addr[addr & asset->mask];
+		return m->mem->data[m->offset + (addr & asset->mask)];
 	}
 
 	return 0;
@@ -57,13 +54,9 @@ static uint8_t map_read(struct asset *asset, uint8_t index, uint16_t addr, bool 
 static void map_write(struct asset *asset, uint8_t index, uint16_t addr, uint8_t v)
 {
 	struct map *m = &asset->map[index][addr >> asset->shift];
-	struct memory *mem = ((m->type & EXRAM) == EXRAM) ? &asset->exram :
-		((m->type & CIRAM) == CIRAM) ? &asset->ciram : (m->type & RAM) ? &asset->ram : &asset->rom;
 
-	if (m->mapped && (m->type & RAM)) {
-		uint8_t *mapped_addr = mem->data + m->offset;
-		mapped_addr[addr & asset->mask] = v;
-	}
+	if (m->mapped && (m->type & RAM))
+		m->mem->data[m->offset + (addr & asset->mask)] = v;
 }
 
 static void map_unmap(struct asset *asset, uint8_t index, uint16_t addr)
@@ -72,9 +65,15 @@ static void map_unmap(struct asset *asset, uint8_t index, uint16_t addr)
 	m->mapped = false;
 }
 
+static struct memory *map_get_mem(struct asset *asset, enum mem type)
+{
+	return ((type & EXRAM) == EXRAM) ? &asset->exram : ((type & CIRAM) == CIRAM) ?
+		&asset->ciram : (type & RAM) ? &asset->ram : &asset->rom;
+}
+
 static void cart_map(struct asset *asset, enum mem type, uint16_t addr, uint16_t bank, uint8_t bank_size_kb)
 {
-	struct memory *mem = ((type & CIRAM) == CIRAM) ? &asset->ciram : (type & RAM) ? &asset->ram : &asset->rom;
+	struct memory *mem = map_get_mem(asset, type);
 
 	int32_t start_slot = addr >> asset->shift;
 	int32_t bank_size_bytes = bank_size_kb * 0x0400;
@@ -84,21 +83,26 @@ static void cart_map(struct asset *asset, enum mem type, uint16_t addr, uint16_t
 	for (int32_t x = start_slot, y = 0; x < end_slot; x++, y++) {
 		struct map *m = &asset->map[type & 0x0F][x];
 
-		m->offset = (bank_offset + (y << asset->shift)) % mem->size;
 		m->type = type;
+		m->mem = mem;
+		m->offset = (bank_offset + (y << asset->shift)) % mem->size;
 		m->mapped = true;
 	}
 }
 
 static void cart_map_ciram_offset(struct asset *asset, uint8_t dest, enum mem type, size_t offset)
 {
-	asset->map[0][dest + 8].offset = offset;
+	struct memory *mem = map_get_mem(asset, type);
+
 	asset->map[0][dest + 8].type = type;
+	asset->map[0][dest + 8].mem = mem;
+	asset->map[0][dest + 8].offset = offset;
 	asset->map[0][dest + 8].mapped = true;
 
 	if (dest < 4) {
-		asset->map[0][dest + 12].offset = offset;
 		asset->map[0][dest + 12].type = type;
+		asset->map[0][dest + 12].mem = mem;
+		asset->map[0][dest + 12].offset = offset;
 		asset->map[0][dest + 12].mapped = true;
 	}
 }
@@ -482,6 +486,13 @@ static void cart_set_data_pointers(struct cart *cart)
 
 	cart->chr.exram.data = ptr;
 	ptr += cart->chr.exram.size;
+
+	for (uint8_t x = 0; x < 2; x++) {
+		for (uint8_t y = 0; y < 16; y++) {
+			cart->prg.map[x][y].mem = map_get_mem(&cart->prg, cart->prg.map[x][y].type);
+			cart->chr.map[x][y].mem = map_get_mem(&cart->chr, cart->chr.map[x][y].type);
+		}
+	}
 }
 
 void cart_create(const void *rom, size_t rom_size,
