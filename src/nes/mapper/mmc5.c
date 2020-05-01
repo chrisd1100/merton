@@ -208,7 +208,7 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 	}
 }
 
-static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, bool *mem_hit)
+static uint8_t mmc5_prg_read(struct cart *cart, struct apu *apu, uint16_t addr, bool *mem_hit)
 {
 	*mem_hit = true;
 
@@ -290,14 +290,19 @@ static void mmc5_scanline(struct cart *cart, uint16_t addr)
 		}
 
 		if (cart->mmc5.scanline == 240) {
-			cart->mmc5.in_frame = false;
 			cart->mmc5.scanline = 0;
+			cart->mmc5.in_frame = false;
 		}
 
-		if (cart->irq.scanline == cart->mmc5.scanline && cart->irq.scanline != 0)
-			cart->irq.pending = true;
+		cart->irq.pending = cart->irq.scanline == cart->mmc5.scanline && cart->irq.scanline != 0;
+
+		cart->mmc5.vs.scroll++;
+
+		if (cart->mmc5.scanline == 0)
+			cart->mmc5.vs.scroll = cart->mmc5.vs.scroll_reload;
 
 		cart->mmc5.irq_ctr = 0;
+		cart->mmc5.prev_addr = 0;
 	}
 
 	if (addr == cart->mmc5.prev_addr)
@@ -309,7 +314,6 @@ static void mmc5_scanline(struct cart *cart, uint16_t addr)
 static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type, bool nt)
 {
 	cart->mmc5.no_read = 0;
-
 	mmc5_scanline(cart, addr);
 
 	if (type == BGROM) {
@@ -318,13 +322,8 @@ static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type
 			cart->mmc5.nt_latch = false;
 			cart->mmc5.vs.htile++;
 
-			if (cart->mmc5.vs.htile == 35) {
+			if (cart->mmc5.vs.htile > 34)
 				cart->mmc5.vs.htile = 1;
-				cart->mmc5.vs.scroll++;
-
-				if (cart->mmc5.vs.htile == 35 * 240)
-					cart->mmc5.vs.scroll = cart->mmc5.vs.scroll_reload;
-			}
 		}
 
 		uint16_t htile = cart->mmc5.vs.htile >= 32 ? cart->mmc5.vs.htile - 32 : cart->mmc5.vs.htile + 1;
@@ -419,8 +418,10 @@ static uint8_t mmc5_chr_read(struct cart *cart, uint16_t addr, enum mem type)
 
 static void mmc5_step(struct cart *cart, struct cpu *cpu)
 {
-	if (++cart->mmc5.no_read == 3)
+	if (++cart->mmc5.no_read >= 3) {
 		cart->mmc5.in_frame = false;
+		cart->mmc5.scanline = 0;
+	}
 
 	cpu_irq(cpu, IRQ_MAPPER, cart->irq.pending && cart->irq.enable && cart->mmc5.scanline != 0);
 }
