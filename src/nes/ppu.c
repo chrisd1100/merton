@@ -80,6 +80,9 @@ struct ppu {
 	bool w;         // Write latch
 	bool f;         // Even/odd frame flag
 
+	uint16_t tmp_v;
+	uint8_t set_v;
+
 	uint8_t bgl;
 	uint8_t bgh;
 	uint8_t nt;
@@ -341,7 +344,8 @@ void ppu_write(struct ppu *ppu, struct cart *cart, uint16_t addr, uint8_t v)
 
 			} else {
 				SET_L(ppu->t, v);
-				ppu_set_v(ppu, cart, ppu->t, false);
+				ppu->set_v = 0x8; // 3 PPU cycles
+				ppu->tmp_v = ppu->t;
 			}
 
 			ppu->w = !ppu->w;
@@ -740,8 +744,6 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 
 void ppu_step(struct ppu *ppu, struct cart *cart)
 {
-	ppu->rendering = ppu->MASK.show_bg || ppu->MASK.show_sprites;
-
 	if (ppu->dot == 0) {
 		ppu->oam_n = ppu->soam_n = ppu->eval_step = 0;
 		ppu->overflow = false;
@@ -752,8 +754,9 @@ void ppu_step(struct ppu *ppu, struct cart *cart)
 		if (ppu->dot >= 1 && ppu->dot <= 256)
 			ppu_render(ppu, ppu->dot - 1);
 
-		if (ppu->dot >= 4 && ppu->dot <= 259)
-			ppu_output(ppu, ppu->dot - 4);
+		// Delayed pixel output @Kitrinx
+		if (ppu->dot >= 3 && ppu->dot <= 258)
+			ppu_output(ppu, ppu->dot - 3);
 
 		if (ppu->rendering)
 			ppu_memory_access(ppu, cart);
@@ -791,6 +794,14 @@ void ppu_step(struct ppu *ppu, struct cart *cart)
 				ppu->dot++;
 		}
 	}
+
+	// Delayed VRAM update address @Kitrinx Visual NES
+	ppu->set_v >>= 1;
+	if (ppu->set_v & 1)
+		ppu_set_v(ppu, cart, ppu->tmp_v, false);
+
+	// Delayed rendering flag @Kitrinx Visual NES
+	ppu->rendering = ppu->MASK.show_bg || ppu->MASK.show_sprites;
 
 	ppu_clock(ppu);
 }

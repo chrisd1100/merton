@@ -284,8 +284,8 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 
 	nes->sys.write = true;
 
-	ppu_step(nes->ppu, nes->cart);
 	sys_write(nes, addr, v);
+	ppu_step(nes->ppu, nes->cart);
 	ppu_assert_nmi(nes->ppu, nes->cpu);
 
 	cart_step(nes->cart, nes->cpu);
