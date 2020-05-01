@@ -19,7 +19,7 @@ enum mem {
 struct cart;
 
 // IO
-uint8_t cart_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, bool *mem_hit);
+uint8_t cart_prg_read(struct cart *cart, struct apu *apu, uint16_t addr, bool *mem_hit);
 void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_t addr, uint8_t v);
 uint8_t cart_chr_read(struct cart *cart, uint16_t addr, enum mem type, bool nt);
 void cart_chr_write(struct cart *cart, uint16_t addr, uint8_t v);
@@ -27,7 +27,6 @@ void cart_chr_write(struct cart *cart, uint16_t addr, uint8_t v);
 // Hooks
 void cart_ppu_a12_toggle(struct cart *cart);
 void cart_ppu_write_hook(struct cart *cart, uint16_t addr, uint8_t v);
-void cart_ppu_scanline_hook(struct cart *cart, struct cpu *cpu, uint16_t scanline);
 bool cart_block_2007(struct cart *cart);
 
 // Step

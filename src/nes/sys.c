@@ -124,7 +124,7 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 		return ppu_read(nes->ppu, nes->cart, addr);
 
 	} else if (addr == 0x4015) {
-		nes->sys.open_bus = apu_read_status(nes->apu, nes->cpu, EXT_NONE);
+		nes->sys.open_bus = apu_read_status(nes->apu, EXT_NONE);
 		return nes->sys.open_bus;
 
 	} else if (addr == 0x4016 || addr == 0x4017) {
@@ -133,7 +133,7 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 
 	} else if (addr >= 0x4020) {
 		bool hit = false;
-		uint8_t v = cart_prg_read(nes->cart, nes->cpu, nes->apu, addr, &hit);
+		uint8_t v = cart_prg_read(nes->cart, nes->apu, addr, &hit);
 
 		if (hit)
 			return v;
@@ -155,7 +155,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 
 	} else if (addr < 0x4014 || addr == 0x4015 || addr == 0x4017) {
 		nes->sys.open_bus = v;
-		apu_write(nes->apu, nes, nes->cpu, addr, v, EXT_NONE);
+		apu_write(nes->apu, nes, addr, v, EXT_NONE);
 
 	} else if (addr == 0x4014) {
 		nes->sys.open_bus = v;
@@ -253,21 +253,22 @@ static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 
 uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cart);
 
 	uint8_t v = sys_read(nes, addr);
 
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cart);
 	ppu_assert_nmi(nes->ppu, nes->cpu);
 
 	cart_step(nes->cart, nes->cpu);
 	cpu_poll_interrupts(nes->cpu);
 
-	apu_step(nes->apu, nes, nes->cpu);
+	apu_step(nes->apu, nes);
+	apu_assert_irqs(nes->apu, nes->cpu);
 
 	nes->sys.cycle++;
 
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cart);
 
 	// DMC DMA will engage after then next read tick
 	return sys_dma_dmc(nes, addr, v);
@@ -279,23 +280,24 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 	if (nes->sys.dma.dmc_begin)
 		nes->sys.dma.dmc_delay++;
 
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cart);
 
 	nes->sys.write = true;
 
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cart);
 	sys_write(nes, addr, v);
 	ppu_assert_nmi(nes->ppu, nes->cpu);
 
 	cart_step(nes->cart, nes->cpu);
 	cpu_poll_interrupts(nes->cpu);
 
-	apu_step(nes->apu, nes, nes->cpu);
+	apu_step(nes->apu, nes);
+	apu_assert_irqs(nes->apu, nes->cpu);
 
 	nes->sys.cycle++;
 	nes->sys.write = false;
 
-	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_step(nes->ppu, nes->cart);
 
 	// OAM DMA will engage after the write tick
 	sys_dma_oam(nes, v);
@@ -442,7 +444,7 @@ void NES_Reset(NES *ctx, bool hard)
 		memcpy(ctx->sys.ram, prev.ram, 0x800);
 
 	ppu_reset(ctx->ppu);
-	apu_reset(ctx->apu, ctx, ctx->cpu, hard);
+	apu_reset(ctx->apu, ctx, hard);
 	cpu_reset(ctx->cpu, ctx, hard);
 }
 

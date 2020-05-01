@@ -284,7 +284,7 @@ static void apu_dmc_output(struct dmc *d)
 	d->output = d->out.level;
 }
 
-static void apu_dmc_fill_sample_buffer(struct dmc *d, NES *nes, struct cpu *cpu)
+static void apu_dmc_fill_sample_buffer(struct dmc *d, NES *nes)
 {
 	if (d->reader.sample_buffer_empty && d->current_length > 0) {
 		sys_dma_dmc_begin(nes, d->current_address);
@@ -298,7 +298,6 @@ static void apu_dmc_fill_sample_buffer(struct dmc *d, NES *nes, struct cpu *cpu)
 
 			} else if (d->irq) {
 				d->irq_flag = true;
-				cpu_irq(cpu, IRQ_DMC, true);
 			}
 		}
 
@@ -306,7 +305,7 @@ static void apu_dmc_fill_sample_buffer(struct dmc *d, NES *nes, struct cpu *cpu)
 	}
 }
 
-static void apu_dmc_step_timer(struct dmc *d, NES *nes, struct cpu *cpu)
+static void apu_dmc_step_timer(struct dmc *d, NES *nes)
 {
 	if (d->timer.value > 0)
 		d->timer.value--;
@@ -338,7 +337,7 @@ static void apu_dmc_step_timer(struct dmc *d, NES *nes, struct cpu *cpu)
 				d->out.silence = false;
 				d->out.shift_register = d->reader.sample_buffer;
 				d->reader.sample_buffer_empty = true;
-				apu_dmc_fill_sample_buffer(d, nes, cpu);
+				apu_dmc_fill_sample_buffer(d, nes);
 			}
 		}
 
@@ -676,13 +675,7 @@ static void apu_reload_length(struct apu *apu, struct length *len, bool channel_
 		len->value = LENGTH_TABLE[v >> 3];
 }
 
-static void apu_set_frame_irq(struct apu *apu, struct cpu *cpu, bool enabled)
-{
-	apu->frame_irq = enabled;
-	cpu_irq(cpu, IRQ_APU, enabled);
-}
-
-uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
+uint8_t apu_read_status(struct apu *apu, enum extaudio ext)
 {
 	uint8_t r = 0;
 	struct pulse *p = ext == EXT_MMC5 ? apu->p + 2 : apu->p;
@@ -697,13 +690,13 @@ uint8_t apu_read_status(struct apu *apu, struct cpu *cpu, enum extaudio ext)
 		if (apu->frame_irq)            r |= 0x40;
 		if (apu->d.irq_flag)           r |= 0x80;
 
-		apu_set_frame_irq(apu, cpu, false);
+		apu->frame_irq = false;
 	}
 
 	return r;
 }
 
-void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_t v, enum extaudio ext)
+void apu_write(struct apu *apu, NES *nes, uint16_t addr, uint8_t v, enum extaudio ext)
 {
 	struct pulse *p = ext == EXT_MMC5 ? apu->p + 2 : apu->p;
 
@@ -795,7 +788,6 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 
 			if (!apu->d.irq) {
 				apu->d.irq_flag = false;
-				cpu_irq(cpu, IRQ_DMC, false);
 			}
 
 			apu->d.loop = v & 0x40;
@@ -829,7 +821,6 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 				apu->d.enabled = v & 0x10;
 
 				apu->d.irq_flag = false;
-				cpu_irq(cpu, IRQ_DMC, false);
 
 				if (!apu->t.enabled)
 					apu->t.len.value = 0;
@@ -844,7 +835,7 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 					if (apu->d.current_length == 0)
 						apu_dmc_restart(&apu->d);
 
-					apu_dmc_fill_sample_buffer(&apu->d, nes, cpu);
+					apu_dmc_fill_sample_buffer(&apu->d, nes);
 				}
 			}
 			break;
@@ -856,7 +847,7 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 			apu->delayed_reset = sys_odd_cycle(nes) ? 3 : 4;
 
 			if (apu->irq_disabled)
-				apu_set_frame_irq(apu, cpu, false);
+				apu->frame_irq = false;
 			break;
 
 		// VRC6 Pulse
@@ -947,7 +938,7 @@ static void apu_delayed_length_enabled(struct apu *apu)
 	}
 }
 
-static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
+static void apu_step_frame_counter(struct apu *apu)
 {
 	switch (apu->frame_counter) {
 		case 7457:
@@ -965,12 +956,12 @@ static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
 			break;
 		case 29828:
 			if (!apu->mode && !apu->irq_disabled)
-				apu_set_frame_irq(apu, cpu, true);
+				apu->frame_irq = true;
 			break;
 		case 29829:
 			if (!apu->mode) {
 				if (!apu->irq_disabled)
-					apu_set_frame_irq(apu, cpu, true);
+					apu->frame_irq = true;
 
 				apu_step_all_sweep_and_length(apu);
 				apu_step_all_envelope(apu);
@@ -980,7 +971,7 @@ static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
 		case 29830:
 			if (!apu->mode) {
 				if (!apu->irq_disabled)
-					apu_set_frame_irq(apu, cpu, true);
+					apu->frame_irq = true;
 
 				apu->frame_counter = 0;
 			}
@@ -998,13 +989,13 @@ static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
 	}
 }
 
-void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
+void apu_step(struct apu *apu, NES *nes)
 {
 	// Pulse & dmc step every other clock
 	if (sys_odd_cycle(nes)) {
 		apu_pulse_step_timer(&apu->p[0], EXT_NONE);
 		apu_pulse_step_timer(&apu->p[1], EXT_NONE);
-		apu_dmc_step_timer(&apu->d, nes, cpu);
+		apu_dmc_step_timer(&apu->d, nes);
 
 		if (apu->ext == EXT_MMC5) {
 			apu_pulse_step_timer(&apu->p[2], EXT_MMC5);
@@ -1025,7 +1016,7 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
 
 	// Process the frame counter
 	if (!(apu->delayed_reset > 0 && apu->delayed_reset < 3 && apu->mode))
-		apu_step_frame_counter(apu, cpu);
+		apu_step_frame_counter(apu);
 
 	// Enabling/disabling length happens with a 1 cycle delay
 	apu_delayed_length_enabled(apu);
@@ -1050,7 +1041,12 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
 		apu->p6[1].output, apu->s.output, apu->t.output, apu->n.output, apu->d.output);
 
 	apu->frame_counter++;
+}
 
+void apu_assert_irqs(struct apu *apu, struct cpu *cpu)
+{
+	cpu_irq(cpu, IRQ_DMC, apu->d.irq_flag);
+	cpu_irq(cpu, IRQ_APU, apu->frame_irq);
 }
 
 const int16_t *apu_frames(struct apu *apu, uint32_t *count)
@@ -1094,7 +1090,7 @@ void apu_destroy(struct apu **apu)
 	*apu = NULL;
 }
 
-void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
+void apu_reset(struct apu *apu, NES *nes, bool hard)
 {
 	memset(apu->p, 0, sizeof(struct pulse) * 4);
 	memset(apu->p6, 0, sizeof(struct pulse6) * 2);
@@ -1113,13 +1109,13 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 	apu->frame_irq = false;
 	apu->ext = EXT_NONE;
 
-	apu_write(apu, nes, cpu, 0x4015, 0x00, EXT_NONE);
+	apu_write(apu, nes, 0x4015, 0x00, EXT_NONE);
 
 	if (hard) {
 		apu->mode = apu->next_mode = false;
 		apu->irq_disabled = false;
 		apu->t.len.enabled = apu->t.len.next_enabled = true;
-		apu_write(apu, nes, cpu, 0x4017, 0x00, EXT_NONE);
+		apu_write(apu, nes, 0x4017, 0x00, EXT_NONE);
 	}
 
 	apu->delayed_reset = 0;

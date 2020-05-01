@@ -731,10 +731,14 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 
 	} else if (ppu->dot >= 321 && ppu->dot <= 336) {
 		ppu_fetch_bg(ppu, cart, ppu->dot - 328);
+
+	// Dummy nametable fetches, important for MMC5
+	} else if (ppu->dot == 337 || ppu->dot == 339) {
+		ppu_read_nt_byte(ppu, cart, SPRROM);
 	}
 }
 
-void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
+void ppu_step(struct ppu *ppu, struct cart *cart)
 {
 	ppu->rendering = ppu->MASK.show_bg || ppu->MASK.show_sprites;
 
@@ -742,9 +746,6 @@ void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart)
 		ppu->oam_n = ppu->soam_n = ppu->eval_step = 0;
 		ppu->overflow = false;
 		memset(ppu->soam, 0xFF, 32);
-
-	} else if (ppu->dot == 4) {
-		cart_ppu_scanline_hook(cart, cpu, ppu->scanline);
 	}
 
 	if (ppu->scanline <= 239) {
