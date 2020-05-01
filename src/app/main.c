@@ -465,11 +465,13 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 {
 	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
 
+	/*
 	AllocConsole();
 	AttachConsole(GetCurrentProcessId());
 
 	FILE *f = NULL;
 	freopen_s(&f, "CONOUT$", "w", stdout);
+	*/
 
 	timeBeginPeriod(1);
 
