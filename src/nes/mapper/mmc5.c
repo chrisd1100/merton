@@ -281,7 +281,7 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct apu *apu, uint16_t addr, 
 static void mmc5_scanline(struct cart *cart, uint16_t addr)
 {
 	// Should be true on the first attribute byte fetch of the scanline (cycle 3)
-	if (cart->mmc5.irq_ctr == 2) {
+	if (cart->irq.counter == 2) {
 		if (!cart->mmc5.in_frame) {
 			cart->mmc5.in_frame = true;
 			cart->mmc5.scanline = 0;
@@ -296,14 +296,14 @@ static void mmc5_scanline(struct cart *cart, uint16_t addr)
 		if (cart->mmc5.scanline == 0)
 			cart->mmc5.vs.scroll = cart->mmc5.vs.scroll_reload;
 
-		cart->mmc5.irq_ctr = 0;
-		cart->mmc5.prev_addr = 0;
+		cart->irq.counter = 0;
+		cart->irq.value = 0xFFFF;
 	}
 
-	if (addr == cart->mmc5.prev_addr)
-		cart->mmc5.irq_ctr++;
+	if (addr == cart->irq.value)
+		cart->irq.counter++;
 
-	cart->mmc5.prev_addr = addr;
+	cart->irq.value = addr;
 }
 
 static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type, bool nt)
