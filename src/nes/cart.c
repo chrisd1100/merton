@@ -198,7 +198,6 @@ struct cart {
 		bool nt_latch;
 		bool exram_latch;
 		bool large_sprites;
-		bool rendering_enabled;
 		bool in_frame;
 
 		struct {
