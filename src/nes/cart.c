@@ -193,7 +193,7 @@ struct cart {
 		uint16_t scanline;
 		uint16_t prev_addr;
 		uint16_t irq_ctr;
-		uint64_t no_read;
+		uint64_t last_ppu_read;
 		enum mem active_map;
 		bool nt_latch;
 		bool exram_latch;

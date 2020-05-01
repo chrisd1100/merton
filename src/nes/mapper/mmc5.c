@@ -289,11 +289,6 @@ static void mmc5_scanline(struct cart *cart, uint16_t addr)
 			cart->mmc5.scanline++;
 		}
 
-		if (cart->mmc5.scanline == 240) {
-			cart->mmc5.scanline = 0;
-			cart->mmc5.in_frame = false;
-		}
-
 		cart->irq.pending = cart->irq.scanline == cart->mmc5.scanline && cart->irq.scanline != 0;
 
 		cart->mmc5.vs.scroll++;
@@ -313,7 +308,8 @@ static void mmc5_scanline(struct cart *cart, uint16_t addr)
 
 static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type, bool nt)
 {
-	cart->mmc5.no_read = 0;
+	cart->mmc5.last_ppu_read = 0;
+
 	mmc5_scanline(cart, addr);
 
 	if (type == BGROM) {
@@ -388,7 +384,7 @@ static void mmc5_ppu_write_hook(struct cart *cart, uint16_t addr, uint8_t v)
 
 static uint8_t mmc5_chr_read(struct cart *cart, uint16_t addr, enum mem type)
 {
-	cart->mmc5.no_read = 0;
+	cart->mmc5.last_ppu_read = 0;
 
 	if (cart->mmc5.exram_mode != 1 && !cart->mmc5.large_sprites)
 		type = SPRROM;
@@ -418,10 +414,8 @@ static uint8_t mmc5_chr_read(struct cart *cart, uint16_t addr, enum mem type)
 
 static void mmc5_step(struct cart *cart, struct cpu *cpu)
 {
-	if (++cart->mmc5.no_read >= 3) {
+	if (++cart->mmc5.last_ppu_read >= 3)
 		cart->mmc5.in_frame = false;
-		cart->mmc5.scanline = 0;
-	}
 
 	cpu_irq(cpu, IRQ_MAPPER, cart->irq.pending && cart->irq.enable && cart->mmc5.scanline != 0);
 }
