@@ -731,6 +731,10 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 
 	} else if (ppu->dot >= 321 && ppu->dot <= 336) {
 		ppu_fetch_bg(ppu, cart, ppu->dot - 328);
+
+	// Dummy nametable fetches, important for MMC5
+	} else if (ppu->dot == 337 || ppu->dot == 339) {
+		ppu_read_nt_byte(ppu, cart, SPRROM);
 	}
 }
 

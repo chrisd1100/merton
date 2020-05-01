@@ -104,7 +104,7 @@ static void mmc5_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, ui
 			case 0x5006:
 			case 0x5007:
 			case 0x5015:
-				apu_write(apu, NULL, NULL, addr - 0x1000, v, EXT_MMC5);
+				apu_write(apu, NULL, addr - 0x1000, v, EXT_MMC5);
 				break;
 			case 0x5001: // MMC5 audio unused pulse sweep
 			case 0x5005:
@@ -231,7 +231,7 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu
 			case 0x5005:
 				break;
 			case 0x5015: // MMC5 audio status
-				return apu_read_status(apu, NULL, EXT_MMC5);
+				return apu_read_status(apu, EXT_MMC5);
 			case 0x5010: // MMC5 audio PCM
 			case 0x5011:
 				break;
@@ -259,7 +259,6 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu
 				if (cart->mmc5.in_frame) r |= 0x40;
 				if (cart->irq.pending) r |= 0x80;
 
-				cpu_irq(cpu, IRQ_MAPPER, false);
 				cart->irq.pending = false;
 
 				return r;
@@ -279,13 +278,53 @@ static uint8_t mmc5_prg_read(struct cart *cart, struct cpu *cpu, struct apu *apu
 	return 0;
 }
 
+static void mmc5_scanline(struct cart *cart, uint16_t addr)
+{
+	// Should be true on the first attribute byte fetch of the scanline (cycle 3)
+	if (cart->mmc5.irq_ctr == 2) {
+		if (!cart->mmc5.in_frame) {
+			cart->mmc5.in_frame = true;
+			cart->mmc5.scanline = 0;
+		} else {
+			cart->mmc5.scanline++;
+		}
+
+		if (cart->mmc5.scanline == 240) {
+			cart->mmc5.in_frame = false;
+			cart->mmc5.scanline = 0;
+		}
+
+		if (cart->irq.scanline == cart->mmc5.scanline && cart->irq.scanline != 0)
+			cart->irq.pending = true;
+
+		cart->mmc5.irq_ctr = 0;
+	}
+
+	if (addr == cart->mmc5.prev_addr)
+		cart->mmc5.irq_ctr++;
+
+	cart->mmc5.prev_addr = addr;
+}
+
 static uint8_t mmc5_nt_read_hook(struct cart *cart, uint16_t addr, enum mem type, bool nt)
 {
+	cart->mmc5.no_read = 0;
+
+	mmc5_scanline(cart, addr);
+
 	if (type == BGROM) {
 		if (nt) {
 			cart->mmc5.exram_latch = false;
 			cart->mmc5.nt_latch = false;
 			cart->mmc5.vs.htile++;
+
+			if (cart->mmc5.vs.htile == 35) {
+				cart->mmc5.vs.htile = 1;
+				cart->mmc5.vs.scroll++;
+
+				if (cart->mmc5.vs.htile == 35 * 240)
+					cart->mmc5.vs.scroll = cart->mmc5.vs.scroll_reload;
+			}
 		}
 
 		uint16_t htile = cart->mmc5.vs.htile >= 32 ? cart->mmc5.vs.htile - 32 : cart->mmc5.vs.htile + 1;
@@ -345,17 +384,13 @@ static void mmc5_ppu_write_hook(struct cart *cart, uint16_t addr, uint8_t v)
 		case 0x2000: // PPUCTRL
 			cart->mmc5.large_sprites = v & 0x20;
 			break;
-		case 0x2001: // PPUMASK
-			cart->mmc5.rendering_enabled = v & 0x18;
-
-			if (!cart->mmc5.rendering_enabled)
-				cart->mmc5.in_frame = false;
-			break;
 	}
 }
 
 static uint8_t mmc5_chr_read(struct cart *cart, uint16_t addr, enum mem type)
 {
+	cart->mmc5.no_read = 0;
+
 	if (cart->mmc5.exram_mode != 1 && !cart->mmc5.large_sprites)
 		type = SPRROM;
 
@@ -382,23 +417,10 @@ static uint8_t mmc5_chr_read(struct cart *cart, uint16_t addr, enum mem type)
 	return 0;
 }
 
-static void mmc5_scanline(struct cart *cart, struct cpu *cpu, uint16_t scanline)
+static void mmc5_step(struct cart *cart, struct cpu *cpu)
 {
-	cart->mmc5.in_frame = scanline <= 239 && cart->mmc5.rendering_enabled;
+	if (++cart->mmc5.no_read == 3)
+		cart->mmc5.in_frame = false;
 
-	if (cart->irq.scanline == scanline) {
-		cart->irq.pending = true;
-
-		if (cart->mmc5.in_frame && cart->irq.enable && scanline != 0)
-			cpu_irq(cpu, IRQ_MAPPER, true);
-
-	} else {
-		cpu_irq(cpu, IRQ_MAPPER, false);
-	}
-
-	cart->mmc5.vs.htile = 0;
-	cart->mmc5.vs.scroll++;
-
-	if (scanline == 0)
-		cart->mmc5.vs.scroll = cart->mmc5.vs.scroll_reload;
+	cpu_irq(cpu, IRQ_MAPPER, cart->irq.pending && cart->irq.enable && cart->mmc5.scanline != 0);
 }

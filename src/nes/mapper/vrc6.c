@@ -96,7 +96,7 @@ static void vrc6_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, 
 			case 0xA000: // Pulse1 expansion audio
 			case 0xA001:
 			case 0xA002:
-				apu_write(apu, NULL, NULL, addr, v, EXT_VRC6);
+				apu_write(apu, NULL, addr, v, EXT_VRC6);
 				break;
 			case 0xC000: // PRG second bank
 			case 0xC001:
@@ -107,7 +107,7 @@ static void vrc6_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, 
 			case 0xB000: // Sawtooth expansion audio
 			case 0xB001:
 			case 0xB002:
-				apu_write(apu, NULL, NULL, addr, v, EXT_VRC6);
+				apu_write(apu, NULL, addr, v, EXT_VRC6);
 				break;
 			case 0xB003: // Mirroring, PPU banking
 				cart->REG[0] = v;

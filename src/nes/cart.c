@@ -190,6 +190,10 @@ struct cart {
 		uint16_t multiplicand;
 		uint16_t multiplier;
 		uint16_t chr_bank_upper;
+		uint16_t scanline;
+		uint16_t prev_addr;
+		uint16_t irq_ctr;
+		uint64_t no_read;
 		enum mem active_map;
 		bool nt_latch;
 		bool exram_latch;
@@ -302,9 +306,7 @@ void cart_prg_write(struct cart *cart, struct cpu *cpu, struct apu *apu, uint16_
 
 uint8_t cart_chr_read(struct cart *cart, uint16_t addr, enum mem type, bool nt)
 {
-	bool chr = addr < 0x2000;
-
-	if (chr) {
+	if (addr < 0x2000) {
 		switch (cart->hdr.mapper) {
 			case 5:  return mmc5_chr_read(cart, addr, type);
 			case 9:
@@ -344,9 +346,6 @@ void cart_ppu_write_hook(struct cart *cart, uint16_t addr, uint8_t v)
 
 void cart_ppu_scanline_hook(struct cart *cart, struct cpu *cpu, uint16_t scanline)
 {
-	switch (cart->hdr.mapper) {
-		case 5: mmc5_scanline(cart, cpu, scanline); break;
-	}
 }
 
 bool cart_block_2007(struct cart *cart)
@@ -384,6 +383,7 @@ void cart_step(struct cart *cart, struct cpu *cpu)
 {
 	switch (cart->hdr.mapper) {
 		case 4: mmc3_step(cart, cpu);    break;
+		case 5: mmc5_step(cart, cpu);    break;
 		case 18: jaleco_step(cart, cpu); break;
 		case 19: namco_step(cart, cpu);  break;
 		case 21: vrc_step(cart, cpu);    break;
