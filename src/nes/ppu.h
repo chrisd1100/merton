@@ -9,11 +9,12 @@
 struct ppu;
 
 // IO
-uint8_t ppu_read(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr);
-void ppu_write(struct ppu *ppu, struct cpu *cpu, struct cart *cart, uint16_t addr, uint8_t v);
+uint8_t ppu_read(struct ppu *ppu, struct cart *cart, uint16_t addr);
+void ppu_write(struct ppu *ppu, struct cart *cart, uint16_t addr, uint8_t v);
 
 // Step
 void ppu_step(struct ppu *ppu, struct cpu *cpu, struct cart *cart);
+void ppu_assert_nmi(struct ppu *ppu, struct cpu *cpu);
 bool ppu_new_frame(struct ppu *ppu);
 const uint32_t *ppu_pixels(struct ppu *ppu);
 

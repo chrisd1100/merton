@@ -647,8 +647,6 @@ struct apu {
 	bool frame_irq;
 	uint8_t delayed_reset;
 	uint32_t channels;
-
-	int64_t cpu_cycle;
 	int64_t frame_counter;
 
 	struct pulse p[4];
@@ -855,7 +853,7 @@ void apu_write(struct apu *apu, NES *nes, struct cpu *cpu, uint16_t addr, uint8_
 		case 0x4017:
 			apu->next_mode = v & 0x80;
 			apu->irq_disabled = v & 0x40;
-			apu->delayed_reset = (apu->cpu_cycle & 1) ? 3 : 4;
+			apu->delayed_reset = sys_odd_cycle(nes) ? 3 : 4;
 
 			if (apu->irq_disabled)
 				apu_set_frame_irq(apu, cpu, false);
@@ -1003,7 +1001,7 @@ static void apu_step_frame_counter(struct apu *apu, struct cpu *cpu)
 void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
 {
 	// Pulse & dmc step every other clock
-	if (apu->cpu_cycle & 1) {
+	if (sys_odd_cycle(nes)) {
 		apu_pulse_step_timer(&apu->p[0], EXT_NONE);
 		apu_pulse_step_timer(&apu->p[1], EXT_NONE);
 		apu_dmc_step_timer(&apu->d, nes, cpu);
@@ -1051,7 +1049,6 @@ void apu_step(struct apu *apu, NES *nes, struct cpu *cpu)
 		apu->p[1].output, apu->p[2].output, apu->p[3].output, apu->p6[0].output,
 		apu->p6[1].output, apu->s.output, apu->t.output, apu->n.output, apu->d.output);
 
-	apu->cpu_cycle++;
 	apu->frame_counter++;
 
 }
@@ -1111,7 +1108,6 @@ void apu_reset(struct apu *apu, NES *nes, struct cpu *cpu, bool hard)
 
 	apu->n.shift_register = 1;
 	apu->n.len.enabled = apu->n.len.next_enabled = true;
-	apu->cpu_cycle = 0;
 	apu->frame_counter = 0;
 	apu->t.pop = false;
 	apu->frame_irq = false;

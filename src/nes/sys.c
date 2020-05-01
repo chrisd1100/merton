@@ -17,9 +17,9 @@ struct NES {
 	struct sys {
 		uint8_t ram[0x800];
 		uint8_t open_bus;
-		bool write;
 		uint64_t cycle;
 		uint64_t cycle_2007;
+		bool write;
 
 		struct {
 			bool oam_begin;
@@ -118,10 +118,10 @@ uint8_t sys_read(NES *nes, uint16_t addr)
 
 		// Double 2007 read glitch and mapper 185 copy protection
 		if (addr == 0x2007 && (nes->sys.cycle - nes->sys.cycle_2007 == 1 || cart_block_2007(nes->cart)))
-			return ppu_read(nes->ppu, nes->cpu, nes->cart, 0x2003);
+			return ppu_read(nes->ppu, nes->cart, 0x2003);
 
 		nes->sys.cycle_2007 = nes->sys.cycle;
-		return ppu_read(nes->ppu, nes->cpu, nes->cart, addr);
+		return ppu_read(nes->ppu, nes->cart, addr);
 
 	} else if (addr == 0x4015) {
 		nes->sys.open_bus = apu_read_status(nes->apu, nes->cpu, EXT_NONE);
@@ -150,7 +150,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 	} else if (addr < 0x4000) {
 		addr = 0x2000 + addr % 8;
 
-		ppu_write(nes->ppu, nes->cpu, nes->cart, addr, v);
+		ppu_write(nes->ppu, nes->cart, addr, v);
 		cart_ppu_write_hook(nes->cart, addr, v); //MMC5 listens here
 
 	} else if (addr < 0x4014 || addr == 0x4015 || addr == 0x4017) {
@@ -189,7 +189,7 @@ static void sys_dma_oam(NES *nes, uint8_t v)
 
 	sys_cycle(nes); // +1 default case
 
-	if (nes->sys.cycle & 1) // +1 if odd cycle
+	if (sys_odd_cycle(nes)) // +1 if odd cycle
 		sys_cycle(nes);
 
 	// +512 read/write
@@ -230,7 +230,7 @@ static uint8_t sys_dma_dmc(NES *nes, uint16_t addr, uint8_t v)
 
 	if (addr == 0x2007) {
 		nes->sys.cycle_2007 = 0;
-		ppu_read(nes->ppu, nes->cpu, nes->cart, addr);
+		ppu_read(nes->ppu, nes->cart, addr);
 	}
 
 	v = sys_read(nes, addr);
@@ -255,10 +255,10 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 {
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
-	// Concurrent cycle
 	uint8_t v = sys_read(nes, addr);
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
+	ppu_assert_nmi(nes->ppu, nes->cpu);
 
 	cart_step(nes->cart, nes->cpu);
 	cpu_poll_interrupts(nes->cpu);
@@ -266,7 +266,6 @@ uint8_t sys_read_cycle(NES *nes, uint16_t addr)
 	apu_step(nes->apu, nes, nes->cpu);
 
 	nes->sys.cycle++;
-	// End concurrent cycle
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
@@ -282,12 +281,12 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
-	// Concurrent cycle
 	nes->sys.write = true;
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
-
 	sys_write(nes, addr, v);
+	ppu_assert_nmi(nes->ppu, nes->cpu);
+
 	cart_step(nes->cart, nes->cpu);
 	cpu_poll_interrupts(nes->cpu);
 
@@ -295,7 +294,6 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 
 	nes->sys.cycle++;
 	nes->sys.write = false;
-	// End concurrent cycle
 
 	ppu_step(nes->ppu, nes->cpu, nes->cart);
 
@@ -306,6 +304,11 @@ void sys_write_cycle(NES *nes, uint16_t addr, uint8_t v)
 void sys_cycle(NES *nes)
 {
 	sys_read_cycle(nes, 0);
+}
+
+bool sys_odd_cycle(NES *nes)
+{
+	return nes->sys.cycle & 1;
 }
 
 
