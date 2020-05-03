@@ -10,7 +10,7 @@ static void fcg_create(struct cart *cart)
 	cart_map_ciram(&cart->chr, NES_MIRROR_VERTICAL);
 }
 
-static void fcg_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+static void fcg_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	uint16_t addr_low = 0x6000;
 	uint16_t addr_high = 0x7FFF;
@@ -51,7 +51,7 @@ static void fcg_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uin
 				break;
 			case 0x600A: //IRQ
 				cart->irq.enable = v & 0x01;
-				cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.ack = true;
 
 				if (alt)
 					cart->irq.counter = cart->irq.value;
@@ -80,6 +80,11 @@ static void fcg_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uin
 
 static void fcg_step(struct cart *cart, struct cpu *cpu)
 {
+	if (cart->irq.ack) {
+		cpu_irq(cpu, IRQ_MAPPER, false);
+		cart->irq.ack = false;
+	}
+
 	if (cart->irq.enable) {
 		if (cart->irq.counter == 0xFFFE) {
 			cpu_irq(cpu, IRQ_MAPPER, true);

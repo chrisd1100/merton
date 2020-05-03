@@ -95,7 +95,7 @@ static uint16_t vrc_rejigger_pins(struct cart *cart, uint16_t addr)
 	}
 }
 
-static void vrc_set_irq_control(struct cart *cart, struct cpu *cpu, uint8_t v)
+static void vrc_set_irq_control(struct cart *cart, uint8_t v)
 {
 	cart->irq.reload = v & 0x01;
 	cart->irq.enable = v & 0x02;
@@ -106,12 +106,12 @@ static void vrc_set_irq_control(struct cart *cart, struct cpu *cpu, uint8_t v)
 		cart->irq.scanline = 341;
 	}
 
-	cpu_irq(cpu, IRQ_MAPPER, false);
+	cart->irq.ack = true;
 }
 
-static void vrc_ack_irq(struct cart *cart, struct cpu *cpu)
+static void vrc_ack_irq(struct cart *cart)
 {
-	cpu_irq(cpu, IRQ_MAPPER, false);
+	cart->irq.ack = true;
 	cart->irq.enable = cart->irq.reload;
 }
 
@@ -125,7 +125,7 @@ static void vrc_mirror(struct cart *cart, uint8_t v)
 	}
 }
 
-static void vrc_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+static void vrc_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x6000 && addr < 0x8000) {
 		map_write(&cart->prg, 0, addr, v);
@@ -148,7 +148,7 @@ static void vrc_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uin
 			case 0x9002: // PRG mode
 			case 0x9003:
 				if (cart->vrc.is2) {
-					vrc_prg_write(cart, cpu, 0x9000, v);
+					vrc_prg_write(cart, 0x9000, v);
 					return;
 				}
 
@@ -196,10 +196,10 @@ static void vrc_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uin
 				cart->irq.value = (cart->irq.value & 0x0F) | ((v & 0x0F) << 4);
 				break;
 			case 0xF002:
-				vrc_set_irq_control(cart, cpu, v);
+				vrc_set_irq_control(cart, v);
 				break;
 			case 0xF003:
-				vrc_ack_irq(cart, cpu);
+				vrc_ack_irq(cart);
 				break;
 			default:
 				NES_Log("Uncaught VRC2/4 write %x: %x", addr, v);
@@ -211,6 +211,11 @@ static void vrc_step(struct cart *cart, struct cpu *cpu)
 {
 	if (cart->vrc.is2)
 		return;
+
+	if (cart->irq.ack) {
+		cpu_irq(cpu, IRQ_MAPPER, false);
+		cart->irq.ack = false;
+	}
 
 	bool clock = false;
 

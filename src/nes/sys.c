@@ -169,7 +169,7 @@ void sys_write(NES *nes, uint16_t addr, uint8_t v)
 		nes->sys.open_bus = v;
 
 	} else {
-		cart_prg_write(nes->cart, nes->cpu, nes->apu, addr, v);
+		cart_prg_write(nes->cart, nes->apu, addr, v);
 	}
 }
 

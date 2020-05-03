@@ -25,7 +25,7 @@ static void jaleco_map_chr(struct cart *cart, uint8_t n, uint8_t v)
 		(cart->CHR[n & 0xE] & 0xF) | ((cart->CHR[(n & 0xE) + 1] & 0xF) << 4), 1);
 }
 
-static void jaleco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+static void jaleco_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x6000 && addr < 0x8000 && cart->ram_enable) {
 		map_write(&cart->prg, 0, addr, v);
@@ -69,13 +69,13 @@ static void jaleco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, 
 				break;
 
 			case 0xF000:
-				cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.ack = true;
 				cart->irq.counter = cart->REG[0] | (cart->REG[1] << 4) | (cart->REG[2] << 8) |
 					(cart->REG[3] << 12);
 				break;
 
 			case 0xF001:
-				cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.ack = true;
 				cart->irq.enable = v & 0x1;
 				cart->irq.value = (v & 0x8) ? 0xF : (v & 0x4) ? 0xFF : (v & 0x2) ? 0xFFF : 0xFFFF;
 				break;
@@ -94,6 +94,11 @@ static void jaleco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, 
 
 static void jaleco_step(struct cart *cart, struct cpu *cpu)
 {
+	if (cart->irq.ack) {
+		cpu_irq(cpu, IRQ_MAPPER, false);
+		cart->irq.ack = false;
+	}
+
 	if (cart->irq.enable) {
 		uint16_t counter = cart->irq.counter & cart->irq.value;
 

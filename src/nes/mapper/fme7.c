@@ -12,7 +12,7 @@ static void fme7_create(struct cart *cart)
 	cart_map_ciram(&cart->chr, NES_MIRROR_VERTICAL);
 }
 
-static void fme7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+static void fme7_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x6000 && addr < 0x8000 && cart->ram_enable) {
 		map_write(&cart->prg, 0, addr, v);
@@ -59,7 +59,7 @@ static void fme7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 			case 0xD: // IRQ
 				cart->irq.enable = v & 0x01;
 				cart->irq.cycle = v & 0x80;
-				cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.ack = true;
 				break;
 			case 0xE:
 				cart->irq.value = (cart->irq.value & 0xFF00) | v;
@@ -73,6 +73,11 @@ static void fme7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 
 static void fme7_step(struct cart *cart, struct cpu *cpu)
 {
+	if (cart->irq.ack) {
+		cpu_irq(cpu, IRQ_MAPPER, false);
+		cart->irq.ack = false;
+	}
+
 	if (cart->irq.cycle) {
 		if (--cart->irq.value == 0xFFFF)
 			cpu_irq(cpu, IRQ_MAPPER, cart->irq.enable);

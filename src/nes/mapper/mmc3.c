@@ -38,7 +38,7 @@ static void mmc3_create(struct cart *cart)
 		cart_map(&cart->prg, RAM, 0x6000, 0, 8);
 }
 
-static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+static void mmc3_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x6000 && addr < 0x8000) {
 		map_write(&cart->prg, 0, addr, v);
@@ -82,7 +82,7 @@ static void mmc3_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 				cart->irq.reload = true;
 				break;
 			case 0xE000:
-				cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.ack = true;
 				cart->irq.enable = false;
 				break;
 			case 0xE001:
@@ -102,6 +102,11 @@ static void mmc3_ppu_a12_toggle(struct cart *cart)
 
 static void mmc3_step(struct cart *cart, struct cpu *cpu)
 {
+	if (cart->irq.ack) {
+		cpu_irq(cpu, IRQ_MAPPER, false);
+		cart->irq.ack = false;
+	}
+
 	if (cart->irq.pending) {
 		bool set_irq = true;
 

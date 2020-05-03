@@ -1,4 +1,4 @@
-static void vrc7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+static void vrc7_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x6000 && addr < 0x8000) {
 		map_write(&cart->prg, 0, addr, v);
@@ -42,11 +42,11 @@ static void vrc7_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, ui
 				cart->irq.value = v;
 				break;
 			case 0xF000:
-				vrc_set_irq_control(cart, cpu, v);
+				vrc_set_irq_control(cart, v);
 				break;
 			case 0xF008:
 			case 0xF010:
-				vrc_ack_irq(cart, cpu);
+				vrc_ack_irq(cart);
 				break;
 			default:
 				NES_Log("Uncaught VRC7 write %x: %x", addr, v);

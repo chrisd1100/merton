@@ -40,7 +40,7 @@ static void namco_map_ppu(struct cart *cart)
 	}
 }
 
-static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, uint8_t v)
+static void namco_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 {
 	if (cart->hdr.mapper == 210 && addr < 0x8000)
 		return;
@@ -54,12 +54,12 @@ static void namco_prg_write(struct cart *cart, struct cpu *cpu, uint16_t addr, u
 				break;
 			case 0x5000: // IRQ
 				cart->irq.counter = (cart->irq.counter & 0xFF00) | v;
-				cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.ack = true;
 				break;
 			case 0x5800:
 				cart->irq.enable = v & 0x80;
 				cart->irq.counter = (cart->irq.counter & 0x00FF) | (((uint16_t) v & 0x7F) << 8);
-				cpu_irq(cpu, IRQ_MAPPER, false);
+				cart->irq.ack = true;
 				break;
 			case 0x8000: // CHR
 			case 0x8800:
@@ -144,6 +144,11 @@ static uint8_t namco_prg_read(struct cart *cart, uint16_t addr, bool *mem_hit)
 
 static void namco_step(struct cart *cart, struct cpu *cpu)
 {
+	if (cart->irq.ack) {
+		cpu_irq(cpu, IRQ_MAPPER, false);
+		cart->irq.ack = false;
+	}
+
 	if (cart->irq.enable) {
 		if (++cart->irq.counter == 0x7FFE) {
 			cpu_irq(cpu, IRQ_MAPPER, true);
