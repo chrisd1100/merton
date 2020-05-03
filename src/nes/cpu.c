@@ -509,9 +509,16 @@ static void cpu_fill_op_table(struct opcode *OP)
 
 // Stack Helpers
 
+static uint8_t cpu_read_sp(struct cpu *cpu, NES *nes)
+{
+	return sys_read_cycle(nes, 0x0100 | (uint16_t) cpu->SP);
+}
+
 static uint8_t cpu_pull(struct cpu *cpu, NES *nes)
 {
-	return sys_read_cycle(nes, 0x0100 | (uint16_t) ++cpu->SP);
+	cpu->SP++;
+
+	return cpu_read_sp(cpu, nes);
 }
 
 static void cpu_push(struct cpu *cpu, NES *nes, uint8_t val)
@@ -865,7 +872,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case JSR:
-			sys_cycle(nes); // Internal operation
+			cpu_read_sp(cpu, nes); // Internal operation (predecrement S?)
 			cpu_push16(cpu, nes, cpu->PC - 1);
 			cpu->PC = addr;
 			break;
@@ -943,13 +950,13 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case RTS:
-			sys_cycle(nes); // Increment S
+			cpu_read_sp(cpu, nes); // Increment S
 			cpu->PC = cpu_pull16(cpu, nes) + 1;
-			sys_cycle(nes); // Increment PC
+			sys_read_cycle(nes, cpu->PC); // increment PC
 			break;
 
 		case PLA:
-			sys_cycle(nes); // Increment S
+			cpu_read_sp(cpu, nes); // Increment S
 			cpu->A = cpu_pull(cpu, nes);
 			cpu_eval_ZN(cpu, cpu->A);
 			break;
@@ -983,7 +990,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case RTI:
-			sys_cycle(nes); // Increment S
+			cpu_read_sp(cpu, nes); // Increment S
 			cpu->P = (cpu_pull(cpu, nes) & 0xEF) | FLAG_U;
 			cpu->PC = cpu_pull16(cpu, nes);
 			break;
@@ -993,7 +1000,7 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 			break;
 
 		case PLP: {
-			sys_cycle(nes); // Increment S
+			cpu_read_sp(cpu, nes); // Increment S
 			cpu->P = (cpu_pull(cpu, nes) & 0xEF) | FLAG_U;
 			break;
 
@@ -1200,8 +1207,8 @@ void cpu_poll_interrupts(struct cpu *cpu)
 static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 {
 	// Internal operation
-	sys_cycle(nes);
-	sys_cycle(nes);
+	sys_read_cycle(nes, cpu->PC);
+	sys_read_cycle(nes, cpu->PC);
 
 	cpu_push16(cpu, nes, cpu->PC);
 
@@ -1254,12 +1261,15 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 		cpu->nmi_signal = cpu->halt = false;
 
 	// Internal operation
-	sys_cycle(nes);
-	sys_cycle(nes);
+	sys_read_cycle(nes, cpu->PC);
+	sys_read_cycle(nes, cpu->PC);
+
+	// Supressed writes
 	sys_cycle(nes);
 	sys_cycle(nes);
 	sys_cycle(nes);
 
+	SET_FLAG(cpu->P, FLAG_I);
 	cpu->PC = cpu_read16(nes, RESET_VECTOR);
 
 	if (hard) {
@@ -1272,7 +1282,6 @@ void cpu_reset(struct cpu *cpu, NES *nes, bool hard)
 		cpu->SP -= 3;
 	}
 
-	SET_FLAG(cpu->P, FLAG_I);
 }
 
 size_t cpu_set_state(struct cpu *cpu, const void *state, size_t size)
