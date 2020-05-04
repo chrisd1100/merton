@@ -130,7 +130,7 @@ enum ImGuiWindowFlags_
 };
 
 // Framework
-void im_create(void);
+void im_create(const void *font, size_t font_size, float font_height);
 void im_destroy(void);
 void im_input(struct window_msg *wmsg);
 bool im_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture);

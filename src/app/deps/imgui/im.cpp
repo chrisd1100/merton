@@ -10,8 +10,6 @@
 	#include "imgui_impl_metal.h"
 #endif
 
-#include "assets/font/anonymous.h"
-
 using namespace ImGui;
 
 
@@ -29,14 +27,20 @@ static struct im {
 	float width;
 	float height;
 	bool mouse[3];
-
-	ImFont *font;
+	void *font;
+	size_t font_size;
+	float font_height;
 } IM;
 
-void im_create(void)
+void im_create(const void *font, size_t font_size, float font_height)
 {
 	if (IM.init)
 		return;
+
+	IM.font = malloc(font_size);
+	memcpy(IM.font, font, font_size);
+	IM.font_size = font_size;
+	IM.font_height = font_height;
 
 	CreateContext();
 	ImGuiIO &io = GetIO();
@@ -163,8 +167,8 @@ bool im_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 		IM.context = NULL;
 
 		ImGuiIO &io = GetIO();
-		IM.font = io.Fonts->AddFontFromMemoryCompressedTTF(anonymous_compressed_data,
-			anonymous_compressed_size, im_dpi_scale() * 13.0f);
+		io.Fonts->AddFontFromMemoryCompressedTTF(IM.font, (int32_t) IM.font_size,
+			im_dpi_scale() * IM.font_height);
 
 		if (!im_impl_init(device, context))
 			return false;
@@ -255,6 +259,7 @@ void im_destroy(void)
 
 	im_impl_destroy();
 	DestroyContext();
+	free(IM.font);
 
 	memset(&IM, 0, sizeof(struct im));
 }
