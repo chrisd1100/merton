@@ -9,6 +9,8 @@
 #include "ui.h"
 #include "config.h"
 
+#include "deps/imgui/im.h"
+
 #include "nes/nes.h"
 #include "assets/db/nes20db.h"
 
@@ -90,7 +92,7 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
-	ui_input(wmsg);
+	im_input(wmsg);
 
 	switch (wmsg->type) {
 		case WINDOW_MSG_CLOSE:
@@ -348,7 +350,7 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 	}
 }
 
-static void main_ui_root(void *opaque)
+static void main_im_root(void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
@@ -402,7 +404,7 @@ int32_t main(int32_t argc, char **argv)
 	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
 
-	ui_create();
+	im_create();
 
 	if (argc >= 2)
 		ctx.loaded = main_load_rom(&ctx, argv[1]);
@@ -425,9 +427,9 @@ int32_t main(int32_t argc, char **argv)
 			OpaqueContext *context = window_get_context(ctx.window);
 			OpaqueTexture *back_buffer = window_get_back_buffer(ctx.window);
 
-			ui_begin(window_get_dpi_scale(ctx.window), device, context, back_buffer);
-			ui_draw(main_ui_root, &ctx);
-			ui_render(!NES_CartLoaded(ctx.nes));
+			im_begin(window_get_dpi_scale(ctx.window), device, context, back_buffer);
+			im_draw(main_im_root, &ctx);
+			im_render(!NES_CartLoaded(ctx.nes));
 
 			window_release_back_buffer(back_buffer);
 			double wait = floor(1000.0 / 60.0 - time_diff(ts, time_stamp())) - 1.0;
@@ -448,7 +450,7 @@ int32_t main(int32_t argc, char **argv)
 	except:
 
 	ui_component_destroy();
-	ui_destroy();
+	im_destroy();
 	NES_Destroy(&ctx.nes);
 	audio_destroy(&ctx.audio);
 	window_destroy(&ctx.window);

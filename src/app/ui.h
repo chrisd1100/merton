@@ -2,22 +2,8 @@
 
 #include "config.h"
 
-#include "lib/lib.h"
 #include "nes/nes.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/*** FRAMEWORK ***/
-void ui_create(void);
-void ui_destroy(void);
-void ui_input(struct window_msg *wmsg);
-bool ui_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture);
-void ui_draw(void (*callback)(void *opaque), const void *opaque);
-void ui_render(bool clear);
-
-/*** COMPONENTS ***/
 #define UI_LOG_LEN  128
 
 enum ui_event_type {
@@ -49,7 +35,3 @@ void ui_component_message(const char *msg, int32_t timeout);
 void ui_component_destroy(void);
 void ui_component_log(const char *msg, int32_t timeout);
 void ui_component_clear_log(void);
-
-#ifdef __cplusplus
-}
-#endif

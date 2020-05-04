@@ -15,6 +15,7 @@ OBJS = \
 	src\nes\ppu.obj \
 	src\app\main.obj \
 	src\app\ui.obj \
+	src\app\deps\imgui\im.obj \
 	src\lib\crypto.obj \
 	src\lib\windows\window.obj \
 	src\lib\windows\window-quad.obj \
