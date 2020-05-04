@@ -51,7 +51,8 @@ CFLAGS = $(CFLAGS) /Oy- /Ob0 /Zi
 CFLAGS = $(CFLAGS) /GL
 !ENDIF
 
-CPPFLAGS = $(CFLAGS)
+CPPFLAGS = $(CFLAGS) \
+	/wd4505
 
 LIBS = \
 	libvcruntime.lib \
