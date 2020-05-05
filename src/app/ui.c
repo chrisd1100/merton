@@ -137,6 +137,7 @@ static void ui_open_rom(struct ui_event *event)
 		if (im_button("Close"))
 			CMP.nav = NAV_NONE;
 
+		im_push_style_f2(ImGuiStyleVar_FramePadding, 0, 0);
 		im_begin_frame(0x01, w, h - X(50), ImGuiWindowFlags_NavFlattened);
 
 		if (!CMP.refreshed) {
@@ -167,6 +168,8 @@ static void ui_open_rom(struct ui_event *event)
 		}
 
 		im_end_frame();
+		im_pop_style(1);
+
 		im_end_window();
 	}
 }
