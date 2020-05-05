@@ -142,15 +142,16 @@ uint32_t fs_list(const char *path, struct finfo **fi)
 		char *name = ent.cFileName;
 		bool is_dir = ent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 
-		if (is_dir || strstr(name, ".nes")) {
+		if ((is_dir && strcmp(name, ".")) || strstr(name, ".nes")) {
 			*fi = realloc(*fi, (n + 1) * sizeof(struct finfo));
 
-			size_t name_size = strlen(name) + 1;
-			size_t path_size = name_size + strlen(path) + 1;
-			(*fi)[n].name = malloc(name_size);
-			(*fi)[n].path = malloc(path_size);
+			size_t name_size = strlen(name) + 2;
+			size_t path_size = name_size + strlen(path) + 2;
+			(*fi)[n].name = calloc(name_size, 1);
+			(*fi)[n].path = calloc(path_size, 1);
 
-			snprintf((char *) (*fi)[n].name, name_size, "%s", name);
+			snprintf((char *) (*fi)[n].name, name_size, "%s%s", name,
+				(is_dir && strcmp(name, "..")) ? "\\" : "");
 			snprintf((char *) (*fi)[n].path, path_size, "%s\\%s", path, name);
 			(*fi)[n].dir = is_dir;
 			n++;

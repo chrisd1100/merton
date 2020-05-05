@@ -136,11 +136,13 @@ static void ui_open_rom(struct ui_event *event)
 			struct finfo *fi = NULL;
 			uint32_t n = fs_list(CMP.dir ? CMP.dir : ".", &fi);
 
-			fs_free_list(&CMP.fi, CMP.fi_n);
-			CMP.fi = fi;
-			CMP.fi_n = n;
+			if (n > 0) {
+				fs_free_list(&CMP.fi, CMP.fi_n);
+				CMP.fi = fi;
+				CMP.fi_n = n;
 
-			CMP.refreshed = true;
+				CMP.refreshed = true;
+			}
 		}
 
 		for (uint32_t x = 0; x < CMP.fi_n; x++) {
