@@ -30,9 +30,9 @@ struct ui_event {
 	const char *rom_name;
 };
 
-void ui_component_root(const struct ui_args *args,
+void ui_root(const struct ui_args *args,
 	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque);
-void ui_component_message(const char *msg, int32_t timeout);
-void ui_component_destroy(void);
-void ui_component_log(const char *msg, int32_t timeout);
-void ui_component_clear_log(void);
+void ui_set_message(const char *msg, int32_t timeout);
+void ui_add_log(const char *msg, int32_t timeout);
+void ui_destroy(void);
+void ui_clear_log(void);

@@ -47,7 +47,7 @@ static struct component_state {
 	int32_t log_timeout;
 } CMP;
 
-void ui_component_message(const char *msg, int32_t timeout)
+void ui_set_message(const char *msg, int32_t timeout)
 {
 	free(CMP.msg);
 	CMP.msg = _strdup(msg);
@@ -74,7 +74,7 @@ static void ui_message(void)
 	}
 }
 
-void ui_component_log(const char *msg, int32_t timeout)
+void ui_add_log(const char *msg, int32_t timeout)
 {
 	if (++CMP.log_lines > UI_LOG_LINES) {
 		memmove(CMP.logs, (char *) CMP.logs + UI_LOG_LEN, UI_LOG_LEN * (UI_LOG_LINES - 1));
@@ -87,7 +87,7 @@ void ui_component_log(const char *msg, int32_t timeout)
 	CMP.log_timeout = timeout;
 }
 
-void ui_component_clear_log(void)
+void ui_clear_log(void)
 {
 	CMP.log_lines = 0;
 	memset(CMP.logs, 0, UI_LOG_LEN * UI_LOG_LINES);
@@ -178,7 +178,7 @@ static void ui_save_state(NES *nes, uint32_t crc32, uint8_t index)
 
 		char msg[64];
 		snprintf(msg, 64, "State saved to slot %u", index);
-		ui_component_message(msg, 3000);
+		ui_set_message(msg, 3000);
 
 		free(state);
 	}
@@ -210,7 +210,7 @@ static void ui_load_state(NES *nes, uint32_t crc32, uint8_t index)
 		snprintf(msg, 64, "State does not exist for slot %u", index);
 	}
 
-	ui_component_message(msg, 3000);
+	ui_set_message(msg, 3000);
 }
 
 static void ui_menu(const struct ui_args *args, struct ui_event *event)
@@ -460,7 +460,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 	}
 }
 
-static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *event)
+static void ui_hotkeys(const struct ui_args *args, struct ui_event *event)
 {
 	if (im_key(SCANCODE_ESCAPE)) {
 		CMP.nav ^= NAV_MENU;
@@ -498,7 +498,7 @@ static void ui_component_hotkeys(const struct ui_args *args, struct ui_event *ev
 	}
 }
 
-void ui_component_root(const struct ui_args *args,
+void ui_root(const struct ui_args *args,
 	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque)
 {
 	struct ui_event event = {0};
@@ -533,7 +533,7 @@ void ui_component_root(const struct ui_args *args,
 	im_push_style_f2(ImGuiStyleVar_FramePadding,    X(10), X(6));
 	im_push_style_f2(ImGuiStyleVar_WindowPadding,   X(10), X(10));
 
-	ui_component_hotkeys(args, &event);
+	ui_hotkeys(args, &event);
 
 	if (args->show_menu)
 		CMP.nav = NAV_MENU;
@@ -562,7 +562,7 @@ void ui_component_root(const struct ui_args *args,
 		event_callback(&event, (void *) opaque);
 }
 
-void ui_component_destroy(void)
+void ui_destroy(void)
 {
 	fs_free_list(&CMP.fi, CMP.fi_n);
 	CMP.fi_n = 0;

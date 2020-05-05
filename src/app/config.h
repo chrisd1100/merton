@@ -60,7 +60,7 @@ struct config {
 #define CONFIG_DEFAULTS { \
 	CONFIG_VERSION, \
 	NES_CONFIG_DEFAULTS, \
-	true, \
+	false, \
 	true, \
 	true, \
 	CONFIG_LOG_TIMEOUT, \

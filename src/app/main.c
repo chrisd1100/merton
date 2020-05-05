@@ -74,7 +74,98 @@ static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)
 
 static void main_nes_log(const char *str)
 {
-	ui_component_log(str, 3000);
+	ui_add_log(str, 3000);
+}
+
+
+/*** ROM / SRAM LOADING ***/
+
+static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc *desc)
+{
+	for (uint32_t x = 0; x < NES_DB_ROWS; x++) {
+		const uint8_t *row = NES_DB + x * NES_DB_ROW_SIZE;
+
+		if (crc32 == *((uint32_t *) row)) {
+			desc->offset = offset;
+			desc->prgROMSize = row[4] * 0x4000;
+			desc->chrROMSize = row[9] * 0x2000;
+			desc->mapper = *((uint16_t *) (row + 14));
+			desc->submapper = row[16] & 0xF;
+			desc->mirror = (row[16] & 0x10) ? NES_MIRROR_VERTICAL :
+				(row[16] & 0x20) ? NES_MIRROR_FOUR : NES_MIRROR_HORIZONTAL;
+			desc->battery = row[16] & 0x80;
+			desc->prgWRAMSize = *((uint16_t *) (row + 5)) * 8;
+			desc->prgSRAMSize = *((uint16_t *) (row + 7)) * 8;
+			desc->chrWRAMSize = *((uint16_t *) (row + 10)) * 8;
+			desc->chrSRAMSize = *((uint16_t *) (row + 12)) * 8;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool main_load_rom(struct main *ctx, const char *name)
+{
+	size_t rom_size = 0;
+	uint8_t *rom = fs_read(name, &rom_size);
+
+	if (rom && rom_size > 16) {
+		uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
+
+		if (rom_size > offset) {
+			ctx->crc32 = crypto_crc32(rom + offset, rom_size - offset);
+
+			ui_clear_log();
+			ui_set_message("Press ESC to access the menu", 3000);
+
+			char sram_name[16];
+			snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
+
+			NES_CartDesc desc = {0};
+			bool found_in_db = ctx->cfg.use_db ? main_get_desc_from_db(offset, ctx->crc32, &desc) : false;
+
+			if (found_in_db) {
+				char msg[UI_LOG_LEN];
+				snprintf(msg, UI_LOG_LEN, "%02X found in database", ctx->crc32);
+				ui_add_log(msg, 3000);
+			}
+
+			size_t sram_size = 0;
+			void *sram = fs_read(fs_path(fs_prog_dir(), fs_path("save", sram_name)), &sram_size);
+			NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
+			free(sram);
+			free(rom);
+
+			window_set_title(ctx->window, APP_NAME, fs_file_name(name, false));
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void main_save_sram(struct main *ctx)
+{
+	if (ctx->crc32 == 0)
+		return;
+
+	size_t sram_size = NES_SRAMDirty(ctx->nes);
+
+	if (sram_size > 0) {
+		void *sram = calloc(sram_size, 1);
+		NES_GetSRAM(ctx->nes, sram, sram_size);
+
+		char sram_name[16];
+		snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
+
+		const char *save_path = fs_path(fs_prog_dir(), "save");
+		fs_mkdir(save_path);
+		fs_write(fs_path(save_path, sram_name), sram, sram_size);
+		free(sram);
+	}
 }
 
 
@@ -100,6 +191,10 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 	switch (wmsg->type) {
 		case WINDOW_MSG_CLOSE:
 			ctx->running = false;
+			break;
+		case WINDOW_MSG_DRAG:
+			main_save_sram(ctx);
+			main_load_rom(ctx, wmsg->drag.name);
 			break;
 		case WINDOW_MSG_KEYBOARD: {
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
@@ -210,97 +305,6 @@ static void main_audio_adjustment(struct main *ctx)
 }
 
 
-/*** ROM / SRAM LOADING ***/
-
-static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc *desc)
-{
-	for (uint32_t x = 0; x < NES_DB_ROWS; x++) {
-		const uint8_t *row = NES_DB + x * NES_DB_ROW_SIZE;
-
-		if (crc32 == *((uint32_t *) row)) {
-			desc->offset = offset;
-			desc->prgROMSize = row[4] * 0x4000;
-			desc->chrROMSize = row[9] * 0x2000;
-			desc->mapper = *((uint16_t *) (row + 14));
-			desc->submapper = row[16] & 0xF;
-			desc->mirror = (row[16] & 0x10) ? NES_MIRROR_VERTICAL :
-				(row[16] & 0x20) ? NES_MIRROR_FOUR : NES_MIRROR_HORIZONTAL;
-			desc->battery = row[16] & 0x80;
-			desc->prgWRAMSize = *((uint16_t *) (row + 5)) * 8;
-			desc->prgSRAMSize = *((uint16_t *) (row + 7)) * 8;
-			desc->chrWRAMSize = *((uint16_t *) (row + 10)) * 8;
-			desc->chrSRAMSize = *((uint16_t *) (row + 12)) * 8;
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool main_load_rom(struct main *ctx, const char *name)
-{
-	size_t rom_size = 0;
-	uint8_t *rom = fs_read(name, &rom_size);
-
-	if (rom && rom_size > 16) {
-		uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
-
-		if (rom_size > offset) {
-			ctx->crc32 = crypto_crc32(rom + offset, rom_size - offset);
-
-			ui_component_clear_log();
-			ui_component_message("Press ESC to access the menu", 3000);
-
-			char sram_name[16];
-			snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
-
-			NES_CartDesc desc = {0};
-			bool found_in_db = ctx->cfg.use_db ? main_get_desc_from_db(offset, ctx->crc32, &desc) : false;
-
-			if (found_in_db) {
-				char msg[UI_LOG_LEN];
-				snprintf(msg, UI_LOG_LEN, "%02X found in database", ctx->crc32);
-				ui_component_log(msg, 3000);
-			}
-
-			size_t sram_size = 0;
-			void *sram = fs_read(fs_path(fs_prog_dir(), fs_path("save", sram_name)), &sram_size);
-			NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
-			free(sram);
-			free(rom);
-
-			window_set_title(ctx->window, APP_NAME, fs_file_name(name, false));
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static void main_save_sram(struct main *ctx)
-{
-	if (ctx->crc32 == 0)
-		return;
-
-	size_t sram_size = NES_SRAMDirty(ctx->nes);
-
-	if (sram_size > 0) {
-		void *sram = calloc(sram_size, 1);
-		NES_GetSRAM(ctx->nes, sram, sram_size);
-
-		char sram_name[16];
-		snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
-
-		const char *save_path = fs_path(fs_prog_dir(), "save");
-		fs_mkdir(save_path);
-		fs_write(fs_path(save_path, sram_name), sram, sram_size);
-		free(sram);
-	}
-}
-
-
 /*** UI ***/
 
 static void main_ui_event(struct ui_event *event, void *opaque)
@@ -370,7 +374,7 @@ static void main_im_root(void *opaque)
 	args.show_menu = !ctx->loaded;
 	ctx->loaded = true;
 
-	ui_component_root(&args, main_ui_event, ctx);
+	ui_root(&args, main_ui_event, ctx);
 }
 
 
@@ -457,7 +461,7 @@ int32_t main(int32_t argc, char **argv)
 
 	except:
 
-	ui_component_destroy();
+	ui_destroy();
 	im_destroy();
 	NES_Destroy(&ctx.nes);
 	audio_destroy(&ctx.audio);

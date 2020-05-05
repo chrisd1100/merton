@@ -33,8 +33,30 @@ struct window {
 	struct window_quad *quad;
 };
 
+static __declspec(thread) char WINDOW_DRAG[MAX_PATH];
 
 /*** WINDOW ***/
+
+static void window_utf8_to_wchar(const char *src, WCHAR *dst, uint32_t dst_len)
+{
+	int32_t n = MultiByteToWideChar(CP_UTF8, 0, src, -1, dst, (int32_t) dst_len);
+
+	if (n != strlen(src) + 1)
+		memset(dst, 0, dst_len * sizeof(WCHAR));
+}
+
+static void window_wchar_to_utf8(WCHAR *src, char *dst, size_t dst_len)
+{
+	int32_t n = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, src, -1, dst,
+		(int32_t) dst_len, NULL, NULL);
+
+	if (n > 0) {
+		dst[n] = '\0';
+
+	} else {
+		memset(dst, 0, dst_len);
+	}
+}
 
 static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -132,9 +154,14 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 			r = DefRawInputProc(&ri, 1, sizeof(RAWINPUTHEADER));
 			break;
 		case WM_DROPFILES:
-			char name[1024];
+			WCHAR name[MAX_PATH];
 
-			if (DragQueryFileA((HDROP) wparam, 0, name, 1024)) {
+			if (DragQueryFile((HDROP) wparam, 0, name, MAX_PATH)) {
+				SetForegroundWindow(hwnd);
+
+				window_wchar_to_utf8(name, WINDOW_DRAG, MAX_PATH);
+				wmsg.type = WINDOW_MSG_DRAG;
+				wmsg.drag.name = WINDOW_DRAG;
 			}
 			break;
 		default:
@@ -151,14 +178,6 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 	}
 
 	return custom_return ? r : DefWindowProc(hwnd, msg, wparam, lparam);
-}
-
-static void window_utf8_to_wchar(const char *src, WCHAR *dst, uint32_t dst_len)
-{
-	int32_t n = MultiByteToWideChar(CP_UTF8, 0, src, -1, dst, (int32_t) dst_len);
-
-	if (n != strlen(src) + 1)
-		memset(dst, 0, dst_len * sizeof(WCHAR));
 }
 
 static void window_calc_client_area(uint32_t *width, uint32_t *height)

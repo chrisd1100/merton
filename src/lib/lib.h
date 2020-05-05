@@ -25,6 +25,7 @@ enum window_msg_type {
 	WINDOW_MSG_MOUSE_WHEEL  = 4,
 	WINDOW_MSG_MOUSE_BUTTON = 6,
 	WINDOW_MSG_MOUSE_MOTION = 7,
+	WINDOW_MSG_DRAG         = 8,
 };
 
 enum scancode {
@@ -133,6 +134,10 @@ struct window_msg {
 			int32_t x;
 			int32_t y;
 		} mouseMotion;
+
+		struct {
+			const char *name;
+		} drag;
 	};
 };
 
