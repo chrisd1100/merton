@@ -146,6 +146,7 @@ typedef void OpaqueTexture;
 
 enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const void *opaque,
 	uint32_t width, uint32_t height, bool fullscreen, struct window **window);
+void window_set_title(struct window *ctx, const char *title, const char *subtitle);
 void window_poll(struct window *ctx);
 bool window_is_foreground(struct window *ctx);
 uint32_t window_refresh_rate(struct window *ctx);
@@ -192,6 +193,7 @@ struct finfo {
 void *fs_read(const char *path, size_t *size);
 void fs_write(const char *path, const void *data, size_t size);
 void fs_mkdir(const char *path);
+const char *fs_file_name(const char *path, bool extension);
 const char *fs_prog_dir(void);
 const char *fs_path(const char *dir, const char *file);
 uint32_t fs_list(const char *path, struct finfo **fi);

@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "lib.h"
+#include "lib/lib.h"
 #include "nes/nes.h"
 
 #define CONFIG_VERSION 4

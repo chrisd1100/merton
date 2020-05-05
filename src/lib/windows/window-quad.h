@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "lib.h"
+#include "lib/lib.h"
 
 #define COBJMACROS
 #include <d3d11.h>

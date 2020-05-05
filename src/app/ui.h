@@ -7,12 +7,13 @@
 #define UI_LOG_LEN  128
 
 enum ui_event_type {
-	UI_EVENT_NONE     = 0,
-	UI_EVENT_CONFIG   = 1,
-	UI_EVENT_QUIT     = 2,
-	UI_EVENT_PAUSE    = 3,
-	UI_EVENT_OPEN_ROM = 4,
-	UI_EVENT_RESET    = 5,
+	UI_EVENT_NONE       = 0,
+	UI_EVENT_CONFIG     = 1,
+	UI_EVENT_QUIT       = 2,
+	UI_EVENT_PAUSE      = 3,
+	UI_EVENT_OPEN_ROM   = 4,
+	UI_EVENT_RESET      = 5,
+	UI_EVENT_UNLOAD_ROM = 6,
 };
 
 struct ui_args {

@@ -14,6 +14,7 @@
 
 static __thread char FS_PATH[PATH_MAX];
 static __thread char FS_PROG_DIR[PATH_MAX];
+static __thread char FS_FILE_NAME[PATH_MAX];
 
 void *fs_read(const char *path, size_t *size)
 {
@@ -61,6 +62,23 @@ void fs_mkdir(const char *path)
 	mkdir(path, 0755);
 }
 
+const char *fs_file_name(const char *path)
+{
+	const char *name = strrchr(path, '\\');
+	name = name ? name + 1 : path;
+
+	snprintf(FS_FILE_NAME, MAX_PATH, "%s", name);
+
+	if (!extension) {
+		char *ext = strrchr(FS_FILE_NAME, '.');
+
+		if (ext)
+			*ext = '\0';
+	}
+
+	return FS_FILE_NAME;
+}
+
 const char *fs_prog_dir(void)
 {
 	int32_t n = readlink("/proc/self/exe", FS_PROG_DIR, PATH_MAX);
@@ -68,20 +86,10 @@ const char *fs_prog_dir(void)
 	if (n > 0 && n < PATH_MAX) {
 		FS_PROG_DIR[n] = '\0';
 
-		char *last_bs = NULL;
-		char *ptr = FS_PROG_DIR;
+		char *name = (char *) fs_file_name(FS_PROG_DIR, true);
 
-		do {
-			ptr = strchr(ptr, '/');
-
-			if (ptr) {
-				last_bs = ptr;
-				ptr++;
-			}
-		} while (ptr);
-
-		if (last_bs)
-			last_bs[0] = '\0';
+		if (name != FS_PROG_DIR)
+			name[0] = '\0';
 
 	} else {
 		snprintf(FS_PROG_DIR, PATH_MAX, ".");

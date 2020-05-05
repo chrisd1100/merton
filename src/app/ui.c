@@ -218,8 +218,10 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 			if (im_menu_item("Load ROM", "Ctrl+O", false))
 				CMP.nav ^= NAV_OPEN_ROM;
 
-			if (im_menu_item("Unload ROM", "", false))
+			if (im_menu_item("Unload ROM", "", false)) {
 				NES_LoadCart(args->nes, NULL, 0, NULL, 0, NULL);
+				event->type = UI_EVENT_UNLOAD_ROM;
+			}
 
 			im_separator();
 

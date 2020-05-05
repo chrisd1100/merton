@@ -1,6 +1,7 @@
-#include "lib.h"
+#include "lib/lib.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #define COBJMACROS
 #include <windows.h>
@@ -152,7 +153,7 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 	return custom_return ? r : DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
-static void window_utf8_to_wchar(const char *src, WCHAR *dst, size_t dst_len)
+static void window_utf8_to_wchar(const char *src, WCHAR *dst, uint32_t dst_len)
 {
 	int32_t n = MultiByteToWideChar(CP_UTF8, 0, src, -1, dst, (int32_t) dst_len);
 
@@ -317,6 +318,26 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 		window_destroy(window);
 
 	return r;
+}
+
+void window_set_title(struct window *ctx, const char *title, const char *subtitle)
+{
+	WCHAR titlew[TITLE_MAX];
+	window_utf8_to_wchar(title, titlew, TITLE_MAX);
+
+	WCHAR full[TITLE_MAX];
+
+	if (subtitle) {
+		WCHAR subtitlew[TITLE_MAX];
+		window_utf8_to_wchar(subtitle, subtitlew, TITLE_MAX);
+
+		_snwprintf_s(full, TITLE_MAX, _TRUNCATE, L"%s - %s", titlew, subtitlew);
+
+	} else {
+		_snwprintf_s(full, TITLE_MAX, _TRUNCATE, L"%s", titlew);
+	}
+
+	SetWindowText(ctx->hwnd, full);
 }
 
 static bool window_get_size(struct window *ctx, uint32_t *width, uint32_t *height)

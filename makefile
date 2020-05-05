@@ -33,7 +33,6 @@ RFLAGS = \
 CFLAGS = \
 	-I. \
 	-Isrc \
-	-Isrc\lib \
 	-DWIN32_LEAN_AND_MEAN \
 	-DUNICODE \
 	/nologo \

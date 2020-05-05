@@ -1,4 +1,4 @@
-#include "lib.h"
+#include "lib/lib.h"
 
 uint32_t crypto_crc32(void *data, size_t size)
 {

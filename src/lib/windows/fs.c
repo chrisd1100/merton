@@ -1,4 +1,4 @@
-#include "lib.h"
+#include "lib/lib.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -7,6 +7,7 @@
 
 static __declspec(thread) char FS_PATH[MAX_PATH];
 static __declspec(thread) char FS_PROG_DIR[MAX_PATH];
+static __declspec(thread) char FS_FILE_NAME[MAX_PATH];
 
 void *fs_read(const char *path, size_t *size)
 {
@@ -56,25 +57,32 @@ void fs_mkdir(const char *path)
 	CreateDirectoryA(path, NULL);
 }
 
+const char *fs_file_name(const char *path, bool extension)
+{
+	const char *name = strrchr(path, '\\');
+	name = name ? name + 1 : path;
+
+	snprintf(FS_FILE_NAME, MAX_PATH, "%s", name);
+
+	if (!extension) {
+		char *ext = strrchr(FS_FILE_NAME, '.');
+
+		if (ext)
+			*ext = '\0';
+	}
+
+	return FS_FILE_NAME;
+}
+
 const char *fs_prog_dir(void)
 {
 	DWORD n = GetModuleFileNameA(NULL, FS_PROG_DIR, MAX_PATH);
 
 	if (n > 0) {
-		char *last_bs = NULL;
-		char *ptr = FS_PROG_DIR;
+		char *name = (char *) fs_file_name(FS_PROG_DIR, true);
 
-		do {
-			ptr = strchr(ptr, '\\');
-
-			if (ptr) {
-				last_bs = ptr;
-				ptr++;
-			}
-		} while (ptr);
-
-		if (last_bs)
-			last_bs[0] = '\0';
+		if (name != FS_PROG_DIR)
+			name[0] = '\0';
 
 	} else {
 		snprintf(FS_PROG_DIR, MAX_PATH, ".");

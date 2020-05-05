@@ -5,15 +5,17 @@
 #include <string.h>
 #include <math.h>
 
-#include "lib.h"
+#include "nes/nes.h"
+#include "lib/lib.h"
+#include "deps/imgui/im.h"
+
 #include "ui.h"
 #include "config.h"
 
-#include "deps/imgui/im.h"
-
-#include "nes/nes.h"
 #include "assets/db/nes20db.h"
 #include "assets/font/anonymous.h"
+
+#define APP_NAME "Merton"
 
 struct main {
 	NES *nes;
@@ -268,6 +270,8 @@ static bool main_load_rom(struct main *ctx, const char *name)
 			free(sram);
 			free(rom);
 
+			window_set_title(ctx->window, APP_NAME, fs_file_name(name, false));
+
 			return true;
 		}
 	}
@@ -342,6 +346,9 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			main_save_sram(ctx);
 			main_load_rom(ctx, event->rom_name);
 			break;
+		case UI_EVENT_UNLOAD_ROM:
+			window_set_title(ctx->window, APP_NAME, NULL);
+			break;
 		case UI_EVENT_RESET:
 			window_set_windowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
 			ctx->cfg.fullscreen = window_is_fullscreen(ctx->window);
@@ -395,7 +402,7 @@ int32_t main(int32_t argc, char **argv)
 	ctx.cfg = main_load_config();
 	ctx.running = true;
 
-	int32_t r = window_create("Merton", main_window_msg_func, &ctx,
+	int32_t r = window_create(APP_NAME, main_window_msg_func, &ctx,
 		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, &ctx.window);
 	if (r != LIB_OK) goto except;
 
