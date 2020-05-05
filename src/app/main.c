@@ -61,7 +61,7 @@ static void main_nes_video(const uint32_t *frame, void *opaque)
 
 	window_render_quad(ctx->window, ctx->cropped, NES_FRAME_WIDTH, NES_FRAME_HEIGHT,
 		ctx->cfg.frame_size * NES_FRAME_WIDTH, ctx->cfg.frame_size * NES_FRAME_HEIGHT,
-		(float) ctx->cfg.aspect_ratio.x / (float) ctx->cfg.aspect_ratio.y, ctx->cfg.filter);
+		(float) ctx->cfg.aspect_ratio.x / (float) ctx->cfg.aspect_ratio.y, ctx->cfg.filter, ctx->cfg.effect);
 }
 
 static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)

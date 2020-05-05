@@ -3,13 +3,24 @@
 #include "shaders/ps.h"
 #include "shaders/vs.h"
 
+struct psvars {
+	float width;
+	float height;
+	float constrain_w;
+	float constrain_h;
+	uint32_t filter;
+	uint32_t effect;
+};
+
 struct window_quad {
 	uint32_t width;
 	uint32_t height;
+	struct psvars psvars;
 	ID3D11VertexShader *vs;
 	ID3D11PixelShader *ps;
 	ID3D11Buffer *vb;
 	ID3D11Buffer *ib;
+	ID3D11Buffer *psb;
 	ID3D11InputLayout *il;
 	ID3D11SamplerState *ss_nearest;
 	ID3D11SamplerState *ss_linear;
@@ -59,6 +70,15 @@ HRESULT window_quad_init(ID3D11Device *device, struct window_quad **quad)
 	D3D11_SUBRESOURCE_DATA isrd = {0};
 	isrd.pSysMem = index_data;
 	e = ID3D11Device_CreateBuffer(device, &ibd, &isrd, &ctx->ib);
+	if (e != S_OK) goto except;
+
+	D3D11_BUFFER_DESC psbd = {0};
+	psbd.ByteWidth = sizeof(struct psvars);
+	psbd.Usage = D3D11_USAGE_DEFAULT;
+
+	D3D11_SUBRESOURCE_DATA pssrd = {0};
+	pssrd.pSysMem = &ctx->psvars;
+	e = ID3D11Device_CreateBuffer(device, &psbd, &pssrd, &ctx->psb);
 	if (e != S_OK) goto except;
 
 	D3D11_INPUT_ELEMENT_DESC ied[] = {
@@ -179,7 +199,7 @@ static HRESULT window_quad_copy(struct window_quad *ctx, ID3D11DeviceContext *co
 	return e;
 }
 
-static void window_quad_set_viewport(ID3D11DeviceContext *context, UINT width, UINT height,
+static D3D11_VIEWPORT window_quad_viewport(UINT width, UINT height,
 	uint32_t constrain_w, uint32_t constrain_h, uint32_t window_w, uint32_t window_h, float aspect_ratio)
 {
 	if (constrain_w == 0 || constrain_h == 0 || window_w < constrain_w || window_h < constrain_h) {
@@ -199,7 +219,7 @@ static void window_quad_set_viewport(ID3D11DeviceContext *context, UINT width, U
 	viewport.TopLeftX = ((float) window_w - viewport.Width) / 2.0f;
 	viewport.TopLeftY = ((float) window_h - viewport.Height) / 2.0f;
 
-	ID3D11DeviceContext_RSSetViewports(context, 1, &viewport);
+	return viewport;
 }
 
 static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *context,
@@ -211,7 +231,8 @@ static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *conte
 	ID3D11DeviceContext_VSSetShader(context, ctx->vs, NULL, 0);
 	ID3D11DeviceContext_PSSetShader(context, ctx->ps, NULL, 0);
 	ID3D11DeviceContext_PSSetShaderResources(context, 0, 1, &ctx->srv);
-	ID3D11DeviceContext_PSSetSamplers(context, 0, 1, filter == FILTER_LINEAR ? &ctx->ss_linear : &ctx->ss_nearest);
+	ID3D11DeviceContext_PSSetSamplers(context, 0, 1, filter == FILTER_NEAREST ? &ctx->ss_nearest : &ctx->ss_linear);
+	ID3D11DeviceContext_PSSetConstantBuffers(context, 0, 1, &ctx->psb);
 	ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &ctx->vb, &stride, &offset);
 	ID3D11DeviceContext_IASetIndexBuffer(context, ctx->ib, DXGI_FORMAT_R32_UINT, 0);
 	ID3D11DeviceContext_IASetInputLayout(context, ctx->il);
@@ -228,7 +249,7 @@ static void window_quad_draw(struct window_quad *ctx, ID3D11DeviceContext *conte
 
 HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11DeviceContext *context,
 	const void *image, uint32_t width, uint32_t height, uint32_t constrain_w, uint32_t constrain_h,
-	ID3D11Texture2D *dest, float aspect_ratio, enum filter filter)
+	ID3D11Texture2D *dest, float aspect_ratio, enum filter filter, enum effect effect)
 {
 	HRESULT e = window_quad_refresh_resource(ctx, device, width, height);
 	if (e != S_OK) return e;
@@ -239,8 +260,24 @@ HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11
 	D3D11_TEXTURE2D_DESC desc = {0};
 	ID3D11Texture2D_GetDesc(dest, &desc);
 
-	window_quad_set_viewport(context, ctx->width, ctx->height, constrain_w, constrain_h,
+	D3D11_VIEWPORT vp = window_quad_viewport(ctx->width, ctx->height, constrain_w, constrain_h,
 		desc.Width, desc.Height, aspect_ratio);
+
+	ID3D11DeviceContext_RSSetViewports(context, 1, &vp);
+
+	ID3D11Resource *cbresource = NULL;
+	e = ID3D11Buffer_QueryInterface(ctx->psb, &IID_ID3D11Resource, &cbresource);
+
+	if (e == S_OK) {
+		ctx->psvars.width = (float) width;
+		ctx->psvars.height = (float) height;
+		ctx->psvars.constrain_w = (float) vp.Width;
+		ctx->psvars.constrain_h = (float) vp.Height;
+		ctx->psvars.filter = filter;
+		ctx->psvars.effect = effect;
+		ID3D11DeviceContext_UpdateSubresource(context, cbresource, 0, 0, &ctx->psvars, 0, 0);
+		ID3D11Resource_Release(cbresource);
+	}
 
 	ID3D11Resource *resource = NULL;
 	e = ID3D11Texture2D_QueryInterface(dest, &IID_ID3D11Resource, &resource);
@@ -280,6 +317,9 @@ void window_quad_destroy(struct window_quad **quad)
 
 	if (ctx->il)
 		ID3D11InputLayout_Release(ctx->il);
+
+	if (ctx->psb)
+		ID3D11Buffer_Release(ctx->psb);
 
 	if (ctx->ib)
 		ID3D11Buffer_Release(ctx->ib);

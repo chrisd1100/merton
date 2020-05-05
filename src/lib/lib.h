@@ -84,6 +84,12 @@ enum mouse_button {
 enum filter {
 	FILTER_NEAREST = 1,
 	FILTER_LINEAR  = 2,
+	FILTER_GS      = 3,
+};
+
+enum effect {
+	EFFECT_NONE      = 0,
+	EFFECT_SCANLINES = 1,
 };
 
 struct window_msg {
@@ -166,7 +172,7 @@ OpaqueTexture *window_get_back_buffer(struct window *ctx);
 void window_release_back_buffer(OpaqueTexture *texture);
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
 	uint32_t height, uint32_t constrain_w, uint32_t constrain_h, float aspect_ratio,
-	enum filter filter);
+	enum filter filter, enum effect effect);
 void window_destroy(struct window **window);
 
 

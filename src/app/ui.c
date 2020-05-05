@@ -363,11 +363,19 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 				if (im_menu_item("Linear", "", args->cfg->filter == FILTER_LINEAR))
 					event->cfg.filter = FILTER_LINEAR;
 
+				if (im_menu_item("Gaussian Sharp", "", args->cfg->filter == FILTER_GS))
+					event->cfg.filter = FILTER_GS;
+
 				im_end_menu();
 			}
 
-			if (im_begin_menu("Shader", true)) {
-				im_menu_item("None", "", true);
+			if (im_begin_menu("Effect", true)) {
+				if (im_menu_item("None", "", args->cfg->effect == EFFECT_NONE))
+					event->cfg.effect = EFFECT_NONE;
+
+				if (im_menu_item("Scanlines", "", args->cfg->effect == EFFECT_SCANLINES))
+					event->cfg.effect = EFFECT_SCANLINES;
+
 				im_end_menu();
 			}
 

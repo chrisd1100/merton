@@ -36,6 +36,7 @@ struct config {
 	bool fullscreen;
 	int32_t frame_size;
 	enum filter filter;
+	enum effect effect;
 	enum config_shader shader;
 	struct {
 		int32_t x;
@@ -67,6 +68,7 @@ struct config {
 	false, \
 	3, \
 	FILTER_NEAREST, \
+	EFFECT_NONE, \
 	CONFIG_SHADER_NONE, \
 	{16, 15}, \
 	{NES_FRAME_WIDTH * 3, NES_FRAME_HEIGHT * 3}, \
