@@ -40,7 +40,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	// Scanlines
 	if (effect == 1) {
 		if (fmod(floor(input.texcoord.y * constrain_h), 2.0) == 1.0)
-			rgba = float4(rgba.r * 0.8, rgba.g * 0.8, rgba.b * 0.8, rgba.a * 0.8);
+			rgba = float4(rgba.r * 0.85, rgba.g * 0.85, rgba.b * 0.85, rgba.a * 0.85);
 	}
 
 	return float4(rgba.b, rgba.g, rgba.r, rgba.a);

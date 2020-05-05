@@ -79,9 +79,9 @@ const char *fs_prog_dir(void)
 	DWORD n = GetModuleFileNameA(NULL, FS_PROG_DIR, MAX_PATH);
 
 	if (n > 0) {
-		char *name = (char *) fs_file_name(FS_PROG_DIR, true);
+		char *name = strrchr(FS_PROG_DIR, '\\');
 
-		if (name != FS_PROG_DIR)
+		if (name)
 			name[0] = '\0';
 
 	} else {
