@@ -385,7 +385,6 @@ void NES_ControllerState(NES *nes, uint8_t player, uint8_t state)
 void NES_SetConfig(NES *ctx, const NES_Config *cfg)
 {
 	apu_set_config(ctx->apu, cfg);
-	ppu_set_config(ctx->ppu, cfg);
 }
 
 
@@ -410,7 +409,7 @@ void NES_Create(const NES_Config *cfg, NES **nes)
 	NES *ctx = *nes = calloc(1, sizeof(NES));
 
 	cpu_create(&ctx->cpu);
-	ppu_create(cfg, &ctx->ppu);
+	ppu_create(&ctx->ppu);
 	apu_create(cfg, &ctx->apu);
 }
 

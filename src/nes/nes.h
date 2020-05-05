@@ -10,7 +10,7 @@
 #define NES_CLOCK        1789773
 
 #define NES_CONFIG_DEFAULTS \
-	{true, 44100, NES_CLOCK, NES_CHANNEL_ALL, 0}
+	{true, 44100, NES_CLOCK, NES_CHANNEL_ALL}
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,7 +68,6 @@ typedef struct {
 	uint32_t sampleRate;
 	uint32_t APUClock;
 	uint32_t channels;
-	uint8_t scanlines;
 } NES_Config;
 
 typedef struct NES NES;

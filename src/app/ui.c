@@ -371,25 +371,6 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 				im_end_menu();
 			}
 
-			if (im_begin_menu("Scanlines", true)) {
-				if (im_menu_item("0%", "", args->cfg->nes.scanlines == 0))
-					event->cfg.nes.scanlines = 0;
-
-				if (im_menu_item("25%", "", args->cfg->nes.scanlines == 64))
-					event->cfg.nes.scanlines = 64;
-
-				if (im_menu_item("50%", "", args->cfg->nes.scanlines == 128))
-					event->cfg.nes.scanlines = 128;
-
-				if (im_menu_item("75%", "", args->cfg->nes.scanlines == 191))
-					event->cfg.nes.scanlines = 191;
-
-				if (im_menu_item("100%", "", args->cfg->nes.scanlines == 255))
-					event->cfg.nes.scanlines = 255;
-
-				im_end_menu();
-			}
-
 			if (im_begin_menu("Clear Overscan", true)) {
 				if (im_menu_item("Top", "", args->cfg->overscan.top))
 					event->cfg.overscan.top = !event->cfg.overscan.top;
