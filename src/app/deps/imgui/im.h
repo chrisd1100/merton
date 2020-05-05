@@ -149,6 +149,8 @@ void im_end_menu(void);
 bool im_menu_item(const char *name, const char *key, bool checked);
 bool im_begin_window(const char *name, uint32_t flags);
 void im_end_window(void);
+bool im_begin_frame(uint32_t id, float width, float height,  uint32_t flags);
+void im_end_frame(void);
 void im_separator(void);
 bool im_begin_main_menu(void);
 void im_end_main_menu(void);

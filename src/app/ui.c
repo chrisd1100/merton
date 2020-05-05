@@ -125,12 +125,19 @@ static void ui_open_rom(struct ui_event *event)
 	float padding_v = X(12);
 	float offset = X((CMP.nav & NAV_MENU) ? 34 : 12);
 	im_set_window_pos(padding_h, offset);
-	im_set_window_size(im_display_x() - padding_h * 2.0f,
-		(im_display_y() - (offset - padding_v)) - padding_v * 2.0f);
 
-	if (im_begin_window("OPEN_ROM", ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
+	float w = im_display_x() - padding_h * 2.0f;
+	float h = (im_display_y() - (offset - padding_v)) - padding_v * 2.0f;
+	im_set_window_size(w, h);
+
+	uint32_t flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoScrollWithMouse;
+
+	if (im_begin_window("OPEN_ROM", flags)) {
 		if (im_button("Close"))
 			CMP.nav = NAV_NONE;
+
+		im_begin_frame(0x01, w, h - X(50), ImGuiWindowFlags_NavFlattened);
 
 		if (!CMP.refreshed) {
 			struct finfo *fi = NULL;
@@ -159,6 +166,7 @@ static void ui_open_rom(struct ui_event *event)
 			}
 		}
 
+		im_end_frame();
 		im_end_window();
 	}
 }

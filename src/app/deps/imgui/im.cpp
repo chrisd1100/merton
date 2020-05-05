@@ -317,6 +317,16 @@ void im_end_window(void)
 	End();
 }
 
+bool im_begin_frame(uint32_t id, float width, float height,  uint32_t flags)
+{
+	return BeginChildFrame(id, ImVec2(width, height), flags);
+}
+
+void im_end_frame(void)
+{
+	EndChildFrame();
+}
+
 void im_separator(void)
 {
 	Separator();
