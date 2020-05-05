@@ -195,6 +195,7 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 		case WINDOW_MSG_DRAG:
 			main_save_sram(ctx);
 			main_load_rom(ctx, wmsg->drag.name);
+			ui_close_menu();
 			break;
 		case WINDOW_MSG_KEYBOARD: {
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];

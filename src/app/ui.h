@@ -33,6 +33,7 @@ struct ui_event {
 void ui_root(const struct ui_args *args,
 	void (*event_callback)(struct ui_event *event, void *opaque), const void *opaque);
 void ui_set_message(const char *msg, int32_t timeout);
+void ui_close_menu(void);
 void ui_add_log(const char *msg, int32_t timeout);
 void ui_destroy(void);
 void ui_clear_log(void);

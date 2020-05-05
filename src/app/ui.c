@@ -154,7 +154,7 @@ static void ui_open_rom(struct ui_event *event)
 				} else {
 					event->type = UI_EVENT_OPEN_ROM;
 					event->rom_name = CMP.fi[x].path;
-					CMP.nav = NAV_NONE;
+					ui_close_menu();
 				}
 			}
 		}
@@ -560,6 +560,11 @@ void ui_root(const struct ui_args *args,
 
 	if (event.type != UI_EVENT_NONE)
 		event_callback(&event, (void *) opaque);
+}
+
+void ui_close_menu(void)
+{
+	CMP.nav = NAV_NONE;
 }
 
 void ui_destroy(void)
