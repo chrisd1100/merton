@@ -49,7 +49,7 @@ struct ppu {
 
 	uint8_t palette_ram[32];
 	uint8_t oam[256];
-	uint8_t soam[8][4];
+	uint8_t soam[64][4];
 
 	struct {
 		bool nmi_enabled;
@@ -91,9 +91,10 @@ struct ppu {
 	uint8_t oam_n;
 	uint8_t soam_n;
 	uint8_t eval_step;
+	uint8_t max_sprites;
 	bool overflow;
 	bool has_sprites;
-	struct sprite sprites[8];
+	struct sprite sprites[64];
 	struct spr spr[256];
 
 	uint8_t open_bus;
@@ -101,6 +102,8 @@ struct ppu {
 	uint8_t decay_high2;
 	uint8_t decay_low5;
 
+	uint16_t pre_nmi;
+	uint16_t post_nmi;
 	uint16_t scanline;
 	uint16_t dot;
 	bool rendering;
@@ -550,11 +553,11 @@ static void ppu_eval_sprites(struct ppu *ppu)
 				uint8_t y = SPRITE_Y(ppu->oam, ppu->OAMADDR);
 				int32_t row = ppu->scanline - y;
 
-				if (ppu->soam_n < 8)
+				if (ppu->soam_n < ppu->max_sprites)
 					ppu->soam[ppu->soam_n][0] = y;
 
 				if (row >= 0 && row < ppu->CTRL.sprite_h) {
-					if (ppu->soam_n == 8) {
+					if (ppu->soam_n == ppu->max_sprites) {
 						SET_FLAG(ppu->STATUS, FLAG_STATUS_O);
 						ppu->overflow = true;
 
@@ -570,7 +573,7 @@ static void ppu_eval_sprites(struct ppu *ppu)
 					ppu->OAMADDR++;
 					return;
 
-				} else if (ppu->soam_n == 8 && !ppu->overflow) {
+				} else if (ppu->soam_n == ppu->max_sprites && !ppu->overflow) {
 					ppu->OAMADDR = (ppu->OAMADDR & 0xFC) + ((ppu->OAMADDR + 1) & 0x03);
 				}
 			}
@@ -591,7 +594,7 @@ static void ppu_eval_sprites(struct ppu *ppu)
 			ppu->OAMADDR++;
 			break;
 		case 7:
-			if (ppu->soam_n < 8)
+			if (ppu->soam_n < ppu->max_sprites)
 				ppu->soam_n++;
 
 			ppu->eval_step = 0;
@@ -602,12 +605,12 @@ static void ppu_eval_sprites(struct ppu *ppu)
 	}
 }
 
-static void ppu_fetch_sprite(struct ppu *ppu, struct cart *cart)
+static void ppu_fetch_sprite(struct ppu *ppu, struct cart *cart, uint16_t dot)
 {
-	int32_t n = (ppu->dot - 257) / 8;
+	int32_t n = (dot - 257) / 8;
 	struct sprite *s = &ppu->sprites[n];
 
-	switch (ppu->dot % 8) {
+	switch (dot % 8) {
 		case 1:
 			ppu_read_nt_byte(ppu, cart, SPRROM);
 			break;
@@ -686,7 +689,8 @@ static void ppu_clock(struct ppu *ppu)
 	if (++ppu->dot > 340) {
 		ppu->dot = 0;
 
-		if (++ppu->scanline > 261) {
+		// Add additional pre_nmi + post_nmi scanlines to give the CPU more time (emulator hack)
+		if (++ppu->scanline > 261 + ppu->pre_nmi + ppu->post_nmi) {
 			ppu->scanline = 0;
 			ppu->supress_nmi = false;
 			ppu->f = !ppu->f;
@@ -712,11 +716,16 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 		if (ppu->dot >= 65 && ppu->scanline != 261)
 			ppu_eval_sprites(ppu);
 
-		if (ppu->dot == 256)
+		if (ppu->dot == 256) {
 			ppu_scroll_v(ppu);
 
+			// Squeeze in more sprite evaluation if max_sprites > 32 (emulator hack)
+			while (ppu->oam_n < ppu->max_sprites && ppu->scanline != 261)
+				ppu_eval_sprites(ppu);
+		}
+
 	} else if (ppu->dot >= 257 && ppu->dot <= 320) {
-		ppu_fetch_sprite(ppu, cart);
+		ppu_fetch_sprite(ppu, cart, ppu->dot);
 
 		ppu->OAMADDR = 0;
 
@@ -726,6 +735,11 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 				ppu->has_sprites = false;
 			}
 			ppu_scroll_copy_x(ppu);
+
+		// Squeeze in additional sprite fetches if max_sprites > 8 (emulator hack)
+		} else if (ppu->dot == 320) {
+			for (uint16_t n = 321; n < 321 + (ppu->max_sprites - 8) * 8; n++)
+				ppu_fetch_sprite(ppu, cart, n);
 		}
 
 	} else if (ppu->dot >= 321 && ppu->dot <= 336) {
@@ -742,7 +756,7 @@ void ppu_step(struct ppu *ppu, struct cart *cart)
 	if (ppu->dot == 0) {
 		ppu->oam_n = ppu->soam_n = ppu->eval_step = 0;
 		ppu->overflow = false;
-		memset(ppu->soam, 0xFF, 32);
+		memset(ppu->soam, 0xFF, 64 * 4);
 	}
 
 	if (ppu->scanline <= 239) {
@@ -766,11 +780,11 @@ void ppu_step(struct ppu *ppu, struct cart *cart)
 			ppu->new_frame = true;
 		}
 
-	} else if (ppu->scanline == 241) {
+	} else if (ppu->scanline == 241 + ppu->pre_nmi) {
 		if (ppu->dot == 1 && !ppu->supress_nmi)
 			SET_FLAG(ppu->STATUS, FLAG_STATUS_V);
 
-	} else if (ppu->scanline == 261) {
+	} else if (ppu->scanline == 261 + ppu->post_nmi) {
 		if (ppu->dot == 0) {
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_O);
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_S);
@@ -858,6 +872,7 @@ void ppu_reset(struct ppu *ppu)
 	ppu->CTRL.incr = 1;
 	ppu->CTRL.sprite_h = 8;
 	ppu->MASK.grayscale = 0x3F;
+	ppu->max_sprites = 8;
 }
 
 size_t ppu_set_state(struct ppu *ppu, const void *state, size_t size)
