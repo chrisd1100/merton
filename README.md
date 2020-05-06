@@ -50,6 +50,14 @@ Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](http
 - Hotkey Bindings
 - Display FPS
 - Screenshots
+- FDS
+- Vs.
+- Zapper
+- Other Input Accessories
+- TAS Playback / Recording
+- PAL & Dendy Regions
+- NSF / NSFe Player
+- Libretro Core
 - Run Ahead
 - Adjust Emulation Speed / Fast Forward
 - Rewind
@@ -60,20 +68,9 @@ Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](http
 - Record Video
 - HDPacks
 - Edit iNES Header
-- Debugging Tools (Event viewer, nametable viewer, etc)
-- PAL & Dendy Regions
-- NSF / NSFe Player
-- Libretro Core
-- TAS Playback / Recording
-- FDS
-- Vs.
-- Zapper
-- Choose Audio Device
-- Load Random Game
-- Volume while in background
-- Fast forward volume
-- Volume sliders for each channel
-- Panning for each channel
+- Debugging Tools (event viewer, nametable viewer, etc)
+- APU Channel Volume Sliders
+- Panning per APU Channel
 - Equalizer
-- Audio effects (reverb, panning, delay)
+- Audio Effects (reverb, panning, delay)
 - Brightness, Contrast, Hue, Saturation
