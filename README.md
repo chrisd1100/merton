@@ -1,13 +1,13 @@
 ## Overview
 Merton is a accurate NES emulator written in C with no external dependencies (a trimmed ImGui is included in this repo as an app dependency). The code base is lean with a focus on accuracy and readability--but although it is minimal, it [passes every known test](/test) (except for those that test unsupported featuers or mappers) and successfully emulates tricky games. The name comes from the spell `Merton` from the US version of [Final Fantasy VI](https://en.wikipedia.org/wiki/Final_Fantasy_VI), believed to be a mistranslation of the word `Meltdown`.
 
+## Building
+Simply type `make` or `nmake` (on Windows) to build the emulator. The makefiles assume a basic C build toolchain, meaning Microsoft Visual Studio on Windows, `gcc` on Linux, and `Xcode` command line tools on macOS.
+
 ## Code
 - `src/nes` : The emulator core, exports a single header `nes.h`. The core interface handles things such as loading carts, stepping through frames, submitting controller input, and receiving video/audio output.
 - `src/lib` : A cross-platform window/video/audio/input library, exports a single header `lib.h`. This library could be used in any project. It's like a home grown version of `SDL`.
 - `src/app` : The emulator front-end, joining together the `nes` and `lib` modules with a user interface. Its entry point is in `main.c`.
-
-## Building
-Simply type `make` or `nmake` (on Windows) to build the emulator. The makefiles assume a basic C build toolchain, meaning Microsoft Visual Studio on Windows, `gcc` on Linux, and `Xcode` command line tools on macOS.
 
 ## Mapper Support
 According to [NRS NES 2.0 DB](/assets/db/):
