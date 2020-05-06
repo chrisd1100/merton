@@ -46,27 +46,23 @@ Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](http
 - Automatic/Periodic Save States
 - Save State Grid View w/ Screenshots
 - Remove Sprite Limit (Flashing)
-- Overclocking
+- "Overclocking"
 - Hotkey Bindings
-- Display FPS
 - Screenshots
 - FDS
 - Vs.
 - Zapper
 - Other Input Accessories
-- TAS Playback / Recording
+- TAS Recording / Playback
 - PAL & Dendy Regions
 - NSF / NSFe Player
 - Libretro Core
 - Run Ahead
+- Record Audio / Video
 - Adjust Emulation Speed / Fast Forward
-- Rewind
+- Rewind / History Viewer
 - Net Play
 - Cheats / Game Genie
-- Record Movies (Macros) / View History
-- Record Sound
-- Record Video
-- HDPacks
 - Edit iNES Header
 - Debugging Tools (event viewer, nametable viewer, etc)
 - APU Channel Volume Sliders
