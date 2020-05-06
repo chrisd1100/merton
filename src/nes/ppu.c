@@ -43,6 +43,8 @@ struct spr {
 };
 
 struct ppu {
+	NES_Config cfg;
+
 	uint8_t output[256];
 	uint32_t pixels[240][256];
 	uint32_t palettes[8][64];
@@ -91,7 +93,6 @@ struct ppu {
 	uint8_t oam_n;
 	uint8_t soam_n;
 	uint8_t eval_step;
-	uint8_t max_sprites;
 	bool overflow;
 	bool has_sprites;
 	struct sprite sprites[64];
@@ -102,8 +103,6 @@ struct ppu {
 	uint8_t decay_high2;
 	uint8_t decay_low5;
 
-	uint16_t pre_nmi;
-	uint16_t post_nmi;
 	uint16_t scanline;
 	uint16_t dot;
 	bool rendering;
@@ -553,11 +552,11 @@ static void ppu_eval_sprites(struct ppu *ppu)
 				uint8_t y = SPRITE_Y(ppu->oam, ppu->OAMADDR);
 				int32_t row = ppu->scanline - y;
 
-				if (ppu->soam_n < ppu->max_sprites)
+				if (ppu->soam_n < ppu->cfg.maxSprites)
 					ppu->soam[ppu->soam_n][0] = y;
 
 				if (row >= 0 && row < ppu->CTRL.sprite_h) {
-					if (ppu->soam_n == ppu->max_sprites) {
+					if (ppu->soam_n == ppu->cfg.maxSprites) {
 						SET_FLAG(ppu->STATUS, FLAG_STATUS_O);
 						ppu->overflow = true;
 
@@ -573,7 +572,7 @@ static void ppu_eval_sprites(struct ppu *ppu)
 					ppu->OAMADDR++;
 					return;
 
-				} else if (ppu->soam_n == ppu->max_sprites && !ppu->overflow) {
+				} else if (ppu->soam_n == ppu->cfg.maxSprites && !ppu->overflow) {
 					ppu->OAMADDR = (ppu->OAMADDR & 0xFC) + ((ppu->OAMADDR + 1) & 0x03);
 				}
 			}
@@ -594,7 +593,7 @@ static void ppu_eval_sprites(struct ppu *ppu)
 			ppu->OAMADDR++;
 			break;
 		case 7:
-			if (ppu->soam_n < ppu->max_sprites)
+			if (ppu->soam_n < ppu->cfg.maxSprites)
 				ppu->soam_n++;
 
 			ppu->eval_step = 0;
@@ -689,8 +688,8 @@ static void ppu_clock(struct ppu *ppu)
 	if (++ppu->dot > 340) {
 		ppu->dot = 0;
 
-		// Add additional pre_nmi + post_nmi scanlines to give the CPU more time (emulator hack)
-		if (++ppu->scanline > 261 + ppu->pre_nmi + ppu->post_nmi) {
+		// Add additional cfg.preNMI + cfg.postNMI scanlines to give the CPU more time (emulator hack)
+		if (++ppu->scanline > 261 + ppu->cfg.preNMI + ppu->cfg.postNMI) {
 			ppu->scanline = 0;
 			ppu->supress_nmi = false;
 			ppu->f = !ppu->f;
@@ -719,8 +718,8 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 		if (ppu->dot == 256) {
 			ppu_scroll_v(ppu);
 
-			// Squeeze in more sprite evaluation if max_sprites > 32 (emulator hack)
-			while (ppu->oam_n < ppu->max_sprites && ppu->scanline != 261)
+			// Squeeze in more sprite evaluation if cfg.maxSprites > 32 (emulator hack)
+			while (ppu->oam_n < ppu->cfg.maxSprites && ppu->scanline != 261)
 				ppu_eval_sprites(ppu);
 		}
 
@@ -736,9 +735,9 @@ static void ppu_memory_access(struct ppu *ppu, struct cart *cart)
 			}
 			ppu_scroll_copy_x(ppu);
 
-		// Squeeze in additional sprite fetches if max_sprites > 8 (emulator hack)
+		// Squeeze in additional sprite fetches if cfg.maxSprites > 8 (emulator hack)
 		} else if (ppu->dot == 320) {
-			for (uint16_t n = 321; n < 321 + (ppu->max_sprites - 8) * 8; n++)
+			for (uint16_t n = 321; n < 321 + (ppu->cfg.maxSprites - 8) * 8; n++)
 				ppu_fetch_sprite(ppu, cart, n);
 		}
 
@@ -780,11 +779,11 @@ void ppu_step(struct ppu *ppu, struct cart *cart)
 			ppu->new_frame = true;
 		}
 
-	} else if (ppu->scanline == 241 + ppu->pre_nmi) {
+	} else if (ppu->scanline == 241 + ppu->cfg.preNMI) {
 		if (ppu->dot == 1 && !ppu->supress_nmi)
 			SET_FLAG(ppu->STATUS, FLAG_STATUS_V);
 
-	} else if (ppu->scanline == 261 + ppu->post_nmi) {
+	} else if (ppu->scanline == 261 + ppu->cfg.postNMI) {
 		if (ppu->dot == 0) {
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_O);
 			UNSET_FLAG(ppu->STATUS, FLAG_STATUS_S);
@@ -828,11 +827,21 @@ const uint32_t *ppu_pixels(struct ppu *ppu)
 }
 
 
+// Configuration
+
+void ppu_set_config(struct ppu *ppu, const NES_Config *cfg)
+{
+	ppu->cfg = *cfg;
+}
+
+
 // Lifecycle
 
-void ppu_create(struct ppu **ppu)
+void ppu_create(const NES_Config *cfg, struct ppu **ppu)
 {
-	*ppu = calloc(1, sizeof(struct ppu));
+	struct ppu *ctx = *ppu = calloc(1, sizeof(struct ppu));
+
+	ctx->cfg = *cfg;
 }
 
 void ppu_destroy(struct ppu **ppu)
@@ -863,7 +872,10 @@ static void ppu_generate_emphasis_tables(struct ppu *ppu)
 
 void ppu_reset(struct ppu *ppu)
 {
+	NES_Config cfg = ppu->cfg;
+
 	memset(ppu, 0, sizeof(struct ppu));
+	ppu_set_config(ppu, &cfg);
 
 	memcpy(ppu->palette_ram, POWER_UP_PALETTE, 32);
 
@@ -872,7 +884,6 @@ void ppu_reset(struct ppu *ppu)
 	ppu->CTRL.incr = 1;
 	ppu->CTRL.sprite_h = 8;
 	ppu->MASK.grayscale = 0x3F;
-	ppu->max_sprites = 8;
 }
 
 size_t ppu_set_state(struct ppu *ppu, const void *state, size_t size)

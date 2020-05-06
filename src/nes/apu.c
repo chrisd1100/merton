@@ -421,12 +421,11 @@ static void apu_vrc6_saw_step_timer(struct saw *s)
 #define BUF_SIZE    ((44800 * sizeof(int16_t) * 2) / 30)
 
 struct dac {
-	bool stereo;
+	NES_Config cfg;
+
 	int16_t pvol[31];
 	int16_t tndvol[203];
 	int16_t sinc[PHASE_COUNT + 1][16];
-	uint32_t clock;
-	uint32_t sample_rate;
 	uint32_t frame_samples;
 	uint32_t factor;
 	uint32_t offset;
@@ -477,8 +476,8 @@ static const int16_t SINC[PHASE_COUNT + 1][8] = {
 
 static void apu_dac_clock_math(struct dac *dac)
 {
-	dac->factor = (uint32_t) ceil(TIME_UNIT * (double) dac->sample_rate / (double) dac->clock);
-	dac->frame_samples = (dac->clock / dac->sample_rate) * (dac->sample_rate / 100);
+	dac->factor = (uint32_t) ceil(TIME_UNIT * (double) dac->cfg.sampleRate / (double) dac->cfg.APUClock);
+	dac->frame_samples = (dac->cfg.APUClock / dac->cfg.sampleRate) * (dac->cfg.sampleRate / 100);
 }
 
 static int16_t apu_clampi32(int32_t pcmi32)
@@ -548,7 +547,7 @@ static void apu_dac_spatialize(struct dac *dac, int32_t x)
 	int16_t *l = &dac->output[x * 2];
 	int16_t *r = &dac->output[x * 2 + 1];
 
-	if (dac->stereo) {
+	if (dac->cfg.stereo) {
 		int16_t stereo_l = (int16_t) lrint((*l * 0.65 + *r * 0.35) * 1.65);
 		int16_t stereo_r = (int16_t) lrint((*r * 0.65 + *l * 0.35) * 1.65);
 
@@ -589,7 +588,7 @@ static void apu_dac_step(struct dac *dac, int16_t l, int16_t r)
 {
 	uint32_t offset = dac->cycle * dac->factor + dac->offset;
 
-	if (!dac->stereo)
+	if (!dac->cfg.stereo)
 		l += r;
 
 	apu_dac_add_sample(dac, offset, 0, l, false);
@@ -599,31 +598,31 @@ static void apu_dac_step(struct dac *dac, int16_t l, int16_t r)
 		apu_dac_generate_output(dac, offset);
 }
 
-static void apu_dac_mix(struct dac *dac, uint32_t channels, uint8_t p0, uint8_t p1,
-	uint8_t p2, uint8_t p3, uint8_t p6_0, uint8_t p6_1, uint8_t s, uint8_t t, uint8_t n, uint8_t d)
+static void apu_dac_mix(struct dac *dac, uint8_t p0, uint8_t p1, uint8_t p2, uint8_t p3,
+	uint8_t p6_0, uint8_t p6_1, uint8_t s, uint8_t t, uint8_t n, uint8_t d)
 {
-	uint8_t ext0 = (channels & NES_CHANNEL_EXT_0) ? p2 + p6_0 : 0;
-	uint8_t ext1 = (channels & NES_CHANNEL_EXT_1) ? p3 + p6_1 : 0;
+	uint8_t ext0 = (dac->cfg.channels & NES_CHANNEL_EXT_0) ? p2 + p6_0 : 0;
+	uint8_t ext1 = (dac->cfg.channels & NES_CHANNEL_EXT_1) ? p3 + p6_1 : 0;
 
-	if (!(channels & NES_CHANNEL_PULSE_0))
+	if (!(dac->cfg.channels & NES_CHANNEL_PULSE_0))
 		p0 = 0;
 
-	if (!(channels & NES_CHANNEL_PULSE_1))
+	if (!(dac->cfg.channels & NES_CHANNEL_PULSE_1))
 		p1 = 0;
 
-	if (!(channels & NES_CHANNEL_EXT_2))
+	if (!(dac->cfg.channels & NES_CHANNEL_EXT_2))
 		s = 0;
 
-	if (!(channels & NES_CHANNEL_TRIANGLE))
+	if (!(dac->cfg.channels & NES_CHANNEL_TRIANGLE))
 		t = 0;
 
-	if (!(channels & NES_CHANNEL_NOISE))
+	if (!(dac->cfg.channels & NES_CHANNEL_NOISE))
 		n = 0;
 
-	if (!(channels & NES_CHANNEL_DMC))
+	if (!(dac->cfg.channels & NES_CHANNEL_DMC))
 		d = 0;
 
-	if (dac->stereo) {
+	if (dac->cfg.stereo) {
 		int16_t l = dac->tndvol[3 * t + 2 * n] + dac->pvol[p0] - dac->pvol[ext0] - dac->pvol[s];
 		int16_t r = dac->tndvol[d] + dac->pvol[p1] - dac->pvol[ext1];
 
@@ -645,7 +644,6 @@ struct apu {
 	bool irq_disabled;
 	bool frame_irq;
 	uint8_t delayed_reset;
-	uint32_t channels;
 	int64_t frame_counter;
 
 	struct pulse p[4];
@@ -1036,9 +1034,9 @@ void apu_step(struct apu *apu, NES *nes)
 	}
 
 	// Mix
-	apu_dac_mix(&apu->dac, apu->channels, apu->p[0].output,
-		apu->p[1].output, apu->p[2].output, apu->p[3].output, apu->p6[0].output,
-		apu->p6[1].output, apu->s.output, apu->t.output, apu->n.output, apu->d.output);
+	apu_dac_mix(&apu->dac, apu->p[0].output, apu->p[1].output, apu->p[2].output,
+		apu->p[3].output, apu->p6[0].output, apu->p6[1].output, apu->s.output,
+		apu->t.output, apu->n.output, apu->d.output);
 
 	apu->frame_counter++;
 }
@@ -1062,10 +1060,8 @@ const int16_t *apu_frames(struct apu *apu, uint32_t *count)
 
 void apu_set_config(struct apu *apu, const NES_Config *cfg)
 {
-	apu->dac.stereo = cfg->stereo;
-	apu->dac.sample_rate = cfg->sampleRate;
-	apu->dac.clock = cfg->APUClock;
-	apu->channels = cfg->channels;
+	apu->dac.cfg = *cfg;
+	apu->dac.cfg.APUClock += (cfg->preNMI + cfg->postNMI) * (NES_CLOCK / 262);
 
 	apu_dac_clock_math(&apu->dac);
 }
