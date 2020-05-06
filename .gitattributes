@@ -1,1 +1,2 @@
 src/app/deps/* linguist-vendored
+src/libretro/include/* linguist-vendored
