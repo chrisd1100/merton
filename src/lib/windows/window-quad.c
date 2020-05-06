@@ -10,6 +10,7 @@ struct psvars {
 	float constrain_h;
 	uint32_t filter;
 	uint32_t effect;
+	uint32_t __pad[2];
 };
 
 struct window_quad {
@@ -74,11 +75,10 @@ HRESULT window_quad_init(ID3D11Device *device, struct window_quad **quad)
 
 	D3D11_BUFFER_DESC psbd = {0};
 	psbd.ByteWidth = sizeof(struct psvars);
-	psbd.Usage = D3D11_USAGE_DEFAULT;
-
-	D3D11_SUBRESOURCE_DATA pssrd = {0};
-	pssrd.pSysMem = &ctx->psvars;
-	e = ID3D11Device_CreateBuffer(device, &psbd, &pssrd, &ctx->psb);
+	psbd.Usage = D3D11_USAGE_DYNAMIC;
+	psbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	psbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	e = ID3D11Device_CreateBuffer(device, &psbd, NULL, &ctx->psb);
 	if (e != S_OK) goto except;
 
 	D3D11_INPUT_ELEMENT_DESC ied[] = {
@@ -185,15 +185,15 @@ static HRESULT window_quad_refresh_resource(struct window_quad *ctx, ID3D11Devic
 	return e;
 }
 
-static HRESULT window_quad_copy(struct window_quad *ctx, ID3D11DeviceContext *context,
-	const void *image, uint32_t width, uint32_t height)
+static HRESULT window_quad_update_resource(ID3D11DeviceContext *context,
+	ID3D11Resource *resource, const void *data, size_t size)
 {
 	D3D11_MAPPED_SUBRESOURCE res = {0};
-	HRESULT e = ID3D11DeviceContext_Map(context, ctx->resource, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
+	HRESULT e = ID3D11DeviceContext_Map(context, resource, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
 
 	if (e == S_OK) {
-		memcpy((uint8_t *) res.pData, image, sizeof(uint32_t) * width * height);
-		ID3D11DeviceContext_Unmap(context, ctx->resource, 0);
+		memcpy(res.pData, data, size);
+		ID3D11DeviceContext_Unmap(context, resource, 0);
 	}
 
 	return e;
@@ -254,7 +254,8 @@ HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11
 	HRESULT e = window_quad_refresh_resource(ctx, device, width, height);
 	if (e != S_OK) return e;
 
-	e = window_quad_copy(ctx, context, image, width, height);
+	e = window_quad_update_resource(context, ctx->resource, image,
+		sizeof(uint32_t) * width *height);
 	if (e != S_OK) return e;
 
 	D3D11_TEXTURE2D_DESC desc = {0};
@@ -275,7 +276,8 @@ HRESULT window_quad_render(struct window_quad *ctx, ID3D11Device *device, ID3D11
 		ctx->psvars.constrain_h = (float) vp.Height;
 		ctx->psvars.filter = filter;
 		ctx->psvars.effect = effect;
-		ID3D11DeviceContext_UpdateSubresource(context, cbresource, 0, 0, &ctx->psvars, 0, 0);
+
+		window_quad_update_resource(context, cbresource, &ctx->psvars, sizeof(struct psvars));
 		ID3D11Resource_Release(cbresource);
 	}
 

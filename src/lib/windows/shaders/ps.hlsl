@@ -10,6 +10,7 @@ cbuffer VS_CONSTANT_BUFFER : register(b0) {
 	float constrain_h;
 	uint filter;
 	uint effect;
+	uint __pad[2];
 };
 
 SamplerState ss {

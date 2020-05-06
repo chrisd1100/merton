@@ -83,6 +83,12 @@ LD_FLAGS = $(LD_FLAGS) /LTCG
 all: clean clear $(OBJS) $(RESOURCES)
 	link *.obj $(LIBS) $(RESOURCES) /out:$(BIN_NAME) $(LD_FLAGS)
 
+SHADER_DIR = src\lib\windows\shaders
+
+shaders: clear
+	fxc /nologo /O3 /Ges /Fh $(SHADER_DIR)\vs.h /T vs_4_0 /Vn VS $(SHADER_DIR)\vs.hlsl
+	fxc /nologo /O3 /Ges /Fh $(SHADER_DIR)\ps.h /T ps_4_0 /Vn PS $(SHADER_DIR)\ps.hlsl
+
 clean:
 	-del $(RESOURCES)
 	-del *.obj
