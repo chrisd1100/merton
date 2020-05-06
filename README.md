@@ -44,9 +44,7 @@ Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](http
 ## Feature Requests
 - More/Custom Color Palettes
 - Automatic/Periodic Save States
-- Save State Grid View w/ Screenshots
-- Remove Sprite Limit (Flashing)
-- "Overclocking"
+- Enhanced save state manager with w/ Screenshots
 - Hotkey Bindings
 - Screenshots
 - FDS
