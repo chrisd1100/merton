@@ -42,13 +42,38 @@ According to [NRS NES 2.0 DB](/assets/db/):
 Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](https://wiki.nesdev.com/w/index.php/INES_Mapper_163) represent 280 unlicensed games.
 
 ## Feature Requests
-- Remap keyboard/gamepad
-- NES rom database via CRC32
-- Save states
-- NSF player
-- PAL support
-- No sprite overflow
-- Zapper support
-- FDS support
-- Vs. support
-- Cheats/Game Genie
+- More/Custom Color Palettes
+- Automatic/Periodic Save States
+- Save State Grid View w/ Screenshots
+- Remove Sprite Limit (Flashing)
+- Overclocking
+- Hotkey Bindings
+- Display FPS
+- Screenshots
+- Run Ahead
+- Adjust Emulation Speed / Fast Forward
+- Rewind
+- Net Play
+- Cheats / Game Genie
+- Record Movies (Macros) / View History
+- Record Sound
+- Record Video
+- HDPacks
+- Edit iNES Header
+- Debugging Tools (Event viewer, nametable viewer, etc)
+- PAL & Dendy Regions
+- NSF / NSFe Player
+- Libretro Core
+- TAS Playback / Recording
+- FDS
+- Vs.
+- Zapper
+- Choose Audio Device
+- Load Random Game
+- Volume while in background
+- Fast forward volume
+- Volume sliders for each channel
+- Panning for each channel
+- Equalizer
+- Audio effects (reverb, panning, delay)
+- Brightness, Contrast, Hue, Saturation
