@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "deps/imgui/im.h"
 
@@ -18,7 +19,7 @@
 #define COLOR_MSG_BG  0xD1333333
 #define COLOR_HOVER   0xF7777777
 
-#define X(v) (im_dpi_scale() * (float) (v))
+#define X(v) (im_dpi_scale() * (float) lrint(v))
 
 #define PACK_ASPECT(x, y) (((x) << 8) | (y))
 
@@ -99,7 +100,7 @@ static void ui_log(bool always)
 		im_push_color(ImGuiCol_WindowBg, COLOR_MSG_BG);
 		im_push_style_f2(ImGuiStyleVar_ItemSpacing, X(5), X(4));
 
-		float h = X(30 + 17 * (CMP.log_lines - 1));
+		float h = X(30.0f + 20.5f * (float) (CMP.log_lines - 1));
 		float w = X(260);
 		float padding_h = X(12);
 		float padding_v = X((CMP.nav & NAV_MENU) ? 34 : 12);
