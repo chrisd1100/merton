@@ -10,13 +10,13 @@
 	#define _strdup(s) strdup(s)
 #endif
 
-#define COLOR_TEXT    0xFFDDDDDD
-#define COLOR_LABEL   0xFF999999
-#define COLOR_BUTTON  0xFF444444
-#define COLOR_BORDER  0xF62D2D2D
-#define COLOR_DARK_BG 0xF6222222
-#define COLOR_MSG_BG  0xD0222222
-#define COLOR_HOVER   0xF6666666
+#define COLOR_TEXT    0xFEEEEEEE
+#define COLOR_LABEL   0xFFAAAAAA
+#define COLOR_BUTTON  0xFF555555
+#define COLOR_BORDER  0xF73E3E3E
+#define COLOR_DARK_BG 0xF7333333
+#define COLOR_MSG_BG  0xD1333333
+#define COLOR_HOVER   0xF7777777
 
 #define X(v) (im_dpi_scale() * (float) (v))
 

@@ -417,7 +417,7 @@ int32_t main(int32_t argc, char **argv)
 	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
 
-	im_create(anonymous_compressed_data, anonymous_compressed_size, 13.0f);
+	im_create(anonymous_compressed_data, anonymous_compressed_size, 16.0f);
 
 	if (argc >= 2)
 		ctx.loaded = main_load_rom(&ctx, argv[1]);
