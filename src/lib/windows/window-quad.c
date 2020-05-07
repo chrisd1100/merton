@@ -1,5 +1,7 @@
 #include "window-quad.h"
 
+#include <math.h>
+
 #include "shaders/ps.h"
 #include "shaders/vs.h"
 
@@ -216,8 +218,11 @@ static D3D11_VIEWPORT window_quad_viewport(UINT width, UINT height,
 		viewport.Width = viewport.Height * aspect_ratio;
 	}
 
-	viewport.TopLeftX = ((float) window_w - viewport.Width) / 2.0f;
-	viewport.TopLeftY = ((float) window_h - viewport.Height) / 2.0f;
+	viewport.TopLeftX = roundf(((float) window_w - viewport.Width) / 2.0f);
+	viewport.TopLeftY = roundf(((float) window_h - viewport.Height) / 2.0f);
+
+	viewport.Height = roundf(viewport.Height);
+	viewport.Width = roundf(viewport.Width);
 
 	return viewport;
 }

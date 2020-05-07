@@ -14,7 +14,7 @@
 #define COLOR_TEXT    0xFEEEEEEE
 #define COLOR_LABEL   0xFFAAAAAA
 #define COLOR_BUTTON  0xFF555555
-#define COLOR_BORDER  0xF73E3E3E
+#define COLOR_BORDER  0xF84F4F4F
 #define COLOR_DARK_BG 0xF7333333
 #define COLOR_MSG_BG  0xD1333333
 #define COLOR_HOVER   0xF7777777
@@ -373,8 +373,11 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 				if (im_menu_item("Linear", "", args->cfg->filter == FILTER_LINEAR))
 					event->cfg.filter = FILTER_LINEAR;
 
-				if (im_menu_item("Gaussian Sharp", "", args->cfg->filter == FILTER_GS))
-					event->cfg.filter = FILTER_GS;
+				if (im_menu_item("Gaussian Soft", "", args->cfg->filter == FILTER_GAUSSIAN_SOFT))
+					event->cfg.filter = FILTER_GAUSSIAN_SOFT;
+
+				if (im_menu_item("Gaussian Sharp", "", args->cfg->filter == FILTER_GAUSSIAN_SHARP))
+					event->cfg.filter = FILTER_GAUSSIAN_SHARP;
 
 				im_end_menu();
 			}
@@ -385,6 +388,9 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 				if (im_menu_item("Scanlines", "", args->cfg->effect == EFFECT_SCANLINES))
 					event->cfg.effect = EFFECT_SCANLINES;
+
+				if (im_menu_item("Scanlines x2", "", args->cfg->effect == EFFECT_SCANLINES_X2))
+					event->cfg.effect = EFFECT_SCANLINES_X2;
 
 				im_end_menu();
 			}
@@ -533,6 +539,7 @@ void ui_root(const struct ui_args *args,
 	im_push_color(ImGuiCol_Button,           COLOR_BUTTON);
 	im_push_color(ImGuiCol_ButtonHovered,    COLOR_HOVER);
 	im_push_color(ImGuiCol_ButtonActive,     COLOR_BUTTON);
+	im_push_color(ImGuiCol_NavHighlight,     COLOR_BORDER);
 
 	im_push_style_f(ImGuiStyleVar_ScrollbarSize,    X(12));
 	im_push_style_f(ImGuiStyleVar_WindowBorderSize, 0);
@@ -560,7 +567,7 @@ void ui_root(const struct ui_args *args,
 		ui_log(args->cfg->log == CONFIG_LOG_ALWAYS);
 
 	im_pop_style(8);
-	im_pop_color(18);
+	im_pop_color(19);
 
 	if (memcmp(args->cfg, &event.cfg, sizeof(struct config)))
 		event.type = UI_EVENT_CONFIG;

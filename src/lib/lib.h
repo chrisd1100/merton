@@ -82,14 +82,16 @@ enum mouse_button {
 };
 
 enum filter {
-	FILTER_NEAREST = 1,
-	FILTER_LINEAR  = 2,
-	FILTER_GS      = 3,
+	FILTER_NEAREST        = 1,
+	FILTER_LINEAR         = 2,
+	FILTER_GAUSSIAN_SHARP = 3,
+	FILTER_GAUSSIAN_SOFT  = 4,
 };
 
 enum effect {
-	EFFECT_NONE      = 0,
-	EFFECT_SCANLINES = 1,
+	EFFECT_NONE         = 0,
+	EFFECT_SCANLINES    = 1,
+	EFFECT_SCANLINES_X2 = 2,
 };
 
 struct window_msg {
