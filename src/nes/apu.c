@@ -115,7 +115,7 @@ static bool apu_sweep_mute(struct pulse *p, enum extaudio ext)
 static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel, enum extaudio ext)
 {
 	if (p->sweep.value == 0 && p->sweep.enabled && !apu_sweep_mute(p, ext) && p->sweep.shift > 0) {
-		int32_t delta = p->timer.period >> p->sweep.shift;
+		int32_t delta = (p->timer.period >> p->sweep.shift) >> OC_SHIFT;
 
 		if (p->sweep.negate) {
 			delta = -delta;
