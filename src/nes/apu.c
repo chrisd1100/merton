@@ -435,7 +435,6 @@ struct dac {
 	uint32_t offset;
 	uint32_t cycle;
 	int16_t prev_sample[2];
-	int32_t clock_adj;
 	int32_t integrator[2];
 	int32_t samples[2][2048];
 	int16_t output[OUTPUT_SIZE];
@@ -481,8 +480,6 @@ static const int16_t SINC[PHASE_COUNT + 1][8] = {
 
 static void apu_dac_clock_math(struct dac *dac, uint32_t clock)
 {
-	clock += dac->clock_adj;
-
 	dac->factor = (uint32_t) ceil(TIME_UNIT * (double) dac->cfg.sampleRate / (double) clock);
 	dac->frame_samples = (clock / dac->cfg.sampleRate) * (dac->cfg.sampleRate / 100);
 }
@@ -1083,10 +1080,8 @@ void apu_clock_drift(struct apu *apu, uint32_t clock, bool over)
 {
 	uint32_t apu_clock = apu_get_clock(apu);
 
-	if (abs((int32_t) clock - (int32_t) apu_clock) < 5000 * (OC_SHIFT + 1)) {
-		apu->dac.clock_adj = (over ? 1000 : -1000) * (OC_SHIFT + 1);
-		apu_dac_clock_math(&apu->dac, apu_clock);
-	}
+	if (abs((int32_t) clock - (int32_t) apu_clock) < 5000 * (OC_SHIFT + 1))
+		apu_dac_clock_math(&apu->dac, clock + (over ? 1000 : -1000) * (OC_SHIFT + 1));
 }
 
 
