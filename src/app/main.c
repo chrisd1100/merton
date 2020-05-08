@@ -230,9 +230,6 @@ static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
 
 /*** AUDIO / VIDEO TIMING & SYNCHRONIZATION ***/
 
-#define CLOCK_UP   1000
-#define CLOCK_DOWN -1000
-
 static const uint8_t PATTERN_60[]  = {1};
 static const uint8_t PATTERN_75[]  = {1, 1, 1, 2, 1, 1, 1, 2};
 static const uint8_t PATTERN_85[]  = {1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1};
@@ -293,11 +290,8 @@ static void main_audio_adjustment(struct main *ctx)
 		int64_t now = time_stamp();
 
 		if (ctx->ts != 0) {
-			int32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
-			if (abs(cycles_sec - NES_CLOCK) < 5000) {
-				ctx->cfg.nes.APUClock = cycles_sec + (queued >= audio_buffer ? CLOCK_UP : CLOCK_DOWN);
-				NES_SetConfig(ctx->nes, &ctx->cfg.nes);
-			}
+			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
+			NES_APUClockDrift(ctx->nes, cycles_sec, queued >= audio_buffer);
 		}
 
 		ctx->cycles = 0;

@@ -26,6 +26,7 @@ const int16_t *apu_frames(struct apu *apu, uint32_t *count);
 
 // Configuration
 void apu_set_config(struct apu *apu, const NES_Config *cfg);
+void apu_clock_drift(struct apu *apu, uint32_t clock, bool over);
 
 // Lifecycle
 void apu_create(const NES_Config *cfg, struct apu **apu);

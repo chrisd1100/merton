@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define APU_CLOCK 1789773
+
 // Global timer shift value for changing frequency (emulator hack for overclocking)
 static uint8_t OC_SHIFT;
 
@@ -433,6 +435,7 @@ struct dac {
 	uint32_t offset;
 	uint32_t cycle;
 	int16_t prev_sample[2];
+	int32_t clock_adj;
 	int32_t integrator[2];
 	int32_t samples[2][2048];
 	int16_t output[OUTPUT_SIZE];
@@ -476,10 +479,12 @@ static const int16_t SINC[PHASE_COUNT + 1][8] = {
 	{ 0,   43, -115,  350, -488, 1136,  -914,  5861},
 };
 
-static void apu_dac_clock_math(struct dac *dac)
+static void apu_dac_clock_math(struct dac *dac, uint32_t clock)
 {
-	dac->factor = (uint32_t) ceil(TIME_UNIT * (double) dac->cfg.sampleRate / (double) dac->cfg.APUClock);
-	dac->frame_samples = (dac->cfg.APUClock / dac->cfg.sampleRate) * (dac->cfg.sampleRate / 100);
+	clock += dac->clock_adj;
+
+	dac->factor = (uint32_t) ceil(TIME_UNIT * (double) dac->cfg.sampleRate / (double) clock);
+	dac->frame_samples = (clock / dac->cfg.sampleRate) * (dac->cfg.sampleRate / 100);
 }
 
 static int16_t apu_clampi32(int32_t pcmi32)
@@ -1060,13 +1065,28 @@ const int16_t *apu_frames(struct apu *apu, uint32_t *count)
 
 // Configuration
 
+static uint32_t apu_get_clock(struct apu *apu)
+{
+	return APU_CLOCK + (apu->dac.cfg.preNMI + apu->dac.cfg.postNMI) * (APU_CLOCK / 262);
+}
+
 void apu_set_config(struct apu *apu, const NES_Config *cfg)
 {
 	apu->dac.cfg = *cfg;
-	apu->dac.cfg.APUClock += (cfg->preNMI + cfg->postNMI) * (NES_CLOCK / 262);
-	OC_SHIFT = (uint8_t) ((cfg->preNMI + cfg->postNMI) / 262);
 
-	apu_dac_clock_math(&apu->dac);
+	apu_dac_clock_math(&apu->dac, apu_get_clock(apu));
+
+	OC_SHIFT = (uint8_t) ((cfg->preNMI + cfg->postNMI) / 262);
+}
+
+void apu_clock_drift(struct apu *apu, uint32_t clock, bool over)
+{
+	uint32_t apu_clock = apu_get_clock(apu);
+
+	if (abs((int32_t) clock - (int32_t) apu_clock) < 5000 * (OC_SHIFT + 1)) {
+		apu->dac.clock_adj = (over ? 1000 : -1000) * (OC_SHIFT + 1);
+		apu_dac_clock_math(&apu->dac, apu_clock);
+	}
 }
 
 

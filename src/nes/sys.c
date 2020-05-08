@@ -388,6 +388,11 @@ void NES_SetConfig(NES *ctx, const NES_Config *cfg)
 	ppu_set_config(ctx->ppu, cfg);
 }
 
+void NES_APUClockDrift(NES *ctx, uint32_t clock, bool over)
+{
+	apu_clock_drift(ctx->apu, clock, over);
+}
+
 
 // SRAM
 

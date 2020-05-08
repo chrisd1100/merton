@@ -7,10 +7,9 @@
 
 #define NES_FRAME_WIDTH  256
 #define NES_FRAME_HEIGHT 240
-#define NES_CLOCK        1789773
 
 #define NES_CONFIG_DEFAULTS \
-	{true, 44100, NES_CLOCK, NES_CHANNEL_ALL, 0, 0, 8}
+	{true, 44100, NES_CHANNEL_ALL, 0, 0, 8}
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,7 +65,6 @@ typedef struct {
 typedef struct {
 	bool stereo;
 	uint32_t sampleRate;
-	uint32_t APUClock;
 	uint32_t channels;
 	uint16_t preNMI;
 	uint16_t postNMI;
@@ -93,6 +91,7 @@ void NES_ControllerState(NES *nes, uint8_t player, uint8_t state);
 
 // Configuration
 void NES_SetConfig(NES *ctx, const NES_Config *cfg);
+void NES_APUClockDrift(NES *ctx, uint32_t clock, bool over);
 
 // SRAM
 size_t NES_SRAMDirty(NES *ctx);
