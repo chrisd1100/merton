@@ -285,7 +285,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 			bool overclocking = args->cfg->nes.preNMI != 0 || args->cfg->nes.postNMI != 0;
 			if (im_menu_item("Enable Overclocking", "", overclocking))
-				event->cfg.nes.preNMI = event->cfg.nes.postNMI = overclocking ? 0 : 100;
+				event->cfg.nes.preNMI = event->cfg.nes.postNMI = overclocking ? 0 : 131;
 
 			im_separator();
 

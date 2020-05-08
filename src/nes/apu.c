@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+// Global timer shift value for changing frequency (emulator hack for overclocking)
+static uint8_t OC_SHIFT;
 
 // Length Counter
 
@@ -41,7 +43,7 @@ static void apu_step_envelope(struct envelope *env)
 {
 	if (!env->start) {
 		if (env->divider_period == 0) {
-			env->divider_period = env->v;
+			env->divider_period = env->v << OC_SHIFT;
 
 			if (env->decay_level == 0) {
 				if (env->loop)
@@ -56,7 +58,7 @@ static void apu_step_envelope(struct envelope *env)
 	} else {
 		env->start = false;
 		env->decay_level = 15;
-		env->divider_period = env->v;
+		env->divider_period = env->v << OC_SHIFT;
 	}
 }
 
@@ -124,7 +126,7 @@ static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel, enum extaudio
 	}
 
 	if (p->sweep.value == 0 || p->sweep.reload) {
-		p->sweep.value = p->sweep.period;
+		p->sweep.value = p->sweep.period << OC_SHIFT;
 		p->sweep.reload = false;
 
 	} else {
@@ -135,7 +137,7 @@ static void apu_pulse_step_sweep(struct pulse *p, uint8_t channel, enum extaudio
 static void apu_pulse_step_timer(struct pulse *p, enum extaudio ext)
 {
 	if (p->timer.value == 0) {
-		p->timer.value = p->timer.period;
+		p->timer.value = p->timer.period << OC_SHIFT;
 		p->duty_value = (p->duty_value + 1) % 8;
 
 		p->output = (p->len.value == 0 || apu_sweep_mute(p, ext) ||
@@ -175,7 +177,7 @@ static const uint8_t TRIANGLE_TABLE[] = {
 static void apu_triangle_step_timer(struct triangle *t)
 {
 	if (t->timer.value == 0) {
-		t->timer.value = t->timer.period;
+		t->timer.value = t->timer.period << OC_SHIFT;
 
 		// timer.period of 0 cause high pitched tones
 		if (t->len.value > 0 && t->counter.value > 0 && t->timer.period > 0)
@@ -194,7 +196,7 @@ static void apu_triangle_step_timer(struct triangle *t)
 static void apu_triangle_step_counter(struct triangle *t)
 {
 	if (t->counter.reload) {
-		t->counter.value = t->counter.period;
+		t->counter.value = t->counter.period << OC_SHIFT;
 
 	} else if (t->counter.value > 0) {
 		t->counter.value--;
@@ -229,7 +231,7 @@ static void apu_noise_step_timer(struct noise *n)
 		n->timer.value--;
 
 	if (n->timer.value == 0) {
-		n->timer.value = n->timer.period;
+		n->timer.value = n->timer.period << OC_SHIFT;
 
 		uint16_t feedback = (n->shift_register & 0x0001) ^ ((n->shift_register >> (n->mode ? 6 : 1)) & 0x0001);
 		n->shift_register = (n->shift_register >> 1) | (feedback << 14);
@@ -311,7 +313,7 @@ static void apu_dmc_step_timer(struct dmc *d, NES *nes)
 		d->timer.value--;
 
 	if (d->timer.value == 0) {
-		d->timer.value = d->timer.period;
+		d->timer.value = d->timer.period << OC_SHIFT;
 
 		if (!d->out.silence) {
 			if (d->out.shift_register & 0x01 && d->out.level <= 125) {
@@ -372,7 +374,7 @@ struct saw {
 static void apu_vrc6_pulse_step_timer(struct pulse6 *p)
 {
 	if (p->divider == 0) {
-		p->divider = p->frequency;
+		p->divider = p->frequency << OC_SHIFT;
 
 		if (p->duty_value == 0) {
 			p->duty_value = 15;
@@ -391,7 +393,7 @@ static void apu_vrc6_pulse_step_timer(struct pulse6 *p)
 static void apu_vrc6_saw_step_timer(struct saw *s)
 {
 	if (s->divider == 0) {
-		s->divider = s->frequency;
+		s->divider = s->frequency << OC_SHIFT;
 
 		if (s->clock == 0) {
 			s->accumulator = 0;
@@ -670,7 +672,7 @@ static void apu_reload_length(struct apu *apu, struct length *len, bool channel_
 	bool ignore_reload = len->value != 0 && in_length_cycle;
 
 	if (channel_enabled && !ignore_reload)
-		len->value = LENGTH_TABLE[v >> 3];
+		len->value = LENGTH_TABLE[v >> 3] << OC_SHIFT;
 }
 
 uint8_t apu_read_status(struct apu *apu, enum extaudio ext)
@@ -1062,6 +1064,7 @@ void apu_set_config(struct apu *apu, const NES_Config *cfg)
 {
 	apu->dac.cfg = *cfg;
 	apu->dac.cfg.APUClock += (cfg->preNMI + cfg->postNMI) * (NES_CLOCK / 262);
+	OC_SHIFT = (uint8_t) ((cfg->preNMI + cfg->postNMI) / 262);
 
 	apu_dac_clock_math(&apu->dac);
 }
