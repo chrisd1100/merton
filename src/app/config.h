@@ -6,7 +6,7 @@
 #include "lib/lib.h"
 #include "nes/nes.h"
 
-#define CONFIG_VERSION 4
+#define CONFIG_VERSION 5
 
 enum config_shader {
 	CONFIG_SHADER_NONE = 0,

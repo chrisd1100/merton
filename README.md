@@ -42,7 +42,6 @@ According to [NRS NES 2.0 DB](/assets/db/):
 Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](https://wiki.nesdev.com/w/index.php/INES_Mapper_163) represent 280 unlicensed games.
 
 ## Feature Requests
-- More/Custom Color Palettes
 - Automatic/Periodic Save States
 - Enhanced save state manager with w/ Screenshots
 - Hotkey Bindings

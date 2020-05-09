@@ -366,6 +366,32 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 				im_end_menu();
 			}
+
+			if (im_begin_menu("Palette", true)) {
+				if (im_menu_item("Smooth", "", args->cfg->nes.palette == NES_PALETTE_SMOOTH))
+					event->cfg.nes.palette = NES_PALETTE_SMOOTH;
+
+				if (im_menu_item("NES Classic", "", args->cfg->nes.palette == NES_PALETTE_CLASSIC))
+					event->cfg.nes.palette = NES_PALETTE_CLASSIC;
+
+				if (im_menu_item("Composite Direct", "", args->cfg->nes.palette == NES_PALETTE_COMPOSITE))
+					event->cfg.nes.palette = NES_PALETTE_COMPOSITE;
+
+				if (im_menu_item("PVM Style D93", "", args->cfg->nes.palette == NES_PALETTE_PVM_D93))
+					event->cfg.nes.palette = NES_PALETTE_PVM_D93;
+
+				if (im_menu_item("PC-10", "", args->cfg->nes.palette == NES_PALETTE_PC10))
+					event->cfg.nes.palette = NES_PALETTE_PC10;
+
+				if (im_menu_item("Sony CXA", "", args->cfg->nes.palette == NES_PALETTE_SONY_CXA))
+					event->cfg.nes.palette = NES_PALETTE_SONY_CXA;
+
+				if (im_menu_item("Wavebeam", "", args->cfg->nes.palette == NES_PALETTE_WAVEBEAM))
+					event->cfg.nes.palette = NES_PALETTE_WAVEBEAM;
+
+				im_end_menu();
+			}
+
 			if (im_begin_menu("Filter", true)) {
 				if (im_menu_item("Nearest", "", args->cfg->filter == FILTER_NEAREST))
 					event->cfg.filter = FILTER_NEAREST;

@@ -9,7 +9,7 @@
 #define NES_FRAME_HEIGHT 240
 
 #define NES_CONFIG_DEFAULTS \
-	{true, 44100, NES_CHANNEL_ALL, 0, 0, 8}
+	{NES_PALETTE_SMOOTH, 44100, NES_CHANNEL_ALL, 0, 0, 8, true}
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,6 +48,16 @@ typedef enum {
 	NES_MIRROR_FOUR16     = 0x89ABCDEF,
 } NES_Mirror;
 
+typedef enum {
+	NES_PALETTE_SMOOTH    = 0,
+	NES_PALETTE_CLASSIC   = 1,
+	NES_PALETTE_COMPOSITE = 2,
+	NES_PALETTE_PVM_D93   = 3,
+	NES_PALETTE_PC10      = 4,
+	NES_PALETTE_SONY_CXA  = 5,
+	NES_PALETTE_WAVEBEAM  = 6,
+} NES_Palette;
+
 typedef struct {
 	size_t offset;
 	uint32_t prgROMSize;
@@ -63,12 +73,13 @@ typedef struct {
 } NES_CartDesc;
 
 typedef struct {
-	bool stereo;
+	NES_Palette palette;
 	uint32_t sampleRate;
 	uint32_t channels;
 	uint16_t preNMI;
 	uint16_t postNMI;
 	uint8_t maxSprites;
+	bool stereo;
 } NES_Config;
 
 typedef struct NES NES;
