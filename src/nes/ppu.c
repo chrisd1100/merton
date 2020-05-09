@@ -864,7 +864,7 @@ void ppu_create(const NES_Config *cfg, struct ppu **ppu)
 
 void ppu_destroy(struct ppu **ppu)
 {
-	if (!ppu || *ppu)
+	if (!ppu || !*ppu)
 		return;
 
 	free(*ppu);
