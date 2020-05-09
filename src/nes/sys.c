@@ -342,14 +342,20 @@ uint32_t NES_NextFrame(NES *ctx, NES_VideoCallback videoCallback,
 		return 0;
 
 	uint64_t cycles = ctx->sys.cycle;
+	bool cpu_ok = true;
 
-	while (!ppu_new_frame(ctx->ppu))
-		cpu_step(ctx->cpu, ctx);
+	while (cpu_ok && !ppu_new_frame(ctx->ppu))
+		cpu_ok = cpu_step(ctx->cpu, ctx);
 
-	uint32_t count = 0;
-	const int16_t *frames = apu_frames(ctx->apu, &count);
-	audioCallback(frames, count, (void *) opaque);
-	videoCallback(ppu_pixels(ctx->ppu), (void *) opaque);
+	if (!cpu_ok) {
+		NES_LoadCart(ctx, NULL, 0, NULL, 0, NULL);
+
+	} else {
+		uint32_t count = 0;
+		const int16_t *frames = apu_frames(ctx->apu, &count);
+		audioCallback(frames, count, (void *) opaque);
+		videoCallback(ppu_pixels(ctx->ppu), (void *) opaque);
+	}
 
 	return (uint32_t) (ctx->sys.cycle - cycles);
 }

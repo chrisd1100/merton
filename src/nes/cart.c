@@ -2,7 +2,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 
 // Mapping
@@ -397,13 +396,17 @@ void cart_step(struct cart *cart, struct cpu *cpu)
 
 // Lifecycle
 
-static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
+static bool cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 {
-	if (rom[0] == 'U' && rom[1] == 'N' && rom[2] == 'I' && rom[3] == 'F')
-		assert(!"UNIF format unsupported");
+	if (rom[0] == 'U' && rom[1] == 'N' && rom[2] == 'I' && rom[3] == 'F') {
+		NES_Log("UNIF format unsupported");
+		return false;
+	}
 
-	if (!(rom[0] == 'N' && rom[1] == 'E' && rom[2] == 'S' && rom[3] == 0x1A))
-		assert(!"iNES magic header value 'N' 'E' 'S' 0x1A not found");
+	if (!(rom[0] == 'N' && rom[1] == 'E' && rom[2] == 'S' && rom[3] == 0x1A)) {
+		NES_Log("Bad iNES header");
+		return false;
+	}
 
 	// Archaic iNES
 	hdr->offset = 16;
@@ -436,6 +439,8 @@ static void cart_parse_header(const uint8_t *rom, NES_CartDesc *hdr)
 		non_volatile_shift = (rom[11] & 0xF0) >> 4;
 		hdr->chrSRAMSize = non_volatile_shift ? 64 << non_volatile_shift : 0;
 	}
+
+	return true;
 }
 
 static void cart_log_desc(NES_CartDesc *hdr, bool log_ram_sizes)
@@ -489,7 +494,7 @@ static void cart_set_data_pointers(struct cart *cart)
 	}
 }
 
-static void cart_init_mapper(struct cart *ctx)
+static bool cart_init_mapper(struct cart *ctx)
 {
 	cart_map(&ctx->prg, ROM, 0x8000, 0, 32);
 	cart_map_ciram(&ctx->chr, ctx->hdr.mirror);
@@ -551,14 +556,18 @@ static void cart_init_mapper(struct cart *ctx)
 		case 185: mapper_create(ctx);  break;
 
 		default:
-			assert(!"Unsupported mapper");
-			break;
+			NES_Log("Mapper %u is unsupported", ctx->hdr.mapper);
+			return false;
 	}
+
+	return true;
 }
 
 void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram_size,
 	const NES_CartDesc *desc, struct cart **cart)
 {
+	bool r = true;
+
 	struct cart *ctx = *cart = calloc(1, sizeof(struct cart));
 	ctx->prg.mask = PRG_SLOT - 1;
 	ctx->chr.mask = CHR_SLOT - 1;
@@ -569,10 +578,15 @@ void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram
 		ctx->hdr = *desc;
 
 	} else {
-		if (rom_size < 16)
-			assert(!"ROM is less than 16 bytes");
+		if (rom_size < 16) {
+			r = false;
+			NES_Log("ROM is less than 16 bytes");
+			goto except;
+		}
 
-		cart_parse_header(rom, &ctx->hdr);
+		r = cart_parse_header(rom, &ctx->hdr);
+		if (!r)
+			goto except;
 	}
 
 	ctx->prg.rom.size = ctx->hdr.prgROMSize;
@@ -601,11 +615,17 @@ void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram
 	ctx->prg.ram.size = ctx->prg.wram + ctx->prg.sram;
 	ctx->chr.ram.size = ctx->chr.wram + ctx->chr.sram;
 
-	if (ctx->hdr.offset + ctx->prg.rom.size > rom_size)
-		assert(!"ROM is not large enough to support PRG ROM size");
+	if (ctx->hdr.offset + ctx->prg.rom.size > rom_size) {
+		r = false;
+		NES_Log("PRG ROM size is incorrect");
+		goto except;
+	}
 
-	if (ctx->hdr.offset + ctx->prg.rom.size + ctx->chr.rom.size > rom_size)
-		assert(!"ROM is not large enough to support CHR ROM size");
+	if (ctx->hdr.offset + ctx->prg.rom.size + ctx->chr.rom.size > rom_size) {
+		r = false;
+		NES_Log("CHR ROM size is incorrect");
+		goto except;
+	}
 
 	ctx->dynamic_size = ctx->prg.rom.size + ctx->prg.ram.size +
 		ctx->chr.rom.size + ctx->chr.ram.size + ctx->chr.ciram.size + ctx->chr.exram.size;
@@ -619,7 +639,14 @@ void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram
 	if (sram && sram_size > 0 && sram_size <= ctx->prg.sram)
 		memcpy(ctx->prg.ram.data, sram, sram_size);
 
-	cart_init_mapper(ctx);
+	r = cart_init_mapper(ctx);
+	if (!r)
+		goto except;
+
+	except:
+
+	if (!r)
+		cart_destroy(cart);
 }
 
 void cart_destroy(struct cart **cart)

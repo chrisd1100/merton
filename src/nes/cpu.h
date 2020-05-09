@@ -20,7 +20,7 @@ void cpu_halt(struct cpu *cpu, bool halt);
 void cpu_poll_interrupts(struct cpu *cpu);
 
 // Step
-void cpu_step(struct cpu *cpu, NES *nes);
+bool cpu_step(struct cpu *cpu, NES *nes);
 
 // Lifecycle
 void cpu_create(struct cpu **cpu);

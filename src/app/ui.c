@@ -100,7 +100,7 @@ static void ui_log(bool always)
 		im_push_color(ImGuiCol_WindowBg, COLOR_MSG_BG);
 		im_push_style_f2(ImGuiStyleVar_ItemSpacing, X(5), X(4));
 
-		float h = X(30.0f + 20.5f * (float) (CMP.log_lines - 1));
+		float h = X(34.0f + 20.5f * (float) (CMP.log_lines - 1));
 		float w = X(260);
 		float padding_h = X(12);
 		float padding_v = X((CMP.nav & NAV_MENU) ? 34 : 12);

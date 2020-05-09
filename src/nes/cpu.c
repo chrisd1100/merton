@@ -1,7 +1,6 @@
 #include "cpu.h"
 
 #include <stdlib.h>
-#include <assert.h>
 
 enum cpu_flags {
 	FLAG_C = 0x01, // Carry
@@ -754,7 +753,7 @@ static void cpu_branch(struct cpu *cpu, NES *nes, uint16_t addr)
 	}
 }
 
-static void cpu_exec(struct cpu *cpu, NES *nes)
+static bool cpu_exec(struct cpu *cpu, NES *nes)
 {
 	uint8_t code = sys_read_cycle(nes, cpu->PC++);
 	struct opcode *op = &cpu->OP[code];
@@ -1166,8 +1165,10 @@ static void cpu_exec(struct cpu *cpu, NES *nes)
 
 		default:
 			NES_Log("CPU unknown opcode: %02X", code);
-			assert(!"CPU unknown opcode");
+			return false;
 	}
+
+	return true;
 }
 
 
@@ -1226,13 +1227,16 @@ static void cpu_trigger_interrupt(struct cpu *cpu, NES *nes)
 
 // Step
 
-void cpu_step(struct cpu *cpu, NES *nes)
+bool cpu_step(struct cpu *cpu, NES *nes)
 {
 	cpu->irq_pending = false;
-	cpu_exec(cpu, nes);
+	if (!cpu_exec(cpu, nes))
+		return false;
 
 	if (cpu->irq_pending)
 		cpu_trigger_interrupt(cpu, nes);
+
+	return true;
 }
 
 
