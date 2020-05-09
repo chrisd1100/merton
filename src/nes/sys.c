@@ -445,8 +445,11 @@ void NES_Reset(NES *ctx, bool hard)
 	memset(&ctx->sys, 0, sizeof(struct sys));
 	memset(&ctx->ctrl, 0, sizeof(struct ctrl));
 
-	if (!hard)
+	if (!hard) {
 		memcpy(ctx->sys.ram, prev.ram, 0x800);
+	} else {
+		cart_reset(ctx->cart);
+	}
 
 	ppu_reset(ctx->ppu);
 	apu_reset(ctx->apu, ctx, hard);

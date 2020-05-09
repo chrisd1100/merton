@@ -489,69 +489,8 @@ static void cart_set_data_pointers(struct cart *cart)
 	}
 }
 
-void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram_size,
-	const NES_CartDesc *desc, struct cart **cart)
+static void cart_init_mapper(struct cart *ctx)
 {
-	struct cart *ctx = *cart = calloc(1, sizeof(struct cart));
-	ctx->prg.mask = PRG_SLOT - 1;
-	ctx->chr.mask = CHR_SLOT - 1;
-	ctx->prg.shift = PRG_SHIFT;
-	ctx->chr.shift = CHR_SHIFT;
-
-	if (desc) {
-		ctx->hdr = *desc;
-
-	} else {
-		if (rom_size < 16)
-			assert(!"ROM is less than 16 bytes");
-
-		cart_parse_header(rom, &ctx->hdr);
-	}
-
-	ctx->prg.rom.size = ctx->hdr.prgROMSize;
-	ctx->chr.rom.size = ctx->hdr.chrROMSize;
-	ctx->chr.ciram.size = 0x4000;
-	ctx->chr.exram.size = 0x400; // MMC5 exram lives with chr since it can be mapped to CIRAM
-
-	ctx->prg.wram = ctx->hdr.prgWRAMSize;
-	ctx->prg.sram = ctx->hdr.prgSRAMSize;
-	ctx->chr.wram = ctx->hdr.chrWRAMSize;
-	ctx->chr.sram = ctx->hdr.chrSRAMSize;
-
-	cart_log_desc(&ctx->hdr, ctx->prg.wram > 0 || ctx->prg.sram > 0 ||
-		ctx->chr.wram > 0 || ctx->chr.sram > 0);
-
-	// Defaults to be safe with poor iNES headers
-	if (ctx->prg.sram == 0)
-		ctx->prg.sram = 0x2000;
-
-	if (ctx->prg.wram == 0)
-		ctx->prg.wram = 0x1E000;
-
-	if (ctx->chr.wram == 0)
-		ctx->chr.wram = 0x8000;
-
-	ctx->prg.ram.size = ctx->prg.wram + ctx->prg.sram;
-	ctx->chr.ram.size = ctx->chr.wram + ctx->chr.sram;
-
-	if (ctx->hdr.offset + ctx->prg.rom.size > rom_size)
-		assert(!"ROM is not large enough to support PRG ROM size");
-
-	if (ctx->hdr.offset + ctx->prg.rom.size + ctx->chr.rom.size > rom_size)
-		assert(!"ROM is not large enough to support CHR ROM size");
-
-	ctx->dynamic_size = ctx->prg.rom.size + ctx->prg.ram.size +
-		ctx->chr.rom.size + ctx->chr.ram.size + ctx->chr.ciram.size + ctx->chr.exram.size;
-	ctx->mem = calloc(ctx->dynamic_size, 1);
-
-	cart_set_data_pointers(ctx);
-
-	memcpy(ctx->prg.rom.data, (uint8_t *) rom + ctx->hdr.offset, ctx->prg.rom.size);
-	memcpy(ctx->chr.rom.data, (uint8_t *) rom + ctx->hdr.offset + ctx->prg.rom.size, ctx->chr.rom.size);
-
-	if (sram && sram_size > 0 && sram_size <= ctx->prg.sram)
-		memcpy(ctx->prg.ram.data, sram, sram_size);
-
 	cart_map(&ctx->prg, ROM, 0x8000, 0, 32);
 	cart_map_ciram(&ctx->chr, ctx->hdr.mirror);
 	cart_map(&ctx->chr, ctx->chr.rom.size > 0 ? ROM : RAM, 0x0000, 0, 8);
@@ -617,6 +556,72 @@ void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram
 	}
 }
 
+void cart_create(const void *rom, size_t rom_size, const void *sram, size_t sram_size,
+	const NES_CartDesc *desc, struct cart **cart)
+{
+	struct cart *ctx = *cart = calloc(1, sizeof(struct cart));
+	ctx->prg.mask = PRG_SLOT - 1;
+	ctx->chr.mask = CHR_SLOT - 1;
+	ctx->prg.shift = PRG_SHIFT;
+	ctx->chr.shift = CHR_SHIFT;
+
+	if (desc) {
+		ctx->hdr = *desc;
+
+	} else {
+		if (rom_size < 16)
+			assert(!"ROM is less than 16 bytes");
+
+		cart_parse_header(rom, &ctx->hdr);
+	}
+
+	ctx->prg.rom.size = ctx->hdr.prgROMSize;
+	ctx->chr.rom.size = ctx->hdr.chrROMSize;
+	ctx->chr.ciram.size = 0x4000;
+	ctx->chr.exram.size = 0x400; // MMC5 exram lives with chr since it can be mapped to CIRAM
+
+	ctx->prg.wram = ctx->hdr.prgWRAMSize;
+	ctx->prg.sram = ctx->hdr.prgSRAMSize;
+	ctx->chr.wram = ctx->hdr.chrWRAMSize;
+	ctx->chr.sram = ctx->hdr.chrSRAMSize;
+
+	cart_log_desc(&ctx->hdr, ctx->prg.wram > 0 || ctx->prg.sram > 0 ||
+		ctx->chr.wram > 0 || ctx->chr.sram > 0);
+
+	// Defaults to be safe with poor iNES headers
+	if (ctx->prg.sram == 0)
+		ctx->prg.sram = 0x2000;
+
+	if (ctx->prg.wram == 0)
+		ctx->prg.wram = 0x1E000;
+
+	if (ctx->chr.wram == 0)
+		ctx->chr.wram = 0x8000;
+
+	ctx->prg.ram.size = ctx->prg.wram + ctx->prg.sram;
+	ctx->chr.ram.size = ctx->chr.wram + ctx->chr.sram;
+
+	if (ctx->hdr.offset + ctx->prg.rom.size > rom_size)
+		assert(!"ROM is not large enough to support PRG ROM size");
+
+	if (ctx->hdr.offset + ctx->prg.rom.size + ctx->chr.rom.size > rom_size)
+		assert(!"ROM is not large enough to support CHR ROM size");
+
+	ctx->dynamic_size = ctx->prg.rom.size + ctx->prg.ram.size +
+		ctx->chr.rom.size + ctx->chr.ram.size + ctx->chr.ciram.size + ctx->chr.exram.size;
+	ctx->mem = calloc(ctx->dynamic_size, 1);
+
+	cart_set_data_pointers(ctx);
+
+	memcpy(ctx->prg.rom.data, (uint8_t *) rom + ctx->hdr.offset, ctx->prg.rom.size);
+	memcpy(ctx->chr.rom.data, (uint8_t *) rom + ctx->hdr.offset + ctx->prg.rom.size, ctx->chr.rom.size);
+
+	if (sram && sram_size > 0 && sram_size <= ctx->prg.sram)
+		memcpy(ctx->prg.ram.data, sram, sram_size);
+
+	cart_init_mapper(ctx);
+}
+
 void cart_destroy(struct cart **cart)
 {
 	if (!cart || !*cart)
@@ -628,6 +633,32 @@ void cart_destroy(struct cart **cart)
 
 	free(ctx);
 	*cart = NULL;
+}
+
+void cart_reset(struct cart *cart)
+{
+	cart->sram_dirty = 0;
+	cart->read_counter = 0;
+	cart->cycle = 0;
+	cart->ram_enable = 0;
+	cart->prg_mode = 0;
+	cart->chr_mode = 0;
+
+	memset(cart->REG, 0, sizeof(cart->REG));
+	memset(cart->PRG, 0, sizeof(cart->PRG));
+	memset(cart->CHR, 0, sizeof(cart->CHR));
+	memset(&cart->irq, 0, sizeof(cart->irq));
+	memset(&cart->mmc1, 0, sizeof(cart->mmc1));
+	memset(&cart->mmc3, 0, sizeof(cart->mmc3));
+	memset(&cart->mmc5, 0, sizeof(cart->mmc5));
+	memset(&cart->vrc, 0, sizeof(cart->vrc));
+
+	memset(cart->chr.ram.data, 0, cart->chr.ram.size);
+	memset(cart->chr.ciram.data, 0, cart->chr.ciram.size);
+	memset(cart->chr.exram.data, 0, cart->chr.exram.size);
+	memset(cart->prg.ram.data, 0, cart->prg.ram.size);
+
+	cart_init_mapper(cart);
 }
 
 size_t cart_set_state(struct cart *cart, const void *state, size_t size)
