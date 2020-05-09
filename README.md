@@ -41,19 +41,20 @@ According to [NRS NES 2.0 DB](/assets/db/):
 
 Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](https://wiki.nesdev.com/w/index.php/INES_Mapper_163) represent 280 unlicensed games.
 
-## Feature Requests
+## Planned Features
+- Sunsoft FME-7 Audio Support
 - Automatic/Periodic Save States
-- Enhanced save state manager with w/ Screenshots
 - Hotkey Bindings
-- Screenshots
 - FDS
 - Vs.
+- Screenshots
 - Zapper
 - Other Input Accessories
-- TAS Recording / Playback
-- PAL & Dendy Regions
-- NSF / NSFe Player
 - Libretro Core
+- TAS Recording / Playback
+- NSF / NSFe Player
+- Enhanced save state manager with w/ Screenshots
+- PAL & Dendy Regions
 - Run Ahead
 - Record Audio / Video
 - Adjust Emulation Speed / Fast Forward
@@ -62,8 +63,3 @@ Mapper [176](https://wiki.nesdev.com/w/index.php/INES_Mapper_176) and [163](http
 - Cheats / Game Genie
 - Edit iNES Header
 - Debugging Tools (event viewer, nametable viewer, etc)
-- APU Channel Volume Sliders
-- Panning per APU Channel
-- Equalizer
-- Audio Effects (reverb, panning, delay)
-- Brightness, Contrast, Hue, Saturation
