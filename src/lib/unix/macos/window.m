@@ -83,6 +83,17 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 
 void window_set_title(struct window *ctx, const char *title, const char *subtitle)
 {
+	char ctitle[TITLE_MAX];
+	if (subtitle) {
+		snprintf(ctitle, TITLE_MAX, "%s - %s", title, subtitle);
+	} else {
+		snprintf(ctitle, TITLE_MAX, "%s", title);
+	}
+
+	NSString *nss = [NSString stringWithUTF8String:ctitle];
+	ctx->nswindow.title = nss;
+
+	[nss release];
 }
 
 static enum scancode window_keycode_to_wmsg(unsigned short kc)

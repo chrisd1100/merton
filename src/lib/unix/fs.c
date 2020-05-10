@@ -64,7 +64,7 @@ void fs_mkdir(const char *path)
 
 const char *fs_file_name(const char *path, bool extension)
 {
-	const char *name = strrchr(path, '\\');
+	const char *name = strrchr(path, '/');
 	name = name ? name + 1 : path;
 
 	snprintf(FS_FILE_NAME, PATH_MAX, "%s", name);
