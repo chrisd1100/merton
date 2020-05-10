@@ -12,6 +12,7 @@ OBJS = \
 	src/nes/ppu.o \
 	src/app/main.o \
 	src/app/ui.o \
+	src/app/deps/imgui/im.o \
 	src/lib/crypto.o \
 	src/lib/unix/fs.o \
 	src/lib/unix/time.o
@@ -23,8 +24,10 @@ FLAGS = \
 	-Wall \
 	-Wextra \
 	-D_POSIX_C_SOURCE=200112L \
-	-Wno-unused-value \
+	-Wno-unused-function \
 	-Wno-unused-result \
+	-Wno-undefined-internal \
+	-Wno-unused-value \
 	-Wno-unused-parameter
 
 ifeq ($(UNAME), Linux)

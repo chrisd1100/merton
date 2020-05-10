@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-bool ImGui_ImplMetal_Init(void *device);
+bool ImGui_ImplMetal_Init(void *odevice, const void *font, int32_t font_w, int32_t font_h, void **font_tex);
 void ImGui_ImplMetal_Shutdown();
 void ImGui_ImplMetal_RenderDrawData(ImDrawData* draw_data, void *ocq, void *otexture);
 

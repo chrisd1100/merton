@@ -152,7 +152,8 @@ static void window_quad_draw(struct window_quad *ctx, id<MTLCommandQueue> cq,
 
 void window_quad_render(struct window_quad *ctx, id<MTLCommandQueue> cq,
 	const void *image, uint32_t width, uint32_t height, uint32_t constrain_w,
-	uint32_t constrain_h, id<MTLTexture> dest, float aspect_ratio)
+	uint32_t constrain_h, id<MTLTexture> dest, float aspect_ratio, enum filter filter,
+	enum effect effect)
 {
 	window_quad_refresh_resource(ctx, cq.device, width, height);
 

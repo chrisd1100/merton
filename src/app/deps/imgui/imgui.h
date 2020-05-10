@@ -1,5 +1,7 @@
 #pragma once
 
+#include "im.h"
+
 #include <assert.h>
 #include <float.h>                  // FLT_MIN, FLT_MAX
 #include <stdarg.h>                 // va_list, va_start, va_end
@@ -908,8 +910,8 @@ enum ImGuiCond_
 //-----------------------------------------------------------------------------
 
 struct ImNewDummy {};
- void* operator new(size_t, ImNewDummy, void* ptr) { return ptr; }
- void  operator delete(void*, ImNewDummy, void*)   {} // This is only required so we can use the symmetrical new()
+inline void* operator new(size_t, ImNewDummy, void* ptr) { return ptr; }
+inline void  operator delete(void*, ImNewDummy, void*)   {} // This is only required so we can use the symmetrical new()
 #define IM_ALLOC(_SIZE)                     ImGui::MemAlloc(_SIZE)
 #define IM_FREE(_PTR)                       ImGui::MemFree(_PTR)
 #define IM_PLACEMENT_NEW(_PTR)              new(ImNewDummy(), _PTR)

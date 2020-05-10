@@ -81,6 +81,10 @@ enum lib_status window_create(const char *title, WINDOW_MSG_FUNC msg_func, const
 	return r;
 }
 
+void window_set_title(struct window *ctx, const char *title, const char *subtitle)
+{
+}
+
 static enum scancode window_keycode_to_wmsg(unsigned short kc)
 {
 	switch (kc) {
@@ -324,7 +328,8 @@ void window_release_back_buffer(OpaqueTexture *texture)
 }
 
 void window_render_quad(struct window *ctx, const void *image, uint32_t width,
-	uint32_t height, uint32_t constrain_w, uint32_t constrain_h, float aspect_ratio, enum filter filter)
+	uint32_t height, uint32_t constrain_w, uint32_t constrain_h, float aspect_ratio,
+	enum filter filter, enum effect effect)
 {
 	if (!ctx->quad) {
 		if (!window_quad_init(ctx->cq.device, &ctx->quad))
@@ -333,7 +338,8 @@ void window_render_quad(struct window *ctx, const void *image, uint32_t width,
 
 	id<CAMetalDrawable> drawable = [ctx->layer nextDrawable];
 	window_quad_render(ctx->quad, ctx->cq, image, width, height,
-		constrain_w, constrain_h, drawable.texture, aspect_ratio);
+		constrain_w, constrain_h, drawable.texture, aspect_ratio,
+		filter, effect);
 	[drawable release];
 }
 

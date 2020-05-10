@@ -161,16 +161,12 @@ void ImGui_ImplMetal_RenderDrawData(ImDrawData* drawData, void *ocq, void *otext
 	[re release];
 }
 
-bool ImGui_ImplMetal_Init(void *odevice)
+bool ImGui_ImplMetal_Init(void *odevice, const void *font, int32_t font_w, int32_t font_h, void **font_tex)
 {
 	if (g_sharedMetalContext)
 		ImGui_ImplMetal_Shutdown();
 
 	id<MTLDevice> device = (id<MTLDevice>) odevice;
-
-	ImGuiIO& io = ImGui::GetIO();
-	io.BackendRendererName = "imgui_impl_metal";
-	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
 
 	struct MetalContext *ctx = g_sharedMetalContext = (struct MetalContext *) calloc(1, sizeof(struct MetalContext));
 
@@ -276,11 +272,8 @@ bool ImGui_ImplMetal_Init(void *odevice)
 	[vertexFunction release];
 	[library release];
 
-	unsigned char* pixels;
-	int width, height;
-	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 	MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
-		width:width height:height mipmapped:NO];
+		width:font_w height:font_h mipmapped:NO];
 
 	textureDescriptor.usage = MTLTextureUsageShaderRead;
 	#if TARGET_OS_OSX
@@ -289,10 +282,10 @@ bool ImGui_ImplMetal_Init(void *odevice)
 		textureDescriptor.storageMode = MTLStorageModeShared;
 	#endif
 	ctx->fontTexture = [device newTextureWithDescriptor:textureDescriptor];
-	[ctx->fontTexture replaceRegion:MTLRegionMake2D(0, 0, width, height) mipmapLevel:0 withBytes:pixels bytesPerRow:width * 4];
+	[ctx->fontTexture replaceRegion:MTLRegionMake2D(0, 0, font_w, font_h) mipmapLevel:0 withBytes:font bytesPerRow:font_w * 4];
 	[textureDescriptor release];
 
-	io.Fonts->TexID = ctx->fontTexture; // ImTextureID == void*
+	*font_tex = ctx->fontTexture; // ImTextureID == void*
 
 	return true;
 }
@@ -310,9 +303,6 @@ void ImGui_ImplMetal_Shutdown()
 
 	if (g_sharedMetalContext->renderPipelineState)
 		[g_sharedMetalContext->renderPipelineState release];
-
-	ImGuiIO& io = ImGui::GetIO();
-	io.Fonts->TexID = nullptr;
 
 	free(g_sharedMetalContext);
 	g_sharedMetalContext = NULL;

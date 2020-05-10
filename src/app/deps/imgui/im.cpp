@@ -133,6 +133,8 @@ static void im_impl_destroy(void)
 		ImGui_ImplDX11_Shutdown();
 	#elif defined(__APPLE__)
 		ImGui_ImplMetal_Shutdown();
+		ImGuiIO &io = GetIO();
+		io.Fonts->TexID = NULL;
 	#endif
 }
 
@@ -142,7 +144,18 @@ static bool im_impl_init(OpaqueDevice *device, OpaqueContext *context)
 		bool r = device != NULL && context != NULL &&
 			ImGui_ImplDX11_Init((ID3D11Device *) device);
 	#elif defined(__APPLE__)
-		bool r = device != NULL && ImGui_ImplMetal_Init(device);
+		ImGuiIO &io = GetIO();
+		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+
+		uint8_t *pixels = NULL;
+		void *font_tex = NULL;
+		int32_t width = 0, height = 0;
+		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+		bool r = device != NULL && ImGui_ImplMetal_Init(device, pixels, width, height, &font_tex);
+
+		if (r)
+			io.Fonts->TexID = font_tex;
 	#endif
 
 	if (!r || !GetIO().Fonts->TexID) {

@@ -62,12 +62,12 @@ void fs_mkdir(const char *path)
 	mkdir(path, 0755);
 }
 
-const char *fs_file_name(const char *path)
+const char *fs_file_name(const char *path, bool extension)
 {
 	const char *name = strrchr(path, '\\');
 	name = name ? name + 1 : path;
 
-	snprintf(FS_FILE_NAME, MAX_PATH, "%s", name);
+	snprintf(FS_FILE_NAME, PATH_MAX, "%s", name);
 
 	if (!extension) {
 		char *ext = strrchr(FS_FILE_NAME, '.');
@@ -157,7 +157,7 @@ uint32_t fs_list(const char *path, struct finfo **fi)
 			n++;
 		}
 
-		ok = (ent = readdir(dir)), ent ? 1 : 0;
+		ok = ((ent = readdir(dir)), ent ? 1 : 0);
 		if (!ok) closedir(dir);
 	}
 
