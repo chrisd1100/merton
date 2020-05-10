@@ -255,7 +255,6 @@ struct dmc {
 	struct {
 		uint8_t shift_register;
 		uint8_t bits_remaining;
-		uint8_t level;
 		bool silence;
 	} out;
 
@@ -281,11 +280,6 @@ static void apu_dmc_restart(struct dmc *d)
 {
 	d->current_address = d->sample_address;
 	d->current_length = d->sample_length;
-}
-
-static void apu_dmc_output(struct dmc *d)
-{
-	d->output = d->out.level;
 }
 
 static void apu_dmc_fill_sample_buffer(struct dmc *d, NES *nes)
@@ -318,14 +312,12 @@ static void apu_dmc_step_timer(struct dmc *d, NES *nes)
 		d->timer.value = d->timer.period << OC_SHIFT;
 
 		if (!d->out.silence) {
-			if (d->out.shift_register & 0x01 && d->out.level <= 125) {
-				d->out.level += 2;
+			if (d->out.shift_register & 0x01 && d->output <= 125) {
+				d->output += 2;
 
-			} else if (d->out.level >= 2) {
-				d->out.level -= 2;
+			} else if (d->output >= 2) {
+				d->output -= 2;
 			}
-
-			apu_dmc_output(d);
 		}
 
 		d->out.shift_register >>= 1;
@@ -796,8 +788,7 @@ void apu_write(struct apu *apu, NES *nes, uint16_t addr, uint8_t v, enum extaudi
 			apu->d.timer.period = DMC_TABLE[v & 0x0F];
 			break;
 		case 0x4011:
-			apu->d.out.level = v & 0x7F;
-			apu_dmc_output(&apu->d);
+			apu->d.output = v & 0x7F;
 			break;
 		case 0x4012:
 			apu->d.sample_address = 0xC000 | ((uint16_t) v << 6);
