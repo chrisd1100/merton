@@ -61,12 +61,6 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 				((top.g + bot.g) / 2.0 + rgba.g * 4.0) / 5.0,
 				((top.b + bot.g) / 2.0 + rgba.b * 4.0) / 5.0,
 				((top.a + bot.a) / 2.0 + rgba.a * 4.0) / 5.0) * 0.80;
-		} else {
-			rgba = float4(
-				clamp(rgba.r * 1.2, 0.0, 1.0),
-				clamp(rgba.g * 1.2, 0.0, 1.0),
-				clamp(rgba.b * 1.2, 0.0, 1.0),
-				clamp(rgba.a * 1.2, 0.0, 1.0));
 		}
 	}
 
