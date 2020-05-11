@@ -409,11 +409,27 @@ static void apu_vrc6_saw_step_timer(struct saw *s)
 // Sunsoft 5B
 
 struct ss5b {
+	bool disable;
 	uint8_t output;
+
+	bool flip;
+	uint8_t volume;
+	uint16_t frequency;
+	uint16_t counter;
+	uint16_t divider;
 };
 
 static void apu_ss5b_channel_step_timer(struct ss5b *c)
 {
+	if (++c->divider == 16) {
+		if (++c->counter >= c->frequency) {
+			c->flip = !c->flip;
+			c->output = c->flip && !c->disable ? c->volume : 0;
+			c->counter = 0;
+		}
+
+		c->divider = 0;
+	}
 }
 
 
@@ -898,23 +914,34 @@ void apu_write(struct apu *apu, NES *nes, uint16_t addr, uint8_t v, enum extaudi
 		// Sunsoft 5B Channel A, B, C Low Period
 		case 0xE000:
 		case 0xE002:
-		case 0xE004:
+		case 0xE004: {
+			struct ss5b *c = &apu->c[(addr & 0xF) / 2];
+			c->frequency = (c->frequency & 0xFF00) | v;
 			break;
+		}
 
 		// Sunsoft 5B Channel A, B, C High Period
 		case 0xE001:
 		case 0xE003:
-		case 0xE005:
+		case 0xE005: {
+			struct ss5b *c = &apu->c[(addr & 0xF) / 2];
+			c->frequency = (c->frequency & 0x00FF) | ((uint16_t) v << 8);
 			break;
+		}
 
 		// Sunsoft 5B Channel A, B, C Tone Disable
 		case 0xE007:
+			apu->c[0].disable = v & 0x1;
+			apu->c[1].disable = v & 0x2;
+			apu->c[2].disable = v & 0x4;
 			break;
 
 		// Sunsoft 5B Channel A, B, C, Volume
 		case 0xE008:
 		case 0xE009:
 		case 0xE00A:
+			struct ss5b *c = &apu->c[(addr & 0xF) - 0x8];
+			c->volume = v & 0xF;
 			break;
 	}
 }
