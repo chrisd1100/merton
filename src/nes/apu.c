@@ -661,7 +661,7 @@ static void apu_dac_mix(struct dac *dac, uint8_t p0, uint8_t p1, uint8_t p2, uin
 		apu_dac_step(dac, l, r);
 	} else {
 		int16_t m = dac->tndvol[3 * t + 2 * n + d] + dac->pvol[p0 + p1] - dac->pvol[p2] -
-			dac->pvol[p6_0] - dac->cvol[c0] - dac->pvol[s] + dac->cvol[c2] - dac->pvol[p3] -
+			dac->pvol[p6_0] - dac->cvol[c0] - dac->pvol[s] - dac->cvol[c2] - dac->pvol[p3] -
 			dac->pvol[p6_1] - dac->cvol[c1];
 
 		apu_dac_step(dac, m, 0);
