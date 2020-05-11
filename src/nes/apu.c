@@ -406,6 +406,17 @@ static void apu_vrc6_saw_step_timer(struct saw *s)
 }
 
 
+// Sunsoft 5B
+
+struct ss5b {
+	uint8_t output;
+};
+
+static void apu_ss5b_channel_step_timer(struct ss5b *c)
+{
+}
+
+
 // DAC
 
 #define TIME_BITS   20
@@ -595,19 +606,18 @@ static void apu_dac_step(struct dac *dac, int16_t l, int16_t r)
 }
 
 static void apu_dac_mix(struct dac *dac, uint8_t p0, uint8_t p1, uint8_t p2, uint8_t p3,
-	uint8_t p6_0, uint8_t p6_1, uint8_t s, uint8_t t, uint8_t n, uint8_t d)
+	uint8_t p6_0, uint8_t p6_1, uint8_t c0, uint8_t c1, uint8_t c2, uint8_t s, uint8_t t,
+	uint8_t n, uint8_t d)
 {
-	uint8_t ext0 = (dac->cfg.channels & NES_CHANNEL_EXT_0) ? p2 + p6_0 : 0;
-	uint8_t ext1 = (dac->cfg.channels & NES_CHANNEL_EXT_1) ? p3 + p6_1 : 0;
+	uint8_t ext0 = (dac->cfg.channels & NES_CHANNEL_EXT_0) ? p2 + p6_0 + c0 : 0;
+	uint8_t ext1 = (dac->cfg.channels & NES_CHANNEL_EXT_1) ? p3 + p6_1 + c1 : 0;
+	uint8_t ext2 = (dac->cfg.channels & NES_CHANNEL_EXT_2) ? s + c2 : 0;
 
 	if (!(dac->cfg.channels & NES_CHANNEL_PULSE_0))
 		p0 = 0;
 
 	if (!(dac->cfg.channels & NES_CHANNEL_PULSE_1))
 		p1 = 0;
-
-	if (!(dac->cfg.channels & NES_CHANNEL_EXT_2))
-		s = 0;
 
 	if (!(dac->cfg.channels & NES_CHANNEL_TRIANGLE))
 		t = 0;
@@ -619,13 +629,13 @@ static void apu_dac_mix(struct dac *dac, uint8_t p0, uint8_t p1, uint8_t p2, uin
 		d = 0;
 
 	if (dac->cfg.stereo) {
-		int16_t l = dac->tndvol[3 * t + 2 * n] + dac->pvol[p0] - dac->pvol[ext0] - dac->pvol[s];
+		int16_t l = dac->tndvol[3 * t + 2 * n] + dac->pvol[p0] - dac->pvol[ext0] - dac->pvol[ext2];
 		int16_t r = dac->tndvol[d] + dac->pvol[p1] - dac->pvol[ext1];
 
 		apu_dac_step(dac, l, r);
 	} else {
 		int16_t m = dac->tndvol[3 * t + 2 * n + d] + dac->pvol[p0 + p1] - dac->pvol[ext0] -
-			dac->pvol[ext1] - dac->pvol[s];
+			dac->pvol[ext1] - dac->pvol[ext2];
 
 		apu_dac_step(dac, m, 0);
 	}
@@ -644,6 +654,7 @@ struct apu {
 
 	struct pulse p[4];
 	struct pulse6 p6[2];
+	struct ss5b c[3];
 	struct saw s;
 	struct triangle t;
 	struct noise n;
@@ -697,7 +708,7 @@ void apu_write(struct apu *apu, NES *nes, uint16_t addr, uint8_t v, enum extaudi
 	if (ext != EXT_NONE)
 		apu->ext = ext;
 
-	if (ext != EXT_VRC6 && addr > 0x4017)
+	if (ext != EXT_VRC6 && ext != EXT_SS5B && addr > 0x4017)
 		return;
 
 	switch (addr) {
@@ -883,6 +894,28 @@ void apu_write(struct apu *apu, NES *nes, uint16_t addr, uint8_t v, enum extaudi
 			apu->s.frequency |= (uint16_t) (v & 0x0F) << 8;
 			apu->s.enabled = v & 0x80;
 			break;
+
+		// Sunsoft 5B Channel A, B, C Low Period
+		case 0xE000:
+		case 0xE002:
+		case 0xE004:
+			break;
+
+		// Sunsoft 5B Channel A, B, C High Period
+		case 0xE001:
+		case 0xE003:
+		case 0xE005:
+			break;
+
+		// Sunsoft 5B Channel A, B, C Tone Disable
+		case 0xE007:
+			break;
+
+		// Sunsoft 5B Channel A, B, C, Volume
+		case 0xE008:
+		case 0xE009:
+		case 0xE00A:
+			break;
 	}
 }
 
@@ -1000,11 +1033,16 @@ void apu_step(struct apu *apu, NES *nes)
 	apu_triangle_step_timer(&apu->t);
 	apu_noise_step_timer(&apu->n);
 
-	// VRC6
+	// VRC6, SS5B
 	if (apu->ext == EXT_VRC6) {
 		apu_vrc6_pulse_step_timer(&apu->p6[0]);
 		apu_vrc6_pulse_step_timer(&apu->p6[1]);
 		apu_vrc6_saw_step_timer(&apu->s);
+
+	} else if (apu->ext == EXT_SS5B) {
+		apu_ss5b_channel_step_timer(&apu->c[0]);
+		apu_ss5b_channel_step_timer(&apu->c[1]);
+		apu_ss5b_channel_step_timer(&apu->c[2]);
 	}
 
 	// Process the frame counter
@@ -1030,8 +1068,9 @@ void apu_step(struct apu *apu, NES *nes)
 
 	// Mix
 	apu_dac_mix(&apu->dac, apu->p[0].output, apu->p[1].output, apu->p[2].output,
-		apu->p[3].output, apu->p6[0].output, apu->p6[1].output, apu->s.output,
-		apu->t.output, apu->n.output, apu->d.output);
+		apu->p[3].output, apu->p6[0].output, apu->p6[1].output, apu->c[0].output,
+		apu->c[1].output, apu->c[2].output, apu->s.output, apu->t.output, apu->n.output,
+		apu->d.output);
 
 	apu->frame_counter++;
 }
@@ -1099,6 +1138,7 @@ void apu_reset(struct apu *apu, NES *nes, bool hard)
 {
 	memset(apu->p, 0, sizeof(struct pulse) * 4);
 	memset(apu->p6, 0, sizeof(struct pulse6) * 2);
+	memset(apu->c, 0, sizeof(struct ss5b) * 3);
 	memset(&apu->s, 0, sizeof(struct saw));
 	memset(&apu->t, 0, sizeof(struct triangle));
 	memset(&apu->n, 0, sizeof(struct noise));

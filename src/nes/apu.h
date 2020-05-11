@@ -10,6 +10,7 @@ enum extaudio {
 	EXT_NONE = 0,
 	EXT_MMC5 = 1,
 	EXT_VRC6 = 2,
+	EXT_SS5B = 3,
 };
 
 struct apu;

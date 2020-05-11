@@ -260,7 +260,7 @@ void cart_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, uint8_t v
 		case 26:  vrc6_prg_write(cart, apu, addr, v);  break;
 		case 23:  vrc_prg_write(cart, addr, v);        break;
 		case 25:  vrc_prg_write(cart, addr, v);        break;
-		case 69:  fme7_prg_write(cart, addr, v);       break;
+		case 69:  fme7_prg_write(cart, apu, addr, v);  break;
 		case 85:  vrc7_prg_write(cart, addr, v);       break;
 		case 16:
 		case 159: fcg_prg_write(cart, addr, v);        break;

@@ -12,7 +12,7 @@ static void fme7_create(struct cart *cart)
 	cart_map_ciram(&cart->chr, NES_MIRROR_VERTICAL);
 }
 
-static void fme7_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
+static void fme7_prg_write(struct cart *cart, struct apu *apu, uint16_t addr, uint8_t v)
 {
 	if (addr >= 0x6000 && addr < 0x8000 && cart->ram_enable) {
 		map_write(&cart->prg, 0, addr, v);
@@ -66,6 +66,26 @@ static void fme7_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 				break;
 			case 0xF:
 				cart->irq.value = (cart->irq.value & 0x00FF) | ((uint16_t) v << 8);
+				break;
+		}
+	} else if (addr >= 0xC000 && addr < 0xE000) { // Sunsoft 5B Audio CMD
+		cart->REG[1] = v & 0x0F;
+
+	} else if (addr >= 0xE000) { // Sunsoft 5B Audio
+		switch (cart->REG[1]) {
+			case 0x00: // Channel A, B, C Low Period
+			case 0x02:
+			case 0x04:
+			case 0x01: // Channel A, B, C High Period
+			case 0x03:
+			case 0x05:
+
+			case 0x07: // Channel A, B, C Tone Disable
+
+			case 0x08: // Channel A, B, C, Volume
+			case 0x09:
+			case 0x0A:
+				apu_write(apu, NULL, 0xE000 | cart->REG[1], v, EXT_SS5B);
 				break;
 		}
 	}
