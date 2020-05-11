@@ -19,7 +19,11 @@ static struct im {
 	bool init;
 	bool impl_init;
 	int64_t ts;
+	#if defined(_WIN32)
 	struct dx11 *dx11;
+	#elif defined(__APPLE__)
+	struct mtl *mtl;
+	#endif
 	ImDrawData *draw_data;
 	OpaqueDevice *device;
 	OpaqueContext *context;
@@ -133,9 +137,7 @@ static void im_impl_destroy(void)
 	#if defined(_WIN32)
 		im_dx11_destroy(&IM.dx11);
 	#elif defined(__APPLE__)
-		ImGui_ImplMetal_Shutdown();
-		ImGuiIO &io = GetIO();
-		io.Fonts->TexID = NULL;
+		im_mtl_destroy(&IM.mtl);
 	#endif
 }
 
@@ -154,7 +156,7 @@ static bool im_impl_init(OpaqueDevice *device, OpaqueContext *context)
 	#elif defined(__APPLE__)
 		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
-		bool r = device != NULL && ImGui_ImplMetal_Init(device, pixels, width, height, &font_tex);
+		bool r = device != NULL && im_mtl_create(device, pixels, width, height, &IM.mtl);
 	#endif
 
 	if (!r) {
@@ -202,8 +204,8 @@ bool im_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 		IM.height = (float) desc.Height;
 
 	#elif defined(__APPLE__)
-		IM.texture = ImGui_ImplMetal_GetDrawableTexture(texture); // this is an id<CAMetalDrawable>
-		ImGui_ImplMetal_TextureSize(IM.texture, &IM.width, &IM.height);
+		IM.texture = im_mtl_get_drawable_texture(texture); // this is an id<CAMetalDrawable>
+		im_mtl_texture_size(IM.texture, &IM.width, &IM.height);
 	#endif
 
 	return true;
@@ -217,7 +219,7 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 	#if defined(_WIN32)
 		io.Fonts->TexID = im_dx11_font_texture(IM.dx11);
 	#elif defined(__APPLE__)
-		io.Fonts->TexID = im_metal_font_texture();
+		io.Fonts->TexID = im_mtl_font_texture(IM.mtl);
 	#endif
 
 	int64_t now = time_stamp();
@@ -268,7 +270,7 @@ void im_render(bool clear)
 		}
 
 	#elif defined(__APPLE__)
-		ImGui_ImplMetal_RenderDrawData(IM.draw_data, IM.context, IM.texture);
+		im_mtl_render(IM.mtl, IM.draw_data, IM.context, IM.texture);
 	#endif
 }
 

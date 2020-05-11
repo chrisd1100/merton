@@ -950,10 +950,11 @@ void apu_write(struct apu *apu, NES *nes, uint16_t addr, uint8_t v, enum extaudi
 		// Sunsoft 5B Channel A, B, C, Volume
 		case 0xE008:
 		case 0xE009:
-		case 0xE00A:
+		case 0xE00A: {
 			struct ss5b *c = &apu->c[(addr & 0xF) - 0x8];
 			c->volume = v & 0xF;
 			break;
+		}
 	}
 }
 

@@ -4,12 +4,15 @@
 extern "C" {
 #endif
 
-bool ImGui_ImplMetal_Init(void *odevice, const void *font, int32_t font_w, int32_t font_h, void **font_tex);
-void ImGui_ImplMetal_Shutdown();
-void ImGui_ImplMetal_RenderDrawData(ImDrawData* draw_data, void *ocq, void *otexture);
+struct mtl;
 
-void ImGui_ImplMetal_TextureSize(void *texture, float *width, float *height);
-void *ImGui_ImplMetal_GetDrawableTexture(void *drawable);
+bool im_mtl_create(void *odevice, const void *font, int32_t font_w, int32_t font_h, struct mtl **mtl);
+void im_mtl_render(struct mtl *ctx, ImDrawData *draw_data, void *ocq, void *otexture);
+void *im_mtl_font_texture(struct mtl *ctx);
+void im_mtl_destroy(struct mtl **mtl);
+
+void im_mtl_texture_size(void *texture, float *width, float *height);
+void *im_mtl_get_drawable_texture(void *drawable);
 
 #ifdef __cplusplus
 }
