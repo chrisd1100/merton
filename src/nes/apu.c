@@ -422,7 +422,7 @@ struct ss5b {
 static void apu_ss5b_channel_step_timer(struct ss5b *c)
 {
 	if (++c->divider == 16) {
-		if (++c->counter >= c->frequency) {
+		if (++c->counter >= c->frequency << OC_SHIFT) {
 			c->flip = !c->flip;
 			c->output = c->flip && !c->disable ? (c->volume << 1) + (c->volume > 0 ? 1 : 0) : 0;
 			c->counter = 0;
