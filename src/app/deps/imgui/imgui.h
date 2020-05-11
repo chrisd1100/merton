@@ -530,7 +530,7 @@ namespace ImGui
     static bool          IsRectVisible(const ImVec2& size);                                  // test if rectangle (of given size, starting from cursor position) is visible / not clipped.
     static bool          IsRectVisible(const ImVec2& rect_min, const ImVec2& rect_max);      // test if rectangle (in screen space) is visible / not clipped. to perform coarse clipping on user's side.
     static double        GetTime();                                                          // get global imgui time. incremented by io.DeltaTime every frame.
-    static int           GetFrameCount();                                                    // get global imgui frame count. incremented by 1 every frame.
+    inline int           GetFrameCount();                                                    // get global imgui frame count. incremented by 1 every frame.
     static ImDrawList*   GetBackgroundDrawList();                                            // this draw list will be the first rendering one. Useful to quickly draw shapes/text behind dear imgui contents.
     static ImDrawList*   GetForegroundDrawList();                                            // this draw list will be the last rendered one. Useful to quickly draw shapes/text over dear imgui contents.
     static ImDrawListSharedData* GetDrawListSharedData();                                    // you may use this when creating your own ImDrawList instances.
@@ -546,9 +546,9 @@ namespace ImGui
 
     // Color Utilities
     static ImVec4        ColorConvertU32ToFloat4(ImU32 in);
-    static ImU32         ColorConvertFloat4ToU32(const ImVec4& in);
-    static void          ColorConvertRGBtoHSV(float r, float g, float b, float& out_h, float& out_s, float& out_v);
-    static void          ColorConvertHSVtoRGB(float h, float s, float v, float& out_r, float& out_g, float& out_b);
+    inline ImU32         ColorConvertFloat4ToU32(const ImVec4& in);
+    inline void          ColorConvertRGBtoHSV(float r, float g, float b, float& out_h, float& out_s, float& out_v);
+    inline void          ColorConvertHSVtoRGB(float h, float s, float v, float& out_r, float& out_g, float& out_b);
 
     // Inputs Utilities: Keyboard
     // - For 'int user_key_index' you can use your own indices/enums according to how your backend/engine stored them in io.KeysDown[].
@@ -600,8 +600,8 @@ namespace ImGui
     // - All those functions are not reliant on the current context.
     // - If you reload the contents of imgui.cpp at runtime, you may need to call SetCurrentContext() + SetAllocatorFunctions() again because we use global storage for those.
     static void          SetAllocatorFunctions(void* (*alloc_func)(size_t sz, void* user_data), void (*free_func)(void* ptr, void* user_data), void* user_data = NULL);
-    static void*         MemAlloc(size_t size);
-    static void          MemFree(void* ptr);
+    inline void*         MemAlloc(size_t size);
+   	inline void          MemFree(void* ptr);
 
 } // namespace ImGui
 

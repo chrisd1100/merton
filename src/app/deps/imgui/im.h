@@ -129,6 +129,55 @@ enum ImGuiWindowFlags_
     ImGuiWindowFlags_ChildMenu              = 1 << 28   // Don't use! For internal use by BeginMenu()
 };
 
+// Draw Data
+#define IM_MAX_DRAW_CMD 1024
+#define IM_MAX_CMD_LIST 1024
+#define IM_MAX_IDX_BUFFER (1024 * 10)
+#define IM_MAX_VTX_BUFFER (1024 * 10)
+
+struct im_vec2 {
+	int32_t x;
+	int32_t y;
+};
+
+struct im_vec4 {
+	int32_t x;
+	int32_t y;
+	int32_t z;
+	int32_t w;
+};
+
+struct im_draw_cmd {
+	struct im_vec4 clip_rect;
+	void *texture_id;
+	uint32_t elem_count;
+	uint32_t idx_offset;
+	uint32_t vtx_offset;
+};
+
+struct im_cmd_list {
+	struct im_draw_cmd draw_cmd[IM_MAX_DRAW_CMD];
+	uint32_t draw_cmd_len;
+
+	uint8_t idx[IM_MAX_IDX_BUFFER];
+	size_t idx_size;
+
+	uint8_t vtx_buffer[IM_MAX_VTX_BUFFER];
+	size_t vtx_size;
+};
+
+struct im_draw_data {
+	struct im_cmd_list cmd_list[IM_MAX_CMD_LIST];
+	uint32_t cmd_list_len;
+
+	uint32_t idx_count;
+	uint32_t vtx_count;
+
+	struct im_vec2 display_size;
+	struct im_vec2 display_pos;
+	struct im_vec2 framebuffer_scale;
+};
+
 // Framework
 void im_create(const void *font, size_t font_size, float font_height);
 void im_destroy(void);

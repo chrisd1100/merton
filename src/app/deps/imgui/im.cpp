@@ -5,7 +5,7 @@
 #include "imgui.cpp"
 
 #if defined(_WIN32)
-	#include "imgui_impl_dx11.cpp"
+	#include "imgui_impl_dx11.h"
 #else
 	#include "imgui_impl_metal.h"
 #endif
@@ -19,6 +19,7 @@ static struct im {
 	bool init;
 	bool impl_init;
 	int64_t ts;
+	struct dx11 *dx11;
 	ImDrawData *draw_data;
 	OpaqueDevice *device;
 	OpaqueContext *context;
@@ -130,7 +131,7 @@ void im_input(struct window_msg *wmsg)
 static void im_impl_destroy(void)
 {
 	#if defined(_WIN32)
-		ImGui_ImplDX11_Shutdown();
+		im_dx11_destroy(&IM.dx11);
 	#elif defined(__APPLE__)
 		ImGui_ImplMetal_Shutdown();
 		ImGuiIO &io = GetIO();
@@ -140,25 +141,23 @@ static void im_impl_destroy(void)
 
 static bool im_impl_init(OpaqueDevice *device, OpaqueContext *context)
 {
+	ImGuiIO &io = GetIO();
+
+	uint8_t *pixels = NULL;
+	int32_t width = 0, height = 0;
+	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
 	#if defined(_WIN32)
+		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 		bool r = device != NULL && context != NULL &&
-			ImGui_ImplDX11_Init((ID3D11Device *) device);
+			im_dx11_create((ID3D11Device *) device, pixels, width, height, &IM.dx11);
 	#elif defined(__APPLE__)
-		ImGuiIO &io = GetIO();
 		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
-		uint8_t *pixels = NULL;
-		void *font_tex = NULL;
-		int32_t width = 0, height = 0;
-		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-
 		bool r = device != NULL && ImGui_ImplMetal_Init(device, pixels, width, height, &font_tex);
-
-		if (r)
-			io.Fonts->TexID = font_tex;
 	#endif
 
-	if (!r || !GetIO().Fonts->TexID) {
+	if (!r) {
 		im_impl_destroy();
 		r = false;
 	}
@@ -215,6 +214,12 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 	ImGuiIO &io = GetIO();
 	io.DisplaySize = ImVec2(IM.width, IM.height);
 
+	#if defined(_WIN32)
+		io.Fonts->TexID = im_dx11_font_texture(IM.dx11);
+	#elif defined(__APPLE__)
+		io.Fonts->TexID = im_metal_font_texture();
+	#endif
+
 	int64_t now = time_stamp();
 
 	if (IM.ts != 0)
@@ -234,6 +239,8 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 
 	for (uint32_t x = 0; x < IM_ARRAYSIZE(io.KeysDown); x++)
 		io.KeysDown[x] = false;
+
+	io.Fonts->TexID = NULL;
 }
 
 void im_render(bool clear)
@@ -256,7 +263,7 @@ void im_render(bool clear)
 
 			context->OMSetRenderTargets(1, &rtv, NULL);
 
-			ImGui_ImplDX11_RenderDrawData(IM.draw_data, device, context);
+			im_dx11_render(IM.dx11, IM.draw_data, device, context);
 			rtv->Release();
 		}
 
