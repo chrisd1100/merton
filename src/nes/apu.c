@@ -424,7 +424,7 @@ static void apu_ss5b_channel_step_timer(struct ss5b *c)
 	if (++c->divider == 16) {
 		if (++c->counter >= c->frequency) {
 			c->flip = !c->flip;
-			c->output = c->flip && !c->disable ? c->volume : 0;
+			c->output = c->flip && !c->disable ? (c->volume << 1) + (c->volume > 0 ? 1 : 0) : 0;
 			c->counter = 0;
 		}
 
@@ -447,6 +447,7 @@ struct dac {
 	NES_Config cfg;
 
 	int16_t pvol[31];
+	int16_t cvol[32];
 	int16_t tndvol[203];
 	int16_t sinc[PHASE_COUNT + 1][16];
 	uint32_t frame_samples;
@@ -516,10 +517,13 @@ static int16_t apu_clampf64(double pcm)
 static void apu_dac_create(struct dac *dac)
 {
 	for (int32_t x = 0; x < 31; x++)
-		dac->pvol[x] = apu_clampf64(95.52 / (8128.0 / (float) x + 100.0));
+		dac->pvol[x] = apu_clampf64(95.52 / (8128.0 / (double) x + 100.0));
 
 	for (int32_t x = 0; x < 203; x++)
-		dac->tndvol[x] = apu_clampf64(163.67 / (24329.0 / (float) x + 100.0));
+		dac->tndvol[x] = apu_clampf64(163.67 / (24329.0 / (double) x + 100.0));
+
+	for (int32_t x = 0; x < 32; x++)
+		dac->cvol[x] = apu_clampf64(x == 0 ? 0.0 : 1.0 / pow(1.6, 1.0 / 2 * (31 - x)));
 
 	for (int32_t x = 0; x < PHASE_COUNT + 1; x++) {
 		for (int32_t y = 0; y < 8; y++) {
@@ -625,10 +629,6 @@ static void apu_dac_mix(struct dac *dac, uint8_t p0, uint8_t p1, uint8_t p2, uin
 	uint8_t p6_0, uint8_t p6_1, uint8_t c0, uint8_t c1, uint8_t c2, uint8_t s, uint8_t t,
 	uint8_t n, uint8_t d)
 {
-	uint8_t ext0 = (dac->cfg.channels & NES_CHANNEL_EXT_0) ? p2 + p6_0 + c0 : 0;
-	uint8_t ext1 = (dac->cfg.channels & NES_CHANNEL_EXT_1) ? p3 + p6_1 + c1 : 0;
-	uint8_t ext2 = (dac->cfg.channels & NES_CHANNEL_EXT_2) ? s + c2 : 0;
-
 	if (!(dac->cfg.channels & NES_CHANNEL_PULSE_0))
 		p0 = 0;
 
@@ -644,14 +644,25 @@ static void apu_dac_mix(struct dac *dac, uint8_t p0, uint8_t p1, uint8_t p2, uin
 	if (!(dac->cfg.channels & NES_CHANNEL_DMC))
 		d = 0;
 
+	if (!(dac->cfg.channels & NES_CHANNEL_EXT_0))
+		p2 = p6_0 = c0 = 0;
+
+	if (!(dac->cfg.channels & NES_CHANNEL_EXT_1))
+		p3 = p6_1 = c1 = 0;
+
+	if (!(dac->cfg.channels & NES_CHANNEL_EXT_2))
+		s = c2 = 0;
+
 	if (dac->cfg.stereo) {
-		int16_t l = dac->tndvol[3 * t + 2 * n] + dac->pvol[p0] - dac->pvol[ext0] - dac->pvol[ext2];
-		int16_t r = dac->tndvol[d] + dac->pvol[p1] - dac->pvol[ext1];
+		int16_t l = dac->tndvol[3 * t + 2 * n] + dac->pvol[p0] - dac->pvol[p2] - dac->pvol[p6_0] +
+			dac->cvol[c0] - dac->pvol[s] - dac->cvol[c2];
+		int16_t r = dac->tndvol[d] + dac->pvol[p1] - dac->pvol[p3] - dac->pvol[p6_1] - dac->cvol[c1];
 
 		apu_dac_step(dac, l, r);
 	} else {
-		int16_t m = dac->tndvol[3 * t + 2 * n + d] + dac->pvol[p0 + p1] - dac->pvol[ext0] -
-			dac->pvol[ext1] - dac->pvol[ext2];
+		int16_t m = dac->tndvol[3 * t + 2 * n + d] + dac->pvol[p0 + p1] - dac->pvol[p2] -
+			dac->pvol[p6_0] - dac->cvol[c0] - dac->pvol[s] + dac->cvol[c2] - dac->pvol[p3] -
+			dac->pvol[p6_1] - dac->cvol[c1];
 
 		apu_dac_step(dac, m, 0);
 	}
