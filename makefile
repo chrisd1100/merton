@@ -29,6 +29,7 @@ RESOURCES = \
 	assets\windows\versioninfo.res
 
 RFLAGS = \
+	-Isrc \
 	/nologo
 
 CFLAGS = \

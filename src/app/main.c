@@ -10,12 +10,11 @@
 #include "deps/imgui/im.h"
 
 #include "ui.h"
+#include "app.h"
 #include "config.h"
 
 #include "assets/db/nes20db.h"
 #include "assets/font/anonymous.h"
-
-#define APP_NAME "Merton"
 
 struct main {
 	NES *nes;
