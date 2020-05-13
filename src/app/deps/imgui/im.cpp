@@ -5,9 +5,9 @@
 #include "imgui.cpp"
 
 #if defined(_WIN32)
-	#include "imgui_impl_dx11.h"
+	#include "impl/im-dx11.h"
 #else
-	#include "imgui_impl_metal.h"
+	#include "impl/im-mtl.h"
 #endif
 
 using namespace ImGui;
@@ -20,11 +20,11 @@ static struct im {
 	bool impl_init;
 	int64_t ts;
 	#if defined(_WIN32)
-	struct dx11 *dx11;
+	struct im_dx11 *dx11;
 	#elif defined(__APPLE__)
-	struct mtl *mtl;
+	struct im_mtl *mtl;
 	#endif
-	ImDrawData *draw_data;
+	struct im_draw_data draw_data;
 	OpaqueDevice *device;
 	OpaqueContext *context;
 	OpaqueTexture *texture;
@@ -211,6 +211,99 @@ bool im_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, Opa
 	return true;
 }
 
+static bool im_copy_draw_data(struct im_draw_data *dd, ImDrawData *idd)
+{
+	struct im_draw_data pdd = *dd;
+
+	dd->vtx_len = idd->TotalVtxCount;
+	dd->idx_len = idd->TotalIdxCount;
+
+	dd->display_size.x = idd->DisplaySize.x;
+	dd->display_size.y = idd->DisplaySize.y;
+	dd->display_pos.x = idd->DisplayPos.x;
+	dd->display_pos.y = idd->DisplayPos.y;
+	dd->framebuffer_scale.x = idd->FramebufferScale.x;
+	dd->framebuffer_scale.y = idd->FramebufferScale.y;
+
+	// Command Lists
+	if ((uint32_t) idd->CmdListsCount > dd->cmd_list_max_len) {
+		dd->cmd_list = (struct im_cmd_list *) realloc(dd->cmd_list, idd->CmdListsCount * sizeof(struct im_cmd_list));
+		memset(dd->cmd_list + dd->cmd_list_max_len, 0,
+			(idd->CmdListsCount - dd->cmd_list_max_len) * sizeof(struct im_cmd_list));
+		dd->cmd_list_max_len = idd->CmdListsCount;
+	}
+	dd->cmd_list_len = idd->CmdListsCount;
+
+	bool diff = memcmp(dd, &pdd, sizeof(struct im_draw_data));
+
+	for (uint32_t x = 0; x < dd->cmd_list_len; x++) {
+		struct im_cmd_list *cmd = &dd->cmd_list[x];
+		struct im_cmd_list pcmd = *cmd;
+		ImDrawList *icmd = idd->CmdLists[x];
+
+		// Index Buffer
+		if ((uint32_t) icmd->IdxBuffer.Size > cmd->idx_max_len) {
+			cmd->idx = (uint16_t *) realloc(cmd->idx, icmd->IdxBuffer.Size * sizeof(uint16_t));
+			cmd->idx_max_len = icmd->IdxBuffer.Size;
+		}
+		cmd->idx_len = icmd->IdxBuffer.Size;
+
+		for (uint32_t y = 0; y < cmd->idx_len; y++) {
+			diff = diff || cmd->idx[y] != icmd->IdxBuffer[y];
+			cmd->idx[y] = icmd->IdxBuffer[y];
+		}
+
+		// Vertex Buffer
+		if ((uint32_t) icmd->VtxBuffer.Size > cmd->vtx_max_len) {
+			cmd->vtx = (struct im_vtx *) realloc(cmd->vtx, icmd->VtxBuffer.Size * sizeof(struct im_vtx));
+			cmd->vtx_max_len = icmd->VtxBuffer.Size;
+		}
+		cmd->vtx_len = icmd->VtxBuffer.Size;
+
+		for (uint32_t y = 0; y < cmd->vtx_len; y++) {
+			struct im_vtx *vtx = &cmd->vtx[y];
+			struct im_vtx pvtx = *vtx;
+			ImDrawVert *ivtx = &icmd->VtxBuffer[y];
+
+			vtx->pos.x = ivtx->pos.x;
+			vtx->pos.y = ivtx->pos.y;
+			vtx->uv.x = ivtx->uv.x;
+			vtx->uv.y = ivtx->uv.y;
+			vtx->col = ivtx->col;
+
+			diff = diff || memcmp(vtx, &pvtx, sizeof(struct im_vtx));
+		}
+
+		// Command Buffer
+		if ((uint32_t) icmd->CmdBuffer.Size > cmd->cmd_max_len) {
+			cmd->cmd = (struct im_cmd *) realloc(cmd->cmd, icmd->CmdBuffer.Size * sizeof(struct im_cmd));
+			cmd->cmd_max_len = icmd->CmdBuffer.Size;
+		}
+		cmd->cmd_len = icmd->CmdBuffer.Size;
+
+		for (uint32_t y = 0; y < cmd->cmd_len; y++) {
+			struct im_cmd *ccmd = &cmd->cmd[y];
+			struct im_cmd pccmd = *ccmd;
+			ImDrawCmd *iccmd = &icmd->CmdBuffer[y];
+
+			ccmd->texture_id = iccmd->TextureId; // XXX This must have meaning to graphics context
+			ccmd->vtx_offset = iccmd->VtxOffset;
+			ccmd->idx_offset = iccmd->IdxOffset;
+			ccmd->elem_count = iccmd->ElemCount;
+			ccmd->clip_rect.x = iccmd->ClipRect.x;
+			ccmd->clip_rect.y = iccmd->ClipRect.y;
+			ccmd->clip_rect.z = iccmd->ClipRect.z;
+			ccmd->clip_rect.w = iccmd->ClipRect.w;
+
+			diff = diff || memcmp(ccmd, &pccmd, sizeof(struct im_cmd));
+		}
+
+		diff = diff || memcmp(cmd, &pcmd, sizeof(struct im_cmd_list));
+	}
+
+	return diff;
+}
+
 void im_draw(void (*callback)(void *opaque), const void *opaque)
 {
 	ImGuiIO &io = GetIO();
@@ -233,7 +326,7 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 	callback((void *) opaque);
 	Render();
 
-	IM.draw_data = GetDrawData();
+	im_copy_draw_data(&IM.draw_data, GetDrawData());
 
 	io.MouseDown[0] = IM.mouse[0];
 	io.MouseDown[1] = IM.mouse[1];
@@ -265,12 +358,12 @@ void im_render(bool clear)
 
 			context->OMSetRenderTargets(1, &rtv, NULL);
 
-			im_dx11_render(IM.dx11, IM.draw_data, device, context);
+			im_dx11_render(IM.dx11, &IM.draw_data, device, context);
 			rtv->Release();
 		}
 
 	#elif defined(__APPLE__)
-		im_mtl_render(IM.mtl, IM.draw_data, IM.context, IM.texture);
+		im_mtl_render(IM.mtl, &IM.draw_data, IM.context, IM.texture);
 	#endif
 }
 

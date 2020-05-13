@@ -16,7 +16,7 @@ OBJS = \
 	src\app\main.obj \
 	src\app\ui.obj \
 	src\app\deps\imgui\im.obj \
-	src\app\deps\imgui\imgui_impl_dx11.obj \
+	src\app\deps\imgui\impl\im-dx11.obj \
 	src\lib\crypto.obj \
 	src\lib\windows\window.obj \
 	src\lib\windows\window-quad.obj \
