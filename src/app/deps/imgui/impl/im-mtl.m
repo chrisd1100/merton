@@ -74,9 +74,6 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 	[re setRenderPipelineState:ctx->rps];
 	[re setVertexBuffer:ctx->vb offset:0 atIndex:0];
 
-	struct im_vec2 clip_off = dd->display_pos;
-	struct im_vec2 clip_scale = dd->framebuffer_scale;
-
 	uint32_t vertex_offset = 0;
 	uint32_t index_offset = 0;
 
@@ -89,18 +86,19 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 		for (uint32_t cmd_i = 0; cmd_i < cmd_list->cmd_len; cmd_i++) {
 			const struct im_cmd *pcmd = &cmd_list->cmd[cmd_i];
 
-			struct im_vec4 clip_rect = {0};
-			clip_rect.x = (pcmd->clip_rect.x - clip_off.x) * clip_scale.x;
-			clip_rect.y = (pcmd->clip_rect.y - clip_off.y) * clip_scale.y;
-			clip_rect.z = (pcmd->clip_rect.z - clip_off.x) * clip_scale.x;
-			clip_rect.w = (pcmd->clip_rect.w - clip_off.y) * clip_scale.y;
+			struct im_vec4 r = {0};
+			r.x = (pcmd->clip_rect.x - dd->display_pos.x) * dd->framebuffer_scale.x;
+			r.y = (pcmd->clip_rect.y - dd->display_pos.y) * dd->framebuffer_scale.y;
+			r.z = (pcmd->clip_rect.z - dd->display_pos.x) * dd->framebuffer_scale.x;
+			r.w = (pcmd->clip_rect.w - dd->display_pos.y) * dd->framebuffer_scale.y;
 
-			if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f) {
+			// Make sure the rect is actually in the viewport
+			if (r.x < fb_width && r.y < fb_height && r.z >= 0.0f && r.w >= 0.0f) {
 				MTLScissorRect scissorRect = {
-					.x = lrint(clip_rect.x),
-					.y = lrint(clip_rect.y),
-					.width = lrint(clip_rect.z - clip_rect.x),
-					.height = lrint(clip_rect.w - clip_rect.y)
+					.x = lrint(r.x),
+					.y = lrint(r.y),
+					.width = lrint(r.z - r.x),
+					.height = lrint(r.w - r.y)
 				};
 
 				[re setScissorRect:scissorRect];

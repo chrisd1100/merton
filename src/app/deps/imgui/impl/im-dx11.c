@@ -32,111 +32,128 @@ struct im_dx11 {
 };
 
 struct im_dx11_state {
-	UINT ScissorRectsCount;
-	UINT ViewportsCount;
-	D3D11_RECT ScissorRects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-	D3D11_VIEWPORT Viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-	ID3D11RasterizerState *RS;
-	ID3D11BlendState *BlendState;
-	FLOAT BlendFactor[4];
-	UINT SampleMask;
-	UINT StencilRef;
-	ID3D11DepthStencilState *DepthStencilState;
-	ID3D11ShaderResourceView *PSShaderResource;
-	ID3D11SamplerState *PSSampler;
-	ID3D11PixelShader *PS;
-	ID3D11VertexShader *VS;
-	ID3D11GeometryShader *GS;
-	UINT PSInstancesCount;
-	UINT VSInstancesCount;
-	UINT GSInstancesCount;
-	ID3D11ClassInstance *PSInstances[256];
-	ID3D11ClassInstance *VSInstances[256];
-	ID3D11ClassInstance *GSInstances[256];
-	D3D11_PRIMITIVE_TOPOLOGY PrimitiveTopology;
-	ID3D11Buffer *IndexBuffer;
-	ID3D11Buffer *VertexBuffer;
-	ID3D11Buffer *VSConstantBuffer;
-	UINT IndexBufferOffset;
-	UINT VertexBufferStride;
-	UINT VertexBufferOffset;
-	DXGI_FORMAT IndexBufferFormat;
-	ID3D11InputLayout *InputLayout;
+	UINT sr_count;
+	UINT vp_count;
+	D3D11_RECT sr[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+	D3D11_VIEWPORT vp[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+	ID3D11RasterizerState *rs;
+	ID3D11BlendState *bs;
+	FLOAT bf[4];
+	UINT mask;
+	UINT stencil_ref;
+	ID3D11DepthStencilState *dss;
+	ID3D11ShaderResourceView *ps_srv;
+	ID3D11SamplerState *sampler;
+	ID3D11PixelShader *ps;
+	ID3D11VertexShader *vs;
+	ID3D11GeometryShader *gs;
+	UINT ps_count;
+	UINT vs_count;
+	UINT gs_count;
+	ID3D11ClassInstance *ps_inst[256];
+	ID3D11ClassInstance *vs_inst[256];
+	ID3D11ClassInstance *gs_inst[256];
+	D3D11_PRIMITIVE_TOPOLOGY topology;
+	ID3D11Buffer *ib;
+	ID3D11Buffer *vb;
+	ID3D11Buffer *vs_cb;
+	UINT ib_offset;
+	UINT vb_stride;
+	UINT vb_offset;
+	DXGI_FORMAT ib_fmt;
+	ID3D11InputLayout *il;
 };
 
 struct im_dx11_cb {
-	float ortho[4][4];
+	float proj[4][4];
 };
 
 static void im_dx11_push_state(ID3D11DeviceContext *context, struct im_dx11_state *s)
 {
-	s->ScissorRectsCount = s->ViewportsCount = D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
-	ID3D11DeviceContext_RSGetScissorRects(context, &s->ScissorRectsCount, s->ScissorRects);
-	ID3D11DeviceContext_RSGetViewports(context, &s->ViewportsCount, s->Viewports);
-	ID3D11DeviceContext_RSGetState(context, &s->RS);
-	ID3D11DeviceContext_OMGetBlendState(context, &s->BlendState, s->BlendFactor, &s->SampleMask);
-	ID3D11DeviceContext_OMGetDepthStencilState(context, &s->DepthStencilState, &s->StencilRef);
-	ID3D11DeviceContext_PSGetShaderResources(context, 0, 1, &s->PSShaderResource);
-	ID3D11DeviceContext_PSGetSamplers(context, 0, 1, &s->PSSampler);
+	s->sr_count = s->vp_count = D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+	ID3D11DeviceContext_RSGetScissorRects(context, &s->sr_count, s->sr);
+	ID3D11DeviceContext_RSGetViewports(context, &s->vp_count, s->vp);
+	ID3D11DeviceContext_RSGetState(context, &s->rs);
+	ID3D11DeviceContext_OMGetBlendState(context, &s->bs, s->bf, &s->mask);
+	ID3D11DeviceContext_OMGetDepthStencilState(context, &s->dss, &s->stencil_ref);
+	ID3D11DeviceContext_PSGetShaderResources(context, 0, 1, &s->ps_srv);
+	ID3D11DeviceContext_PSGetSamplers(context, 0, 1, &s->sampler);
 
-	s->PSInstancesCount = s->VSInstancesCount = s->GSInstancesCount = 256;
-	ID3D11DeviceContext_PSGetShader(context, &s->PS, s->PSInstances, &s->PSInstancesCount);
-	ID3D11DeviceContext_VSGetShader(context, &s->VS, s->VSInstances, &s->VSInstancesCount);
-	ID3D11DeviceContext_VSGetConstantBuffers(context, 0, 1, &s->VSConstantBuffer);
-	ID3D11DeviceContext_GSGetShader(context, &s->GS, s->GSInstances, &s->GSInstancesCount);
+	s->ps_count = s->vs_count = s->gs_count = 256;
+	ID3D11DeviceContext_PSGetShader(context, &s->ps, s->ps_inst, &s->ps_count);
+	ID3D11DeviceContext_VSGetShader(context, &s->vs, s->vs_inst, &s->vs_count);
+	ID3D11DeviceContext_VSGetConstantBuffers(context, 0, 1, &s->vs_cb);
+	ID3D11DeviceContext_GSGetShader(context, &s->gs, s->gs_inst, &s->gs_count);
 
-	ID3D11DeviceContext_IAGetPrimitiveTopology(context, &s->PrimitiveTopology);
-	ID3D11DeviceContext_IAGetIndexBuffer(context, &s->IndexBuffer, &s->IndexBufferFormat, &s->IndexBufferOffset);
-	ID3D11DeviceContext_IAGetVertexBuffers(context, 0, 1, &s->VertexBuffer, &s->VertexBufferStride, &s->VertexBufferOffset);
-	ID3D11DeviceContext_IAGetInputLayout(context, &s->InputLayout);
+	ID3D11DeviceContext_IAGetPrimitiveTopology(context, &s->topology);
+	ID3D11DeviceContext_IAGetIndexBuffer(context, &s->ib, &s->ib_fmt, &s->ib_offset);
+	ID3D11DeviceContext_IAGetVertexBuffers(context, 0, 1, &s->vb, &s->vb_stride, &s->vb_offset);
+	ID3D11DeviceContext_IAGetInputLayout(context, &s->il);
 }
 
 static void im_dx11_pop_state(ID3D11DeviceContext *context, struct im_dx11_state *s)
 {
-	ID3D11DeviceContext_RSSetScissorRects(context, s->ScissorRectsCount, s->ScissorRects);
-	ID3D11DeviceContext_RSSetViewports(context, s->ViewportsCount, s->Viewports);
-	ID3D11DeviceContext_RSSetState(context, s->RS);
-	if (s->RS) ID3D11RasterizerState_Release(s->RS);
+	ID3D11DeviceContext_IASetInputLayout(context, s->il);
+	ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &s->vb, &s->vb_stride, &s->vb_offset);
+	ID3D11DeviceContext_IASetIndexBuffer(context, s->ib, s->ib_fmt, s->ib_offset);
+	ID3D11DeviceContext_IASetPrimitiveTopology(context, s->topology);
 
-	ID3D11DeviceContext_OMSetBlendState(context, s->BlendState, s->BlendFactor, s->SampleMask);
-	if (s->BlendState) ID3D11BlendState_Release(s->BlendState);
+	ID3D11DeviceContext_GSSetShader(context, s->gs, s->gs_inst, s->gs_count);
+	ID3D11DeviceContext_VSSetConstantBuffers(context, 0, 1, &s->vs_cb);
+	ID3D11DeviceContext_VSSetShader(context, s->vs, s->vs_inst, s->vs_count);
+	ID3D11DeviceContext_PSSetShader(context, s->ps, s->ps_inst, s->ps_count);
 
-	ID3D11DeviceContext_OMSetDepthStencilState(context, s->DepthStencilState, s->StencilRef);
-	if (s->DepthStencilState) ID3D11DepthStencilState_Release(s->DepthStencilState);
+	ID3D11DeviceContext_PSSetSamplers(context, 0, 1, &s->sampler);
+	ID3D11DeviceContext_PSSetShaderResources(context, 0, 1, &s->ps_srv);
+	ID3D11DeviceContext_OMSetDepthStencilState(context, s->dss, s->stencil_ref);
+	ID3D11DeviceContext_OMSetBlendState(context, s->bs, s->bf, s->mask);
+	ID3D11DeviceContext_RSSetState(context, s->rs);
+	ID3D11DeviceContext_RSSetViewports(context, s->vp_count, s->vp);
+	ID3D11DeviceContext_RSSetScissorRects(context, s->sr_count, s->sr);
 
-	ID3D11DeviceContext_PSSetShaderResources(context, 0, 1, &s->PSShaderResource);
-	if (s->PSShaderResource) ID3D11ShaderResourceView_Release(s->PSShaderResource);
+	if (s->il)
+		ID3D11InputLayout_Release(s->il);
 
-	ID3D11DeviceContext_PSSetSamplers(context, 0, 1, &s->PSSampler);
-	if (s->PSSampler) ID3D11SamplerState_Release(s->PSSampler);
+	if (s->vb)
+		ID3D11Buffer_Release(s->vb);
 
-	ID3D11DeviceContext_PSSetShader(context, s->PS, s->PSInstances, s->PSInstancesCount);
-	if (s->PS) ID3D11PixelShader_Release(s->PS);
+	if (s->ib)
+		ID3D11Buffer_Release(s->ib);
 
-	for (UINT i = 0; i < s->PSInstancesCount; i++)
-		if (s->PSInstances[i]) ID3D11ClassInstance_Release(s->PSInstances[i]);
+	if (s->gs)
+		ID3D11GeometryShader_Release(s->gs);
 
-	ID3D11DeviceContext_VSSetShader(context, s->VS, s->VSInstances, s->VSInstancesCount);
-	if (s->VS) ID3D11VertexShader_Release(s->VS);
+	if (s->vs_cb)
+		ID3D11Buffer_Release(s->vs_cb);
 
-	ID3D11DeviceContext_VSSetConstantBuffers(context, 0, 1, &s->VSConstantBuffer);
-	if (s->VSConstantBuffer) ID3D11Buffer_Release(s->VSConstantBuffer);
+	for (UINT i = 0; i < s->vs_count; i++)
+		if (s->vs_inst[i])
+			ID3D11ClassInstance_Release(s->vs_inst[i]);
 
-	ID3D11DeviceContext_GSSetShader(context, s->GS, s->GSInstances, s->GSInstancesCount);
-	if (s->GS) ID3D11GeometryShader_Release(s->GS);
+	if (s->vs)
+		ID3D11VertexShader_Release(s->vs);
 
-	for (UINT i = 0; i < s->VSInstancesCount; i++)
-		if (s->VSInstances[i]) ID3D11ClassInstance_Release(s->VSInstances[i]);
+	for (UINT i = 0; i < s->ps_count; i++)
+		if (s->ps_inst[i])
+			ID3D11ClassInstance_Release(s->ps_inst[i]);
 
-	ID3D11DeviceContext_IASetPrimitiveTopology(context, s->PrimitiveTopology);
-	ID3D11DeviceContext_IASetIndexBuffer(context, s->IndexBuffer, s->IndexBufferFormat, s->IndexBufferOffset);
-	if (s->IndexBuffer) ID3D11Buffer_Release(s->IndexBuffer);
+	if (s->ps)
+		ID3D11PixelShader_Release(s->ps);
 
-	ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &s->VertexBuffer, &s->VertexBufferStride, &s->VertexBufferOffset);
-	if (s->VertexBuffer) ID3D11Buffer_Release(s->VertexBuffer);
+	if (s->sampler)
+		ID3D11SamplerState_Release(s->sampler);
 
-	ID3D11DeviceContext_IASetInputLayout(context, s->InputLayout);
-	if (s->InputLayout) ID3D11InputLayout_Release(s->InputLayout);
+	if (s->ps_srv)
+		ID3D11ShaderResourceView_Release(s->ps_srv);
+
+	if (s->dss)
+		ID3D11DepthStencilState_Release(s->dss);
+
+	if (s->bs)
+		ID3D11BlendState_Release(s->bs);
+
+	if (s->rs)
+		ID3D11RasterizerState_Release(s->rs);
 }
 
 static HRESULT im_dx11_resize_buffer(ID3D11Device *device, struct im_dx11_buffer *buf,
@@ -216,22 +233,22 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 	ID3D11DeviceContext_Unmap(context, ctx->ib.res, 0);
 	ID3D11DeviceContext_Unmap(context, ctx->vb.res, 0);
 
-	// Update the vertex shader's ortho data based on the current display size
+	// Update the vertex shader's projection data based on the current display size
 	float L = dd->display_pos.x;
 	float R = dd->display_pos.x + dd->display_size.x;
 	float T = dd->display_pos.y;
 	float B = dd->display_pos.y + dd->display_size.y;
-	float ortho[4][4] = {
+	float proj[4][4] = {
 		{2.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 2.0f, 0.0f, 0.0f},
 		{0.0f, 0.0f, 0.5f, 0.0f},
 		{0.0f, 0.0f, 0.5f, 1.0f},
 	};
 
-	ortho[0][0] /= R - L;
-	ortho[1][1] /= T - B;
-	ortho[3][0] = (R + L) / (L - R);
-	ortho[3][1] = (T + B) / (B - T);
+	proj[0][0] /= R - L;
+	proj[1][1] /= T - B;
+	proj[3][0] = (R + L) / (L - R);
+	proj[3][1] = (T + B) / (B - T);
 
 	D3D11_MAPPED_SUBRESOURCE cb_map = {0};
 	e = ID3D11DeviceContext_Map(context, ctx->cb_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &cb_map);
@@ -239,7 +256,7 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 		return;
 
 	struct im_dx11_cb *cb = (struct im_dx11_cb *) cb_map.pData;
-	memcpy(&cb->ortho, ortho, sizeof(ortho));
+	memcpy(&cb->proj, proj, sizeof(proj));
 	ID3D11DeviceContext_Unmap(context, ctx->cb_res, 0);
 
 	// Store current context state
@@ -254,8 +271,8 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 	ID3D11DeviceContext_RSSetViewports(context, 1, &vp);
 
 	// Set up rendering pipeline
-	unsigned int stride = sizeof(struct im_vtx);
-	unsigned int offset = 0;
+	uint32_t stride = sizeof(struct im_vtx);
+	uint32_t offset = 0;
 	ID3D11DeviceContext_IASetInputLayout(context, ctx->il);
 	ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &ctx->vb.b, &stride, &offset);
 	ID3D11DeviceContext_IASetIndexBuffer(context, ctx->ib.b, DXGI_FORMAT_R16_UINT, 0);
@@ -291,14 +308,17 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 			r.right = lrint(pcmd->clip_rect.z - dd->display_pos.x);
 			r.bottom = lrint(pcmd->clip_rect.w - dd->display_pos.y);
 
-			ID3D11DeviceContext_RSSetScissorRects(context, 1, &r);
+			// Make sure the rect is actually in the viewport
+			if (r.left < dd->display_size.x && r.top < dd->display_size.y && r.right >= 0.0f && r.bottom >= 0.0f) {
+				ID3D11DeviceContext_RSSetScissorRects(context, 1, &r);
 
-			// Optionally sample from a texture (fonts, images)
-			ID3D11ShaderResourceView *texture_srv = (ID3D11ShaderResourceView *) pcmd->texture_id;
-			ID3D11DeviceContext_PSSetShaderResources(context, 0, 1, &texture_srv);
+				// Optionally sample from a texture (fonts, images)
+				ID3D11ShaderResourceView *texture_srv = (ID3D11ShaderResourceView *) pcmd->texture_id;
+				ID3D11DeviceContext_PSSetShaderResources(context, 0, 1, &texture_srv);
 
-			// Draw indexed
-			ID3D11DeviceContext_DrawIndexed(context, pcmd->elem_count, pcmd->idx_offset + idx_offset, pcmd->vtx_offset + vtx_offset);
+				// Draw indexed
+				ID3D11DeviceContext_DrawIndexed(context, pcmd->elem_count, pcmd->idx_offset + idx_offset, pcmd->vtx_offset + vtx_offset);
+			}
 		}
 
 		idx_offset += cmd_list->idx_len;
@@ -335,7 +355,7 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
-	// Pre create a constant buffer used for storing the vertex shader's ortho
+	// Pre create a constant buffer used for storing the vertex shader's projection data
 	D3D11_BUFFER_DESC desc = {0};
 	desc.ByteWidth = sizeof(struct im_dx11_cb);
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -398,12 +418,10 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	tdesc.SampleDesc.Count = 1;
 	tdesc.Usage = D3D11_USAGE_DEFAULT;
 	tdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	tdesc.CPUAccessFlags = 0;
 
 	D3D11_SUBRESOURCE_DATA subResource = {0};
 	subResource.pSysMem = font;
 	subResource.SysMemPitch = tdesc.Width * 4;
-	subResource.SysMemSlicePitch = 0;
 	e = ID3D11Device_CreateTexture2D(device, &tdesc, &subResource, &tex);
 	if (e != S_OK)
 		goto except;
@@ -416,7 +434,6 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = tdesc.MipLevels;
-	srvDesc.Texture2D.MostDetailedMip = 0;
 	e = ID3D11Device_CreateShaderResourceView(device, res, &srvDesc, &ctx->font);
 	if (e != S_OK)
 		goto except;

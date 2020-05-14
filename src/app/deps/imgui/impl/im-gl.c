@@ -12,11 +12,11 @@ struct im_gl {
 	GLuint prog;
 	GLuint vs;
 	GLuint fs;
-	GLint locTex;
-	GLint locProjMtx;
-	GLint locVtxPos;
-	GLint locVtxUV;
-	GLint locVtxColor;
+	GLint loc_tex;
+	GLint loc_proj;
+	GLint loc_pos;
+	GLint loc_uv;
+	GLint loc_col;
 	GLuint vb;
 	GLuint eb;
 };
@@ -82,76 +82,85 @@ void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd)
 	int32_t fb_width = lrint(dd->display_size.x * dd->framebuffer_scale.x);
 	int32_t fb_height = lrint(dd->display_size.y * dd->framebuffer_scale.y);
 
+	// Prevent rendering under invalid scenarios
 	if (fb_width <= 0 || fb_height <= 0 || dd->cmd_list_len == 0)
 		return;
 
-	struct im_gl_state state = {0};
-	im_gl_push_state(&state);
-
-	glEnable(GL_BLEND);
-	glBlendEquation(GL_FUNC_ADD);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_SCISSOR_TEST);
-
-	glViewport(0, 0, fb_width, fb_height);
-
+	// Update the vertex shader's proj data based on the current display size
 	float L = dd->display_pos.x;
 	float R = dd->display_pos.x + dd->display_size.x;
 	float T = dd->display_pos.y;
 	float B = dd->display_pos.y + dd->display_size.y;
-	float ortho[4][4] = {
+	float proj[4][4] = {
 		{2.0f,  0.0f,  0.0f,  0.0f},
 		{0.0f,  2.0f,  0.0f,  0.0f},
 		{0.0f,  0.0f, -1.0f,  0.0f},
 		{0.0f,  0.0f,  0.0f,  1.0f},
 	};
 
-	ortho[0][0] /= R - L;
-	ortho[1][1] /= T - B;
-	ortho[3][0] = (R + L) / (L - R);
-	ortho[3][1] = (T + B) / (B - T);
+	proj[0][0] /= R - L;
+	proj[1][1] /= T - B;
+	proj[3][0] = (R + L) / (L - R);
+	proj[3][1] = (T + B) / (B - T);
 
+	// Store current context state
+	struct im_gl_state state = {0};
+	im_gl_push_state(&state);
+
+	// Set viewport based on display size
+	glViewport(0, 0, fb_width, fb_height);
+
+	// Set up rendering pipeline
 	glUseProgram(ctx->prog);
-	glUniform1i(ctx->locTex, 0);
-	glUniformMatrix4fv(ctx->locProjMtx, 1, GL_FALSE, &ortho[0][0]);
-
+	glUniform1i(ctx->loc_tex, 0);
+	glUniformMatrix4fv(ctx->loc_proj, 1, GL_FALSE, &proj[0][0]);
+	glEnable(GL_BLEND);
+	glBlendEquation(GL_FUNC_ADD);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_SCISSOR_TEST);
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->vb);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->eb);
-	glEnableVertexAttribArray(ctx->locVtxPos);
-	glEnableVertexAttribArray(ctx->locVtxUV);
-	glEnableVertexAttribArray(ctx->locVtxColor);
-	glVertexAttribPointer(ctx->locVtxPos,   2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, pos));
-	glVertexAttribPointer(ctx->locVtxUV,    2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, uv));
-	glVertexAttribPointer(ctx->locVtxColor, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, col));
+	glEnableVertexAttribArray(ctx->loc_pos);
+	glEnableVertexAttribArray(ctx->loc_uv);
+	glEnableVertexAttribArray(ctx->loc_col);
+	glVertexAttribPointer(ctx->loc_pos, 2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, pos));
+	glVertexAttribPointer(ctx->loc_uv,  2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, uv));
+	glVertexAttribPointer(ctx->loc_col, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, col));
 
-	struct im_vec2 clip_off = dd->display_pos;
-	struct im_vec2 clip_scale = dd->framebuffer_scale;
-
+	// Draw
 	for (uint32_t n = 0; n < dd->cmd_list_len; n++) {
 		struct im_cmd_list *cmd_list = &dd->cmd_list[n];
 
-		glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) cmd_list->vtx_len * sizeof(struct im_vtx), (const GLvoid *) cmd_list->vtx, GL_STREAM_DRAW);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr) cmd_list->idx_len * sizeof(uint16_t), (const GLvoid *) cmd_list->idx, GL_STREAM_DRAW);
+		// Copy vertex, index buffer data
+		glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) cmd_list->vtx_len * sizeof(struct im_vtx), cmd_list->vtx, GL_STREAM_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr) cmd_list->idx_len * sizeof(uint16_t), cmd_list->idx, GL_STREAM_DRAW);
 
 		for (uint32_t cmd_i = 0; cmd_i < cmd_list->cmd_len; cmd_i++) {
 			struct im_cmd *pcmd = &cmd_list->cmd[cmd_i];
 
-			struct im_vec4 clip_rect = {0};
-			clip_rect.x = (pcmd->clip_rect.x - clip_off.x) * clip_scale.x;
-			clip_rect.y = (pcmd->clip_rect.y - clip_off.y) * clip_scale.y;
-			clip_rect.z = (pcmd->clip_rect.z - clip_off.x) * clip_scale.x;
-			clip_rect.w = (pcmd->clip_rect.w - clip_off.y) * clip_scale.y;
+			// Use the clip_rect to apply scissor
+			struct im_vec4 r = {0};
+			r.x = (pcmd->clip_rect.x - dd->display_pos.x) * dd->framebuffer_scale.x;
+			r.y = (pcmd->clip_rect.y - dd->display_pos.y) * dd->framebuffer_scale.y;
+			r.z = (pcmd->clip_rect.z - dd->display_pos.x) * dd->framebuffer_scale.x;
+			r.w = (pcmd->clip_rect.w - dd->display_pos.y) * dd->framebuffer_scale.y;
 
-			if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f) {
+			// Make sure the rect is actually in the viewport
+			if (r.x < fb_width && r.y < fb_height && r.z >= 0.0f && r.w >= 0.0f) {
 				glScissor(lrint(clip_rect.x), lrint(fb_height - clip_rect.w), lrint(clip_rect.z - clip_rect.x), lrint(clip_rect.w - clip_rect.y));
-				glBindTexture(GL_TEXTURE_2D, (GLuint) (intptr_t) pcmd->texture_id);
-				glDrawElements(GL_TRIANGLES, (GLsizei) pcmd->elem_count, GL_UNSIGNED_SHORT, (void *) (intptr_t) (pcmd->idx_offset * sizeof(uint16_t)));
+
+				// Optionally sample from a texture (fonts, images)
+				glBindTexture(GL_TEXTURE_2D, (GLuint) (size_t) pcmd->texture_id);
+
+				// Draw indexed
+				glDrawElements(GL_TRIANGLES, pcmd->elem_count, GL_UNSIGNED_SHORT, (void *) (size_t) (pcmd->idx_offset * sizeof(uint16_t)));
 			}
 		}
 	}
 
+	// Restore previous context state
 	im_gl_pop_state(&state);
 }
 
@@ -161,22 +170,26 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 
 	bool r = true;
 
+	// Create vertex, fragment shaders
 	const GLchar *vertex_shader[2] = {0};
 	vertex_shader[0] = version;
 	vertex_shader[1] =
-		"\n"
-		"uniform mat4 ProjMtx;\n"
-		"attribute vec2 Position;\n"
-		"attribute vec2 UV;\n"
-		"attribute vec4 Color;\n"
-		"varying vec2 Frag_UV;\n"
-		"varying vec4 Frag_Color;\n"
-		"void main()\n"
-		"{\n"
-		"	Frag_UV = UV;\n"
-		"	Frag_Color = Color;\n"
-		"	gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
-		"}\n";
+		"                                             \n"
+		"uniform mat4 proj;                           \n"
+		"                                             \n"
+		"attribute vec2 pos;                          \n"
+		"attribute vec2 uv;                           \n"
+		"attribute vec4 col;                          \n"
+		"                                             \n"
+		"varying vec2 frag_uv;                        \n"
+		"varying vec4 frag_col;                       \n"
+		"                                             \n"
+		"void main()                                  \n"
+		"{                                            \n"
+		"    frag_uv = uv;                            \n"
+		"    frag_col = col;                          \n"
+		"    gl_Position = proj * vec4(pos.xy, 0, 1); \n"
+		"}                                            \n";
 
 	GLint status = 0;
 	ctx->vs = glCreateShader(GL_VERTEX_SHADER);
@@ -193,17 +206,20 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 	const GLchar *fragment_shader[2] = {0};
 	fragment_shader[0] = version;
 	fragment_shader[1] =
-		"\n"
-		"#ifdef GL_ES\n"
-		"	precision mediump float;\n"
-		"#endif\n"
-		"uniform sampler2D Texture;\n"
-		"varying vec2 Frag_UV;\n"
-		"varying vec4 Frag_Color;\n"
-		"void main()\n"
-		"{\n"
-		"	gl_FragColor = Frag_Color * texture2D(Texture, Frag_UV.st);\n"
-		"}\n";
+		"                                                          \n"
+		"#ifdef GL_ES                                              \n"
+		"	precision mediump float;                               \n"
+		"#endif                                                    \n"
+		"                                                          \n"
+		"uniform sampler2D tex;                                    \n"
+		"                                                          \n"
+		"varying vec2 frag_uv;                                     \n"
+		"varying vec4 frag_col;                                    \n"
+		"                                                          \n"
+		"void main()                                               \n"
+		"{                                                         \n"
+		"    gl_FragColor = frag_col * texture2D(tex, frag_uv.st); \n"
+		"}                                                         \n";
 
 	ctx->fs = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(ctx->fs, 2, fragment_shader, NULL);
@@ -227,15 +243,18 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 		goto except;
 	}
 
-	ctx->locTex = glGetUniformLocation(ctx->prog, "Texture");
-	ctx->locProjMtx = glGetUniformLocation(ctx->prog, "ProjMtx");
-	ctx->locVtxPos = glGetAttribLocation(ctx->prog, "Position");
-	ctx->locVtxUV = glGetAttribLocation(ctx->prog, "UV");
-	ctx->locVtxColor = glGetAttribLocation(ctx->prog, "Color");
+	// Store uniform locations
+	ctx->loc_proj = glGetUniformLocation(ctx->prog, "proj");
+	ctx->loc_pos = glGetAttribLocation(ctx->prog, "pos");
+	ctx->loc_uv = glGetAttribLocation(ctx->prog, "uv");
+	ctx->loc_col = glGetAttribLocation(ctx->prog, "col");
+	ctx->loc_tex = glGetUniformLocation(ctx->prog, "tex");
 
+	// Pre create dynamically resizing vertex, index (element) buffers
 	glGenBuffers(1, &ctx->vb);
 	glGenBuffers(1, &ctx->eb);
 
+	// Font texture
 	GLint prev_texture = 0;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev_texture);
 
