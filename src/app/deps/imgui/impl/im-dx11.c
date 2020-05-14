@@ -10,11 +10,15 @@
 #include "shaders/pixel.h"
 #include "shaders/vertex.h"
 
+struct im_dx11_buffer {
+	ID3D11Buffer *b;
+	ID3D11Resource *res;
+	uint32_t len;
+};
+
 struct im_dx11 {
-	ID3D11Buffer *vb;
-	ID3D11Resource *vb_res;
-	ID3D11Buffer *ib;
-	ID3D11Resource *ib_res;
+	struct im_dx11_buffer vb;
+	struct im_dx11_buffer ib;
 	ID3D11VertexShader *vs;
 	ID3D11InputLayout *il;
 	ID3D11Buffer *cb;
@@ -25,8 +29,6 @@ struct im_dx11 {
 	ID3D11RasterizerState *rs;
 	ID3D11BlendState *bs;
 	ID3D11DepthStencilState *dss;
-	uint32_t vtx_size;
-	uint32_t idx_size;
 };
 
 struct im_dx11_state {
@@ -137,78 +139,69 @@ static void im_dx11_pop_state(ID3D11DeviceContext *context, struct im_dx11_state
 	if (s->InputLayout) ID3D11InputLayout_Release(s->InputLayout);
 }
 
+static HRESULT im_dx11_resize_buffer(ID3D11Device *device, struct im_dx11_buffer *buf,
+	uint32_t len, uint32_t incr, uint32_t element_size, enum D3D11_BIND_FLAG bind_flag)
+{
+	if (buf->len < len) {
+		if (buf->res) {
+			ID3D11Resource_Release(buf->res);
+			buf->res = NULL;
+		}
+
+		if (buf->b) {
+			ID3D11Buffer_Release(buf->b);
+			buf->b = NULL;
+		}
+
+		D3D11_BUFFER_DESC desc = {0};
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.ByteWidth = (len + incr) * element_size;
+		desc.BindFlags = bind_flag;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		HRESULT e = ID3D11Device_CreateBuffer(device, &desc, NULL, &buf->b);
+		if (e != S_OK)
+			return e;
+
+		e = ID3D11Buffer_QueryInterface(buf->b, &IID_ID3D11Resource, &buf->res);
+		if (e != S_OK)
+			return e;
+
+		buf->len = len + incr;
+	}
+
+	return S_OK;
+}
+
 void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11Device *device, ID3D11DeviceContext *context)
 {
+	// Prevent rendering under invalid scenarios
 	if (dd->display_size.x <= 0 || dd->display_size.y <= 0 || dd->cmd_list_len == 0)
 		return;
 
-	if (ctx->vtx_size < dd->vtx_len) {
-		if (ctx->vb_res) {
-			ID3D11Resource_Release(ctx->vb_res);
-			ctx->vb_res = NULL;
-		}
-
-		if (ctx->vb) {
-			ID3D11Buffer_Release(ctx->vb);
-			ctx->vb = NULL;
-		}
-
-		D3D11_BUFFER_DESC desc = {0};
-		desc.Usage = D3D11_USAGE_DYNAMIC;
-		desc.ByteWidth = (dd->vtx_len + VTX_INCR) * sizeof(struct im_vtx);
-		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		desc.MiscFlags = 0;
-		HRESULT e = ID3D11Device_CreateBuffer(device, &desc, NULL, &ctx->vb);
-		if (e != S_OK)
-			return;
-
-		e = ID3D11Buffer_QueryInterface(ctx->vb, &IID_ID3D11Resource, &ctx->vb_res);
-		if (e != S_OK)
-			return;
-
-		ctx->vtx_size = dd->vtx_len + VTX_INCR;
-	}
-
-	if (ctx->idx_size < dd->idx_len) {
-		if (ctx->ib_res) {
-			ID3D11Resource_Release(ctx->ib_res);
-			ctx->ib_res = NULL;
-		}
-
-		if (ctx->ib) {
-			ID3D11Buffer_Release(ctx->ib);
-			ctx->ib = NULL;
-		}
-
-		D3D11_BUFFER_DESC desc = {0};
-		desc.Usage = D3D11_USAGE_DYNAMIC;
-		desc.ByteWidth = (dd->idx_len + IDX_INCR) * sizeof(uint16_t);
-		desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		HRESULT e = ID3D11Device_CreateBuffer(device, &desc, NULL, &ctx->ib);
-		if (e != S_OK)
-			return;
-
-		e = ID3D11Buffer_QueryInterface(ctx->ib, &IID_ID3D11Resource, &ctx->ib_res);
-		if (e != S_OK)
-			return;
-
-		ctx->idx_size = dd->idx_len + IDX_INCR;
-	}
-
-	D3D11_MAPPED_SUBRESOURCE vtx_resource = {0};
-	HRESULT e = ID3D11DeviceContext_Map(context, ctx->vb_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource);
+	// Resize vertex and index buffers if necessary
+	HRESULT e = im_dx11_resize_buffer(device, &ctx->vb, dd->vtx_len, VTX_INCR, sizeof(struct im_vtx),
+		D3D11_BIND_VERTEX_BUFFER);
 	if (e != S_OK)
 		return;
 
-	D3D11_MAPPED_SUBRESOURCE idx_resource = {0};
-	e = ID3D11DeviceContext_Map(context, ctx->ib_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource);
+	e = im_dx11_resize_buffer(device, &ctx->ib, dd->idx_len, IDX_INCR, sizeof(uint16_t),
+		D3D11_BIND_INDEX_BUFFER);
 	if (e != S_OK)
 		return;
 
-	struct im_vtx *vtx_dst = (struct im_vtx *) vtx_resource.pData;
-	uint16_t *idx_dst = (uint16_t *) idx_resource.pData;
+	// Map both vertex and index buffers and bulk copy the data
+	D3D11_MAPPED_SUBRESOURCE vtx_map = {0};
+	e = ID3D11DeviceContext_Map(context, ctx->vb.res, 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_map);
+	if (e != S_OK)
+		return;
+
+	D3D11_MAPPED_SUBRESOURCE idx_map = {0};
+	e = ID3D11DeviceContext_Map(context, ctx->ib.res, 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_map);
+	if (e != S_OK)
+		return;
+
+	struct im_vtx *vtx_dst = (struct im_vtx *) vtx_map.pData;
+	uint16_t *idx_dst = (uint16_t *) idx_map.pData;
 
 	for (uint32_t n = 0; n < dd->cmd_list_len; n++) {
 		struct im_cmd_list *cmd_list = &dd->cmd_list[n];
@@ -220,9 +213,10 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 		idx_dst += cmd_list->idx_len;
 	}
 
-	ID3D11DeviceContext_Unmap(context, ctx->ib_res, 0);
-	ID3D11DeviceContext_Unmap(context, ctx->vb_res, 0);
+	ID3D11DeviceContext_Unmap(context, ctx->ib.res, 0);
+	ID3D11DeviceContext_Unmap(context, ctx->vb.res, 0);
 
+	// Update the vertex shader's ortho data based on the current display size
 	float L = dd->display_pos.x;
 	float R = dd->display_pos.x + dd->display_size.x;
 	float T = dd->display_pos.y;
@@ -239,29 +233,32 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 	ortho[3][0] = (R + L) / (L - R);
 	ortho[3][1] = (T + B) / (B - T);
 
-	D3D11_MAPPED_SUBRESOURCE mapped_resource = {0};
-	e = ID3D11DeviceContext_Map(context, ctx->cb_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+	D3D11_MAPPED_SUBRESOURCE cb_map = {0};
+	e = ID3D11DeviceContext_Map(context, ctx->cb_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &cb_map);
 	if (e != S_OK)
 		return;
 
-	struct im_dx11_cb *cb = (struct im_dx11_cb *) mapped_resource.pData;
+	struct im_dx11_cb *cb = (struct im_dx11_cb *) cb_map.pData;
 	memcpy(&cb->ortho, ortho, sizeof(ortho));
 	ID3D11DeviceContext_Unmap(context, ctx->cb_res, 0);
 
+	// Store current context state
 	struct im_dx11_state state = {0};
 	im_dx11_push_state(context, &state);
 
+	// Set viewport based on display size
 	D3D11_VIEWPORT vp = {0};
 	vp.Width = dd->display_size.x;
 	vp.Height = dd->display_size.y;
 	vp.MaxDepth = 1.0f;
 	ID3D11DeviceContext_RSSetViewports(context, 1, &vp);
 
+	// Set up rendering pipeline
 	unsigned int stride = sizeof(struct im_vtx);
 	unsigned int offset = 0;
 	ID3D11DeviceContext_IASetInputLayout(context, ctx->il);
-	ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &ctx->vb, &stride, &offset);
-	ID3D11DeviceContext_IASetIndexBuffer(context, ctx->ib, DXGI_FORMAT_R16_UINT, 0);
+	ID3D11DeviceContext_IASetVertexBuffers(context, 0, 1, &ctx->vb.b, &stride, &offset);
+	ID3D11DeviceContext_IASetIndexBuffer(context, ctx->ib.b, DXGI_FORMAT_R16_UINT, 0);
 	ID3D11DeviceContext_IASetPrimitiveTopology(context, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	ID3D11DeviceContext_VSSetShader(context, ctx->vs, NULL, 0);
 	ID3D11DeviceContext_VSSetConstantBuffers(context, 0, 1, &ctx->cb);
@@ -277,8 +274,7 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 	ID3D11DeviceContext_OMSetDepthStencilState(context, ctx->dss, 0);
 	ID3D11DeviceContext_RSSetState(context, ctx->rs);
 
-	struct im_vec2 clip_off = dd->display_pos;
-
+	// Draw
 	uint32_t idx_offset = 0;
 	uint32_t vtx_offset = 0;
 
@@ -288,16 +284,20 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 		for (uint32_t cmd_i = 0; cmd_i < cmd_list->cmd_len; cmd_i++) {
 			struct im_cmd *pcmd = &cmd_list->cmd[cmd_i];
 
+			// Use the clip_rect to apply scissor
 			D3D11_RECT r = {0};
-			r.left = lrint(pcmd->clip_rect.x - clip_off.x);
-			r.top = lrint(pcmd->clip_rect.y - clip_off.y);
-			r.right = lrint(pcmd->clip_rect.z - clip_off.x);
-			r.bottom = lrint(pcmd->clip_rect.w - clip_off.y);
+			r.left = lrint(pcmd->clip_rect.x - dd->display_pos.x);
+			r.top = lrint(pcmd->clip_rect.y - dd->display_pos.y);
+			r.right = lrint(pcmd->clip_rect.z - dd->display_pos.x);
+			r.bottom = lrint(pcmd->clip_rect.w - dd->display_pos.y);
 
 			ID3D11DeviceContext_RSSetScissorRects(context, 1, &r);
 
-			ID3D11ShaderResourceView *texture_srv = (ID3D11ShaderResourceView*) pcmd->texture_id;
+			// Optionally sample from a texture (fonts, images)
+			ID3D11ShaderResourceView *texture_srv = (ID3D11ShaderResourceView *) pcmd->texture_id;
 			ID3D11DeviceContext_PSSetShaderResources(context, 0, 1, &texture_srv);
+
+			// Draw indexed
 			ID3D11DeviceContext_DrawIndexed(context, pcmd->elem_count, pcmd->idx_offset + idx_offset, pcmd->vtx_offset + vtx_offset);
 		}
 
@@ -305,6 +305,7 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 		vtx_offset += cmd_list->vtx_len;
 	}
 
+	// Restore previous context state
 	im_dx11_pop_state(context, &state);
 }
 
@@ -314,14 +315,8 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 
 	ID3D11Texture2D *tex = NULL;
 	ID3D11Resource *res = NULL;
-	D3D11_BUFFER_DESC desc = {0};
-	D3D11_BLEND_DESC bdesc = {0};
-	D3D11_RASTERIZER_DESC rdesc = {0};
-	D3D11_DEPTH_STENCIL_DESC sdesc = {0};
-	D3D11_TEXTURE2D_DESC tdesc = {0};
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {0};
-	D3D11_SAMPLER_DESC samdesc = {0};
 
+	// Create vertex, pixel shaders from precompiled data from headers
 	HRESULT e = ID3D11Device_CreateVertexShader(device, VERTEX_SHADER, sizeof(VERTEX_SHADER), NULL, &ctx->vs);
 	if (e != S_OK)
 		goto except;
@@ -330,6 +325,7 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	// Input layout describing the shape of the vertex buffer
 	D3D11_INPUT_ELEMENT_DESC layout[] = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(struct im_vtx, pos), D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, offsetof(struct im_vtx, uv),  D3D11_INPUT_PER_VERTEX_DATA, 0},
@@ -339,6 +335,8 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	// Pre create a constant buffer used for storing the vertex shader's ortho
+	D3D11_BUFFER_DESC desc = {0};
 	desc.ByteWidth = sizeof(struct im_dx11_cb);
 	desc.Usage = D3D11_USAGE_DYNAMIC;
 	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -351,6 +349,8 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	// Blend state
+	D3D11_BLEND_DESC bdesc = {0};
 	bdesc.AlphaToCoverageEnable = false;
 	bdesc.RenderTarget[0].BlendEnable = true;
 	bdesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
@@ -364,6 +364,8 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	// Rastersizer state enabling scissoring
+	D3D11_RASTERIZER_DESC rdesc = {0};
 	rdesc.FillMode = D3D11_FILL_SOLID;
 	rdesc.CullMode = D3D11_CULL_NONE;
 	rdesc.ScissorEnable = true;
@@ -372,6 +374,8 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	// Depth stencil state
+	D3D11_DEPTH_STENCIL_DESC sdesc = {0};
 	sdesc.DepthEnable = false;
 	sdesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	sdesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
@@ -384,6 +388,8 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	// Font texture, ultimately kept as a ShaderResourceView
+	D3D11_TEXTURE2D_DESC tdesc = {0};
 	tdesc.Width = width;
 	tdesc.Height = height;
 	tdesc.MipLevels = 1;
@@ -394,7 +400,7 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	tdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	tdesc.CPUAccessFlags = 0;
 
-	D3D11_SUBRESOURCE_DATA subResource;
+	D3D11_SUBRESOURCE_DATA subResource = {0};
 	subResource.pSysMem = font;
 	subResource.SysMemPitch = tdesc.Width * 4;
 	subResource.SysMemSlicePitch = 0;
@@ -406,6 +412,7 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {0};
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = tdesc.MipLevels;
@@ -414,14 +421,13 @@ bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint
 	if (e != S_OK)
 		goto except;
 
+	// Sampler state for font texture
+	D3D11_SAMPLER_DESC samdesc = {0};
 	samdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	samdesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	samdesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 	samdesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	samdesc.MipLODBias = 0.0f;
 	samdesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	samdesc.MinLOD = 0.0f;
-	samdesc.MaxLOD = 0.0f;
 	e = ID3D11Device_CreateSamplerState(device, &samdesc, &ctx->sampler);
 	if (e != S_OK)
 		goto except;
@@ -458,17 +464,17 @@ void im_dx11_destroy(struct im_dx11 **dx11)
 	if (ctx->font)
 		ID3D11ShaderResourceView_Release(ctx->font);
 
-	if (ctx->vb_res)
-		ID3D11Resource_Release(ctx->vb_res);
+	if (ctx->vb.res)
+		ID3D11Resource_Release(ctx->vb.res);
 
-	if (ctx->ib_res)
-		ID3D11Resource_Release(ctx->ib_res);
+	if (ctx->ib.res)
+		ID3D11Resource_Release(ctx->ib.res);
 
-	if (ctx->ib)
-		ID3D11Buffer_Release(ctx->ib);
+	if (ctx->ib.b)
+		ID3D11Buffer_Release(ctx->ib.b);
 
-	if (ctx->vb)
-		ID3D11Buffer_Release(ctx->vb);
+	if (ctx->vb.b)
+		ID3D11Buffer_Release(ctx->vb.b);
 
 	if (ctx->bs)
 		ID3D11BlendState_Release(ctx->bs);
