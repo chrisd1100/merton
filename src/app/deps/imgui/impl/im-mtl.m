@@ -23,9 +23,11 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 	int32_t fb_width = lrint(dd->display_size.x * dd->framebuffer_scale.x);
 	int32_t fb_height = lrint(dd->display_size.y * dd->framebuffer_scale.y);
 
+	// Prevent rendering under invalid scenarios
 	if (fb_width <= 0 || fb_height <= 0 || dd->cmd_list_len == 0)
 		return;
 
+	// Resize vertex and index buffers if necessary
 	if (dd->vtx_len > ctx->vb_len) {
 		ctx->vb_len = dd->vtx_len + VTX_INCR;
 		ctx->vb = [cq.device newBufferWithLength:ctx->vb_len * sizeof(struct im_vtx) options:MTLResourceStorageModeShared];
@@ -36,17 +38,21 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 		ctx->ib = [cq.device newBufferWithLength:ctx->ib_len * sizeof(uint16_t) options:MTLResourceStorageModeShared];
 	}
 
-	id<MTLCommandBuffer> cb = [cq commandBuffer];
+	// Update the vertex shader's projection data based on the current display size
+	float L = dd->display_pos.x;
+	float R = dd->display_pos.x + dd->display_size.x;
+	float T = dd->display_pos.y;
+	float B = dd->display_pos.y + dd->display_size.y;
+	float N = viewport.znear;
+	float F = viewport.zfar;
+	const float proj[4][4] = {
+		{2.0f / (R-L),   0.0f,         0.0f,         0.0f},
+		{0.0f,           2.0f / (T-B), 0.0f,         0.0f},
+		{0.0f,           0.0f,         1.0f / (F-N), 0.0f},
+		{(R+L) / (L-R), (T+B) / (B-T), N / (F-N),    1.0f},
+	};
 
-	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
-	rpd.colorAttachments[0].texture = texture;
-	rpd.colorAttachments[0].loadAction = MTLLoadActionLoad;
-	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
-	id<MTLRenderCommandEncoder> re = [cb renderCommandEncoderWithDescriptor:rpd];
-
-	[re setCullMode:MTLCullModeNone];
-	[re setDepthStencilState:ctx->dss];
-
+	// Set viewport based on display size
 	MTLViewport viewport = {
 		.originX = 0.0,
 		.originY = 0.0,
@@ -55,37 +61,37 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 		.znear = 0.0,
 		.zfar = 1.0
 	};
+
+	// Begin render pass, pipeline has been created in advance
+	id<MTLCommandBuffer> cb = [cq commandBuffer];
+	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
+	rpd.colorAttachments[0].texture = texture;
+	rpd.colorAttachments[0].loadAction = MTLLoadActionLoad;
+	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
+
+	id<MTLRenderCommandEncoder> re = [cb renderCommandEncoderWithDescriptor:rpd];
 	[re setViewport:viewport];
-
-	float L = dd->display_pos.x;
-	float R = dd->display_pos.x + dd->display_size.x;
-	float T = dd->display_pos.y;
-	float B = dd->display_pos.y + dd->display_size.y;
-	float N = viewport.znear;
-	float F = viewport.zfar;
-	const float ortho[4][4] = {
-		{2.0f / (R-L),   0.0f,         0.0f,         0.0f},
-		{0.0f,           2.0f / (T-B), 0.0f,         0.0f},
-		{0.0f,           0.0f,         1.0f / (F-N), 0.0f},
-		{(R+L) / (L-R), (T+B) / (B-T), N / (F-N),    1.0f},
-	};
-
-	[re setVertexBytes:&ortho length:sizeof(ortho) atIndex:1];
+	[re setVertexBytes:&proj length:sizeof(proj) atIndex:1];
 	[re setRenderPipelineState:ctx->rps];
 	[re setVertexBuffer:ctx->vb offset:0 atIndex:0];
+	[re setCullMode:MTLCullModeNone];
+	[re setDepthStencilState:ctx->dss];
 
+	// Draw
 	uint32_t vertex_offset = 0;
 	uint32_t index_offset = 0;
 
 	for (uint32_t n = 0; n < dd->cmd_list_len; n++) {
 		const struct im_cmd_list *cmd_list = &dd->cmd_list[n];
 
+		// Copy vertex, index buffer data
 		memcpy((uint8_t *) ctx->vb.contents + vertex_offset, cmd_list->vtx, cmd_list->vtx_len * sizeof(struct im_vtx));
 		memcpy((uint8_t *) ctx->ib.contents + index_offset, cmd_list->idx, cmd_list->idx_len * sizeof(uint16_t));
 
 		for (uint32_t cmd_i = 0; cmd_i < cmd_list->cmd_len; cmd_i++) {
 			const struct im_cmd *pcmd = &cmd_list->cmd[cmd_i];
 
+			// Use the clip_rect to apply scissor
 			struct im_vec4 r = {0};
 			r.x = (pcmd->clip_rect.x - dd->display_pos.x) * dd->framebuffer_scale.x;
 			r.y = (pcmd->clip_rect.y - dd->display_pos.y) * dd->framebuffer_scale.y;
@@ -100,12 +106,13 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 					.width = lrint(r.z - r.x),
 					.height = lrint(r.w - r.y)
 				};
-
 				[re setScissorRect:scissorRect];
 
+				// Optionally sample from a texture (fonts, images)
 				if (pcmd->texture_id)
 					[re setFragmentTexture:(__bridge id<MTLTexture>) pcmd->texture_id atIndex:0];
 
+				// Draw indexed
 				[re setVertexBufferOffset:(vertex_offset + pcmd->vtx_offset * sizeof(struct im_vtx)) atIndex:0];
 				[re drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:pcmd->elem_count
 					indexType:MTLIndexTypeUInt16 indexBuffer:ctx->ib
@@ -117,6 +124,7 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 		index_offset += cmd_list->idx_len * sizeof(uint16_t);
 	}
 
+	// End render pass
 	[re endEncoding];
 	[cb commit];
 }
@@ -128,50 +136,55 @@ bool im_mtl_create(MTL_Device *odevice, const void *font, uint32_t width, uint32
 	bool r = true;
 	NSError *error = nil;
 
+	//XXX Objective-C under ARC must allocate C structs with objects zeroed
 	struct im_mtl *ctx = *mtl = calloc(1, sizeof(struct im_mtl));
 
-	id<MTLFunction> vertexFunction = nil;
-	id<MTLFunction> fragmentFunction = nil;
 	MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
 	MTLVertexDescriptor *vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
 	MTLRenderPipelineDescriptor *pdesc = [MTLRenderPipelineDescriptor new];
 	MTLTextureDescriptor *tdesc = nil;
 
+	// Create vertex, fragment shaders
 	NSString *shaderSource = @""
-		"#include <metal_stdlib>\n"
-		"using namespace metal;\n"
-		"\n"
-		"struct Uniforms {\n"
-		"	float4x4 projectionMatrix;\n"
-		"};\n"
-		"\n"
-		"struct VertexIn {\n"
-		"	float2 position  [[attribute(0)]];\n"
-		"	float2 texCoords [[attribute(1)]];\n"
-		"	uchar4 color	 [[attribute(2)]];\n"
-		"};\n"
-		"\n"
-		"struct VertexOut {\n"
-		"	float4 position [[position]];\n"
-		"	float2 texCoords;\n"
-		"	float4 color;\n"
-		"};\n"
-		"\n"
-		"vertex VertexOut vertex_main(VertexIn in				 [[stage_in]],\n"
-		"							 constant Uniforms &uniforms [[buffer(1)]]) {\n"
-		"	VertexOut out;\n"
-		"	out.position = uniforms.projectionMatrix * float4(in.position, 0, 1);\n"
-		"	out.texCoords = in.texCoords;\n"
-		"	out.color = float4(in.color) / float4(255.0);\n"
-		"	return out;\n"
-		"}\n"
-		"\n"
-		"fragment half4 fragment_main(VertexOut in [[stage_in]],\n"
-		"							 texture2d<half, access::sample> texture [[texture(0)]]) {\n"
-		"	constexpr sampler linearSampler(coord::normalized, min_filter::linear, mag_filter::linear, mip_filter::linear);\n"
-		"	half4 texColor = texture.sample(linearSampler, in.texCoords);\n"
-		"	return half4(in.color) * texColor;\n"
-		"}\n";
+		"#include <metal_stdlib>                                              \n"
+		"                                                                     \n"
+		"using namespace metal;                                               \n"
+		"                                                                     \n"
+		"struct Uniforms {                                                    \n"
+		"    float4x4 proj;                                                   \n"
+		"};                                                                   \n"
+		"                                                                     \n"
+		"struct VertexIn {                                                    \n"
+		"    float2 pos   [[attribute(0)]];                                   \n"
+		"    float2 uv    [[attribute(1)]];                                   \n"
+		"    uchar4 color [[attribute(2)]];                                   \n"
+		"};                                                                   \n"
+		"                                                                     \n"
+		"struct VertexOut {                                                   \n"
+		"    float4 pos [[pos]];                                              \n"
+		"    float2 uv;                                                       \n"
+		"    float4 color;                                                    \n"
+		"};                                                                   \n"
+		"                                                                     \n"
+		"vertex VertexOut vs(VertexIn in [[stage_in]],                        \n"
+		"    constant Uniforms &uniforms [[buffer(1)]])                       \n"
+		"{                                                                    \n"
+		"    VertexOut out;                                                   \n"
+		"    out.pos = uniforms.proj * float4(in.pos, 0, 1);                  \n"
+		"    out.uv = in.uv;                                                  \n"
+		"    out.color = float4(in.color) / float4(255.0);                    \n"
+		"                                                                     \n"
+		"    return out;                                                      \n"
+		"}                                                                    \n"
+		"                                                                     \n"
+		"fragment half4 fs(VertexOut in [[stage_in]],                         \n"
+		"    texture2d<half, access::sample> texture [[texture(0)]])          \n"
+		"{                                                                    \n"
+		"    constexpr sampler linearSampler(coord::normalized,               \n"
+		"        min_filter::linear, mag_filter::linear, mip_filter::linear); \n"
+		"                                                                     \n"
+		"    return half4(in.color) * texture.sample(linearSampler, in.uv);   \n"
+		"}                                                                    \n";
 
 	id<MTLLibrary> library = [device newLibraryWithSource:shaderSource options:nil error:&error];
 	if (error) {
@@ -180,28 +193,24 @@ bool im_mtl_create(MTL_Device *odevice, const void *font, uint32_t width, uint32
 		goto except;
 	}
 
+	// Depth stencil description
 	depthStencilDescriptor.depthWriteEnabled = NO;
 	depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionAlways;
 	ctx->dss = [device newDepthStencilStateWithDescriptor:depthStencilDescriptor];
 
-	vertexFunction = [library newFunctionWithName:@"vertex_main"];
-	fragmentFunction = [library newFunctionWithName:@"fragment_main"];
-
+	// Pipeline description
 	vertexDescriptor.attributes[0].offset = offsetof(struct im_vtx, pos);
-	vertexDescriptor.attributes[0].format = MTLVertexFormatFloat2; // position
-	vertexDescriptor.attributes[0].bufferIndex = 0;
+	vertexDescriptor.attributes[0].format = MTLVertexFormatFloat2;
 	vertexDescriptor.attributes[1].offset = offsetof(struct im_vtx, uv);
-	vertexDescriptor.attributes[1].format = MTLVertexFormatFloat2; // texCoords
-	vertexDescriptor.attributes[1].bufferIndex = 0;
+	vertexDescriptor.attributes[1].format = MTLVertexFormatFloat2;
 	vertexDescriptor.attributes[2].offset = offsetof(struct im_vtx, col);
-	vertexDescriptor.attributes[2].format = MTLVertexFormatUChar4; // color
-	vertexDescriptor.attributes[2].bufferIndex = 0;
+	vertexDescriptor.attributes[2].format = MTLVertexFormatUChar4;
 	vertexDescriptor.layouts[0].stepRate = 1;
 	vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
 	vertexDescriptor.layouts[0].stride = sizeof(struct im_vtx);
 
-	pdesc.vertexFunction = vertexFunction;
-	pdesc.fragmentFunction = fragmentFunction;
+	pdesc.vertexFunction = [library newFunctionWithName:@"vs"];
+	pdesc.fragmentFunction = [library newFunctionWithName:@"fs"];
 	pdesc.vertexDescriptor = vertexDescriptor;
 	pdesc.sampleCount = 1;
 	pdesc.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
@@ -220,6 +229,7 @@ bool im_mtl_create(MTL_Device *odevice, const void *font, uint32_t width, uint32
 		goto except;
 	}
 
+	// Font texture
 	tdesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:width height:height mipmapped:NO];
 
 	tdesc.usage = MTLTextureUsageShaderRead;
@@ -251,6 +261,8 @@ void im_mtl_destroy(struct im_mtl **mtl)
 		return;
 
 	struct im_mtl *ctx = *mtl;
+
+	// XXX Objective-C under ARC must set objects to 'nil' in dynamically allocated C structs
 	ctx->dss = nil;
 	ctx->rps = nil;
 	ctx->font = nil;
