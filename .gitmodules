@@ -1,0 +1,3 @@
+[submodule "libmatoya"]
+	path = libmatoya
+	url = git@github.com:chrisd1100/libmatoya
