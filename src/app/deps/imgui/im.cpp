@@ -25,9 +25,9 @@ static struct im {
 	struct im_mtl *mtl;
 	#endif
 	struct im_draw_data draw_data;
-	OpaqueDevice *device;
-	OpaqueContext *context;
-	OpaqueTexture *texture;
+	MTY_Device *device;
+	MTY_Context *context;
+	MTY_Texture *texture;
 	float dpi_scale;
 	float width;
 	float height;
@@ -50,27 +50,27 @@ void im_create(const void *font, size_t font_size, float font_height)
 	CreateContext();
 	ImGuiIO &io = GetIO();
 
-	io.KeyMap[ImGuiKey_Tab] = SCANCODE_TAB;
-	io.KeyMap[ImGuiKey_LeftArrow] = SCANCODE_LEFT;
-	io.KeyMap[ImGuiKey_RightArrow] = SCANCODE_RIGHT;
-	io.KeyMap[ImGuiKey_UpArrow] = SCANCODE_UP;
-	io.KeyMap[ImGuiKey_DownArrow] = SCANCODE_DOWN;
-	io.KeyMap[ImGuiKey_PageUp] = SCANCODE_PAGEUP;
-	io.KeyMap[ImGuiKey_PageDown] = SCANCODE_PAGEDOWN;
-	io.KeyMap[ImGuiKey_Home] = SCANCODE_HOME;
-	io.KeyMap[ImGuiKey_End] = SCANCODE_END;
-	io.KeyMap[ImGuiKey_Insert] = SCANCODE_INSERT;
-	io.KeyMap[ImGuiKey_Delete] = SCANCODE_DELETE;
-	io.KeyMap[ImGuiKey_Backspace] = SCANCODE_BACKSPACE;
-	io.KeyMap[ImGuiKey_Space] = SCANCODE_ENTER;
-	io.KeyMap[ImGuiKey_Enter] = SCANCODE_ENTER;
-	io.KeyMap[ImGuiKey_Escape] = SCANCODE_ESCAPE;
-	io.KeyMap[ImGuiKey_A] = SCANCODE_A;
-	io.KeyMap[ImGuiKey_C] = SCANCODE_C;
-	io.KeyMap[ImGuiKey_V] = SCANCODE_V;
-	io.KeyMap[ImGuiKey_X] = SCANCODE_X;
-	io.KeyMap[ImGuiKey_Y] = SCANCODE_Y;
-	io.KeyMap[ImGuiKey_Z] = SCANCODE_Z;
+	io.KeyMap[ImGuiKey_Tab] = MTY_SCANCODE_TAB;
+	io.KeyMap[ImGuiKey_LeftArrow] = MTY_SCANCODE_LEFT;
+	io.KeyMap[ImGuiKey_RightArrow] = MTY_SCANCODE_RIGHT;
+	io.KeyMap[ImGuiKey_UpArrow] = MTY_SCANCODE_UP;
+	io.KeyMap[ImGuiKey_DownArrow] = MTY_SCANCODE_DOWN;
+	io.KeyMap[ImGuiKey_PageUp] = MTY_SCANCODE_PAGEUP;
+	io.KeyMap[ImGuiKey_PageDown] = MTY_SCANCODE_PAGEDOWN;
+	io.KeyMap[ImGuiKey_Home] = MTY_SCANCODE_HOME;
+	io.KeyMap[ImGuiKey_End] = MTY_SCANCODE_END;
+	io.KeyMap[ImGuiKey_Insert] = MTY_SCANCODE_INSERT;
+	io.KeyMap[ImGuiKey_Delete] = MTY_SCANCODE_DELETE;
+	io.KeyMap[ImGuiKey_Backspace] = MTY_SCANCODE_BACKSPACE;
+	io.KeyMap[ImGuiKey_Space] = MTY_SCANCODE_ENTER;
+	io.KeyMap[ImGuiKey_Enter] = MTY_SCANCODE_ENTER;
+	io.KeyMap[ImGuiKey_Escape] = MTY_SCANCODE_ESCAPE;
+	io.KeyMap[ImGuiKey_A] = MTY_SCANCODE_A;
+	io.KeyMap[ImGuiKey_C] = MTY_SCANCODE_C;
+	io.KeyMap[ImGuiKey_V] = MTY_SCANCODE_V;
+	io.KeyMap[ImGuiKey_X] = MTY_SCANCODE_X;
+	io.KeyMap[ImGuiKey_Y] = MTY_SCANCODE_Y;
+	io.KeyMap[ImGuiKey_Z] = MTY_SCANCODE_Z;
 
 	io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
 	io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
@@ -82,47 +82,47 @@ void im_create(const void *font, size_t font_size, float font_height)
 	IM.init = true;
 }
 
-void im_input(struct window_msg *wmsg)
+void im_input(MTY_WindowMsg *wmsg)
 {
 	ImGuiIO &io = GetIO();
 
 	switch (wmsg->type) {
-		case WINDOW_MSG_MOUSE_WHEEL:
+		case MTY_WINDOW_MSG_MOUSE_WHEEL:
 			if (wmsg->mouseWheel.y > 0) io.MouseWheel += 1;
 			if (wmsg->mouseWheel.y < 0) io.MouseWheel -= 1;
 			break;
 
-		case WINDOW_MSG_MOUSE_BUTTON:
-			if (wmsg->mouseButton.button == MOUSE_L)      IM.mouse[0] = wmsg->mouseButton.pressed;
-			if (wmsg->mouseButton.button == MOUSE_R)      IM.mouse[1] = wmsg->mouseButton.pressed;
-			if (wmsg->mouseButton.button == MOUSE_MIDDLE) IM.mouse[2] = wmsg->mouseButton.pressed;
+		case MTY_WINDOW_MSG_MOUSE_BUTTON:
+			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_L)      IM.mouse[0] = wmsg->mouseButton.pressed;
+			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_R)      IM.mouse[1] = wmsg->mouseButton.pressed;
+			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_MIDDLE) IM.mouse[2] = wmsg->mouseButton.pressed;
 
 			io.MouseDown[0] = io.MouseDown[0] || IM.mouse[0];
 			io.MouseDown[1] = io.MouseDown[1] || IM.mouse[1];
 			io.MouseDown[2] = io.MouseDown[2] || IM.mouse[2];
 			break;
 
-		case WINDOW_MSG_MOUSE_MOTION:
+		case MTY_WINDOW_MSG_MOUSE_MOTION:
 			if (!wmsg->mouseMotion.relative)
 				io.MousePos = ImVec2((float) wmsg->mouseMotion.x, (float) wmsg->mouseMotion.y);
 			break;
 
-		case WINDOW_MSG_KEYBOARD: {
-			enum scancode sc = wmsg->keyboard.scancode;
+		case MTY_WINDOW_MSG_KEYBOARD: {
+			MTY_Scancode sc = wmsg->keyboard.scancode;
 
 			if (wmsg->keyboard.pressed && sc < IM_ARRAYSIZE(io.KeysDown))
 				io.KeysDown[sc] = true;
 
-			if (sc == SCANCODE_LSHIFT || sc == SCANCODE_RSHIFT)
+			if (sc == MTY_SCANCODE_LSHIFT || sc == MTY_SCANCODE_RSHIFT)
 				io.KeyShift = wmsg->keyboard.pressed;
 
-			if (sc == SCANCODE_LCTRL || sc == SCANCODE_RCTRL)
+			if (sc == MTY_SCANCODE_LCTRL || sc == MTY_SCANCODE_RCTRL)
 				io.KeyCtrl =  wmsg->keyboard.pressed;
 
-			if (sc == SCANCODE_LALT || sc == SCANCODE_RALT)
+			if (sc == MTY_SCANCODE_LALT || sc == MTY_SCANCODE_RALT)
 				io.KeyAlt = wmsg->keyboard.pressed;
 
-			if (sc == SCANCODE_LGUI || sc == SCANCODE_RGUI)
+			if (sc == MTY_SCANCODE_LGUI || sc == MTY_SCANCODE_RGUI)
 				io.KeySuper = wmsg->keyboard.pressed;
 
 			break;
@@ -141,7 +141,7 @@ static void im_impl_destroy(void)
 	#endif
 }
 
-static bool im_impl_init(OpaqueDevice *device, OpaqueContext *context)
+static bool im_impl_init(MTY_Device *device, MTY_Context *context)
 {
 	ImGuiIO &io = GetIO();
 
@@ -167,7 +167,7 @@ static bool im_impl_init(OpaqueDevice *device, OpaqueContext *context)
 	return r;
 }
 
-bool im_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture)
+bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Texture *texture)
 {
 	if (device != IM.device || context != IM.context || dpi_scale != IM.dpi_scale) {
 		if (IM.impl_init) {
@@ -315,10 +315,10 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 		io.Fonts->TexID = im_mtl_font_texture(IM.mtl);
 	#endif
 
-	int64_t now = time_stamp();
+	int64_t now = MTY_Timestamp();
 
 	if (IM.ts != 0)
-		io.DeltaTime = (float) time_diff(IM.ts, now) / 1000.0f;
+		io.DeltaTime = (float) MTY_TimestampDiff(IM.ts, now) / 1000.0f;
 
 	IM.ts = now;
 
@@ -394,7 +394,7 @@ float im_display_y(void)
 	return GetIO().DisplaySize.y;
 }
 
-bool im_key(enum scancode key)
+bool im_key(MTY_Scancode key)
 {
 	return GetIO().KeysDown[key];
 }

@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "lib/lib.h"
+#include "matoya.h"
 #include "nes/nes.h"
 
 #define CONFIG_VERSION 5
@@ -67,8 +67,8 @@ struct config {
 	CONFIG_LOG_TIMEOUT, \
 	false, \
 	3, \
-	FILTER_NEAREST, \
-	EFFECT_NONE, \
+	MTY_FILTER_NEAREST, \
+	MTY_EFFECT_NONE, \
 	CONFIG_SHADER_NONE, \
 	{16, 15}, \
 	{NES_FRAME_WIDTH * 3, NES_FRAME_HEIGHT * 3}, \

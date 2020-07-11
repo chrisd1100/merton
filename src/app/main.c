@@ -6,7 +6,7 @@
 #include <math.h>
 
 #include "nes/nes.h"
-#include "lib/lib.h"
+#include "matoya.h"
 #include "deps/imgui/im.h"
 
 #include "ui.h"
@@ -19,8 +19,8 @@
 struct main {
 	NES *nes;
 	uint32_t crc32;
-	struct window *window;
-	struct audio *audio;
+	MTY_Window *window;
+	MTY_Audio *audio;
 	struct config cfg;
 	bool running;
 	bool paused;
@@ -58,7 +58,7 @@ static void main_nes_video(const uint32_t *frame, void *opaque)
 		main_crop_copy(ctx->cropped, frame, ctx->cfg.overscan.top ? 8 : 0, ctx->cfg.overscan.right ? 8 : 0,
 			ctx->cfg.overscan.bottom ? 8 : 0, ctx->cfg.overscan.left ? 8 : 0);
 
-	window_render_quad(ctx->window, ctx->cropped, NES_FRAME_WIDTH, NES_FRAME_HEIGHT,
+	MTY_WindowRenderQuad(ctx->window, ctx->cropped, NES_FRAME_WIDTH, NES_FRAME_HEIGHT,
 		ctx->cfg.frame_size * NES_FRAME_WIDTH, ctx->cfg.frame_size * NES_FRAME_HEIGHT,
 		(float) ctx->cfg.aspect_ratio.x / (float) ctx->cfg.aspect_ratio.y, ctx->cfg.filter, ctx->cfg.effect);
 }
@@ -68,7 +68,7 @@ static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)
 	struct main *ctx = (struct main *) opaque;
 
 	if (!ctx->cfg.mute)
-		audio_queue(ctx->audio, frames, count);
+		MTY_AudioQueue(ctx->audio, frames, count);
 }
 
 static void main_nes_log(const char *str)
@@ -108,13 +108,13 @@ static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc 
 static bool main_load_rom(struct main *ctx, const char *name)
 {
 	size_t rom_size = 0;
-	uint8_t *rom = fs_read(name, &rom_size);
+	uint8_t *rom = NULL;
 
-	if (rom && rom_size > 16) {
+	if (MTY_FsRead(name, &rom, &rom_size) && rom_size > 16) {
 		uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
 
 		if (rom_size > offset) {
-			ctx->crc32 = crypto_crc32(rom + offset, rom_size - offset);
+			ctx->crc32 = MTY_CryptoCRC32(rom + offset, rom_size - offset);
 
 			ui_clear_log();
 			ui_set_message("Press ESC to access the menu", 3000);
@@ -132,12 +132,13 @@ static bool main_load_rom(struct main *ctx, const char *name)
 			}
 
 			size_t sram_size = 0;
-			void *sram = fs_read(fs_path(fs_prog_dir(), fs_path("save", sram_name)), &sram_size);
+			void *sram = NULL;
+			MTY_FsRead(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), MTY_FsPath("save", sram_name)), &sram, &sram_size);
 			NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
 			free(sram);
 			free(rom);
 
-			window_set_title(ctx->window, APP_NAME, fs_file_name(name, false));
+			MTY_WindowSetTitle(ctx->window, APP_NAME, MTY_FsName(name, false));
 
 			return true;
 		}
@@ -160,9 +161,9 @@ static void main_save_sram(struct main *ctx)
 		char sram_name[16];
 		snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
 
-		const char *save_path = fs_path(fs_prog_dir(), "save");
-		fs_mkdir(save_path);
-		fs_write(fs_path(save_path, sram_name), sram, sram_size);
+		const char *save_path = MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "save");
+		MTY_FsMkdir(save_path);
+		MTY_FsWrite(MTY_FsPath(save_path, sram_name), sram, sram_size);
 		free(sram);
 	}
 }
@@ -170,39 +171,39 @@ static void main_save_sram(struct main *ctx)
 
 /*** WINDOW MSG / INPUT HANDLING ***/
 
-static const NES_Button NES_KEYBOARD_MAP[SCANCODE_MAX] = {
-	[SCANCODE_SEMICOLON] = NES_BUTTON_A,
-	[SCANCODE_L]         = NES_BUTTON_B,
-	[SCANCODE_LSHIFT]    = NES_BUTTON_SELECT,
-	[SCANCODE_SPACE]     = NES_BUTTON_START,
-	[SCANCODE_W]         = NES_BUTTON_UP,
-	[SCANCODE_S]         = NES_BUTTON_DOWN,
-	[SCANCODE_A]         = NES_BUTTON_LEFT,
-	[SCANCODE_D]         = NES_BUTTON_RIGHT,
+static const NES_Button NES_KEYBOARD_MAP[MTY_SCANCODE_MAX] = {
+	[MTY_SCANCODE_SEMICOLON] = NES_BUTTON_A,
+	[MTY_SCANCODE_L]         = NES_BUTTON_B,
+	[MTY_SCANCODE_LSHIFT]    = NES_BUTTON_SELECT,
+	[MTY_SCANCODE_SPACE]     = NES_BUTTON_START,
+	[MTY_SCANCODE_W]         = NES_BUTTON_UP,
+	[MTY_SCANCODE_S]         = NES_BUTTON_DOWN,
+	[MTY_SCANCODE_A]         = NES_BUTTON_LEFT,
+	[MTY_SCANCODE_D]         = NES_BUTTON_RIGHT,
 };
 
-static void main_window_msg_func(struct window_msg *wmsg, const void *opaque)
+static void main_window_msg_func(MTY_WindowMsg *wmsg, const void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
 	im_input(wmsg);
 
 	switch (wmsg->type) {
-		case WINDOW_MSG_CLOSE:
+		case MTY_WINDOW_MSG_CLOSE:
 			ctx->running = false;
 			break;
-		case WINDOW_MSG_DRAG:
+		case MTY_WINDOW_MSG_DRAG:
 			main_save_sram(ctx);
 			main_load_rom(ctx, wmsg->drag.name);
 			ui_close_menu();
 			break;
-		case WINDOW_MSG_KEYBOARD: {
+		case MTY_WINDOW_MSG_KEYBOARD: {
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 			if (button != 0)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
 			break;
 		}
-		case WINDOW_MSG_GAMEPAD: {
+		case MTY_WINDOW_MSG_GAMEPAD: {
 			uint8_t state = 0;
 			state |= wmsg->gamepad.a     ? NES_BUTTON_A : 0;
 			state |= wmsg->gamepad.b     ? NES_BUTTON_B : 0;
@@ -238,7 +239,7 @@ static const uint8_t PATTERN_144[] = {2, 3, 2, 3, 2};
 
 static uint32_t main_sync_to_60(struct main *ctx)
 {
-	uint32_t rr = window_refresh_rate(ctx->window);
+	uint32_t rr = MTY_WindowGetRefreshRate(ctx->window);
 
 	const uint8_t *pattern = PATTERN_60;
 	size_t pattern_len = sizeof(PATTERN_60);
@@ -274,22 +275,22 @@ static uint32_t main_sync_to_60(struct main *ctx)
 
 static void main_audio_adjustment(struct main *ctx)
 {
-	uint32_t queued = audio_queued_frames(ctx->audio);
+	uint32_t queued = MTY_AudioGetQueuedFrames(ctx->audio);
 
 	uint32_t audio_start = 100 * (ctx->cfg.nes.sampleRate / 1000);
 	uint32_t audio_buffer = 50 * (ctx->cfg.nes.sampleRate / 1000);
 
-	if (queued >= audio_start && !audio_playing(ctx->audio))
-		audio_play(ctx->audio);
+	if (queued >= audio_start && !MTY_AudioIsPlaying(ctx->audio))
+		MTY_AudioPlay(ctx->audio);
 
-	if (queued == 0 && audio_playing(ctx->audio))
-		audio_stop(ctx->audio);
+	if (queued == 0 && MTY_AudioIsPlaying(ctx->audio))
+		MTY_AudioStop(ctx->audio);
 
 	if (++ctx->frames % 120 == 0) {
-		int64_t now = time_stamp();
+		int64_t now = MTY_Timestamp();
 
 		if (ctx->ts != 0) {
-			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / time_diff(ctx->ts, now));
+			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / MTY_TimestampDiff(ctx->ts, now));
 			NES_APUClockDrift(ctx->nes, cycles_sec, queued >= audio_buffer);
 		}
 
@@ -316,20 +317,20 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 
 			// Audio device must be reset on sample rate changes
 			if (event->cfg.nes.sampleRate != ctx->cfg.nes.sampleRate) {
-				audio_destroy(&ctx->audio);
-				audio_create(&ctx->audio, event->cfg.nes.sampleRate);
+				MTY_AudioDestroy(&ctx->audio);
+				MTY_AudioCreate(&ctx->audio, event->cfg.nes.sampleRate);
 			}
 
 			// Fullscreen/windowed transitions
 			if (event->cfg.fullscreen != ctx->cfg.fullscreen) {
-				if (window_is_fullscreen(ctx->window)) {
-					window_set_windowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
+				if (MTY_WindowIsFullscreen(ctx->window)) {
+					MTY_WindowSetWindowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
 
 				} else {
-					window_set_fullscreen(ctx->window);
+					MTY_WindowSetFullscreen(ctx->window);
 				}
 
-				event->cfg.fullscreen = window_is_fullscreen(ctx->window);
+				event->cfg.fullscreen = MTY_WindowIsFullscreen(ctx->window);
 			}
 
 			ctx->cfg = event->cfg;
@@ -345,11 +346,11 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			main_load_rom(ctx, event->rom_name);
 			break;
 		case UI_EVENT_UNLOAD_ROM:
-			window_set_title(ctx->window, APP_NAME, NULL);
+			MTY_WindowSetTitle(ctx->window, APP_NAME, NULL);
 			break;
 		case UI_EVENT_RESET:
-			window_set_windowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
-			ctx->cfg.fullscreen = window_is_fullscreen(ctx->window);
+			MTY_WindowSetWindowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
+			ctx->cfg.fullscreen = MTY_WindowIsFullscreen(ctx->window);
 			break;
 		default:
 			break;
@@ -377,9 +378,10 @@ static void main_im_root(void *opaque)
 static struct config main_load_config(void)
 {
 	size_t size = 0;
-	struct config *cfg = (struct config *) fs_read(fs_path(fs_prog_dir(), "config.bin"), &size);
+	struct config *cfg = NULL;
+	bool ok = MTY_FsRead(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "config.bin"), &cfg, &size);
 
-	struct config r = cfg && size == sizeof(struct config) && cfg->version == CONFIG_VERSION ?
+	struct config r = ok && size == sizeof(struct config) && cfg->version == CONFIG_VERSION ?
 		*cfg : (struct config) CONFIG_DEFAULTS;
 
 	free(cfg);
@@ -388,7 +390,7 @@ static struct config main_load_config(void)
 
 static void main_save_config(struct config *cfg)
 {
-	fs_write(fs_path(fs_prog_dir(), "config.bin"), cfg, sizeof(struct config));
+	MTY_FsWrite(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "config.bin"), cfg, sizeof(struct config));
 }
 
 
@@ -400,12 +402,12 @@ int32_t main(int32_t argc, char **argv)
 	ctx.cfg = main_load_config();
 	ctx.running = true;
 
-	int32_t r = window_create(APP_NAME, main_window_msg_func, &ctx,
+	bool r = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
 		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, &ctx.window);
-	if (r != LIB_OK) goto except;
+	if (!r) goto except;
 
-	r = audio_create(&ctx.audio, ctx.cfg.nes.sampleRate);
-	if (r != LIB_OK) goto except;
+	r = MTY_AudioCreate(&ctx.audio, ctx.cfg.nes.sampleRate);
+	if (!r) goto except;
 
 	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
@@ -416,10 +418,10 @@ int32_t main(int32_t argc, char **argv)
 		ctx.loaded = main_load_rom(&ctx, argv[1]);
 
 	while (ctx.running) {
-		int64_t ts = time_stamp();
-		window_poll(ctx.window);
+		int64_t ts = MTY_Timestamp();
+		MTY_WindowPoll(ctx.window);
 
-		if (window_is_foreground(ctx.window) || !ctx.cfg.bg_pause) {
+		if (MTY_WindowIsForeground(ctx.window) || !ctx.cfg.bg_pause) {
 			main_audio_adjustment(&ctx);
 
 			if (!ctx.paused) {
@@ -429,24 +431,24 @@ int32_t main(int32_t argc, char **argv)
 				main_nes_video(NULL, &ctx);
 			}
 
-			OpaqueDevice *device = window_get_device(ctx.window);
-			OpaqueContext *context = window_get_context(ctx.window);
-			OpaqueTexture *back_buffer = window_get_back_buffer(ctx.window);
+			MTY_Device *device = MTY_WindowGetDevice(ctx.window);
+			MTY_Context *context = MTY_WindowGetContext(ctx.window);
+			MTY_Texture *back_buffer = MTY_WindowGetBackBuffer(ctx.window);
 
-			im_begin(window_get_dpi_scale(ctx.window), device, context, back_buffer);
+			im_begin(MTY_WindowGetDPIScale(ctx.window), device, context, back_buffer);
 			im_draw(main_im_root, &ctx);
 			im_render(!NES_CartLoaded(ctx.nes));
 
-			window_release_back_buffer(back_buffer);
-			double wait = floor(1000.0 / 60.0 - time_diff(ts, time_stamp())) - 1.0;
-			window_present(ctx.window, main_sync_to_60(&ctx));
+			MTY_WindowReleaseBackBuffer(back_buffer);
+			double wait = floor(1000.0 / 60.0 - MTY_TimestampDiff(ts, MTY_Timestamp())) - 1.0;
+			MTY_WindowPresent(ctx.window, main_sync_to_60(&ctx));
 
 			if (ctx.cfg.reduce_latency && wait > 0.0)
-				time_sleep(lrint(wait));
+				MTY_Sleep(lrint(wait));
 
 		} else {
 			ctx.ts = 0;
-			time_sleep(16);
+			MTY_Sleep(16);
 		}
 	}
 
@@ -458,8 +460,8 @@ int32_t main(int32_t argc, char **argv)
 	ui_destroy();
 	im_destroy();
 	NES_Destroy(&ctx.nes);
-	audio_destroy(&ctx.audio);
-	window_destroy(&ctx.window);
+	MTY_AudioDestroy(&ctx.audio);
+	MTY_WindowDestroy(&ctx.window);
 
 	return 0;
 }

@@ -33,7 +33,7 @@ enum nav {
 
 static struct component_state {
 	uint32_t nav;
-	struct finfo *fi;
+	MTY_FileDesc *fi;
 	uint32_t fi_n;
 	bool refreshed;
 	const char *dir;
@@ -53,13 +53,13 @@ void ui_set_message(const char *msg, int32_t timeout)
 	free(CMP.msg);
 	CMP.msg = _strdup(msg);
 
-	CMP.ts = time_stamp();
+	CMP.ts = MTY_Timestamp();
 	CMP.timeout = timeout;
 }
 
 static void ui_message(void)
 {
-	if (CMP.ts != 0 && time_diff(CMP.ts, time_stamp()) < CMP.timeout) {
+	if (CMP.ts != 0 && MTY_TimestampDiff(CMP.ts, MTY_Timestamp()) < CMP.timeout) {
 		im_push_color(ImGuiCol_WindowBg, COLOR_MSG_BG);
 
 		im_set_window_pos(X(12), X((CMP.nav & NAV_MENU) ? 34 : 12));
@@ -84,7 +84,7 @@ void ui_add_log(const char *msg, int32_t timeout)
 
 	snprintf(CMP.logs[CMP.log_lines - 1], UI_LOG_LEN, "%s", msg);
 
-	CMP.log_ts = time_stamp();
+	CMP.log_ts = MTY_Timestamp();
 	CMP.log_timeout = timeout;
 }
 
@@ -96,7 +96,7 @@ void ui_clear_log(void)
 
 static void ui_log(bool always)
 {
-	if (always || (CMP.log_ts != 0 && time_diff(CMP.log_ts, time_stamp()) < CMP.log_timeout)) {
+	if (always || (CMP.log_ts != 0 && MTY_TimestampDiff(CMP.log_ts, MTY_Timestamp()) < CMP.log_timeout)) {
 		im_push_color(ImGuiCol_WindowBg, COLOR_MSG_BG);
 		im_push_style_f2(ImGuiStyleVar_ItemSpacing, X(5), X(4));
 
@@ -142,11 +142,11 @@ static void ui_open_rom(struct ui_event *event)
 		im_begin_frame(0x01, w, h - X(50), ImGuiWindowFlags_NavFlattened);
 
 		if (!CMP.refreshed) {
-			struct finfo *fi = NULL;
-			uint32_t n = fs_list(CMP.dir ? CMP.dir : ".", &fi);
+			MTY_FileDesc *fi = NULL;
+			uint32_t n = MTY_FsList(CMP.dir ? CMP.dir : ".", &fi);
 
 			if (n > 0) {
-				fs_free_list(&CMP.fi, CMP.fi_n);
+				MTY_FsFreeList(&CMP.fi, CMP.fi_n);
 				CMP.fi = fi;
 				CMP.fi_n = n;
 
@@ -181,12 +181,12 @@ static void ui_save_state(NES *nes, uint32_t crc32, uint8_t index)
 	void *state = NES_GetState(nes, &size);
 
 	if (state) {
-		const char *path = fs_path(fs_prog_dir(), "state");
-		fs_mkdir(path);
+		const char *path = MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "state");
+		MTY_FsMkdir(path);
 
 		char name[32];
 		snprintf(name, 32, "%02X-%u.state", crc32, index);
-		fs_write(fs_path(path, name), state, size);
+		MTY_FsWrite(MTY_FsPath(path, name), state, size);
 
 		char msg[64];
 		snprintf(msg, 64, "State saved to slot %u", index);
@@ -198,18 +198,17 @@ static void ui_save_state(NES *nes, uint32_t crc32, uint8_t index)
 
 static void ui_load_state(NES *nes, uint32_t crc32, uint8_t index)
 {
-	const char *path = fs_path(fs_prog_dir(), "state");
-	fs_mkdir(path);
+	const char *path = MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "state");
+	MTY_FsMkdir(path);
 
 	char name[32];
 	snprintf(name, 32, "%02X-%u.state", crc32, index);
 
 	size_t size = 0;
-	void *state = fs_read(fs_path(path, name), &size);
-
+	void *state = NULL;
 	char msg[64];
 
-	if (state) {
+	if (MTY_FsRead(MTY_FsPath(path, name), &state, &size)) {
 		if (NES_SetState(nes, state, size)) {
 			snprintf(msg, 64, "State loaded from slot %u", index);
 
@@ -393,30 +392,30 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 			}
 
 			if (im_begin_menu("Filter", true)) {
-				if (im_menu_item("Nearest", "", args->cfg->filter == FILTER_NEAREST))
-					event->cfg.filter = FILTER_NEAREST;
+				if (im_menu_item("Nearest", "", args->cfg->filter == MTY_FILTER_NEAREST))
+					event->cfg.filter = MTY_FILTER_NEAREST;
 
-				if (im_menu_item("Linear", "", args->cfg->filter == FILTER_LINEAR))
-					event->cfg.filter = FILTER_LINEAR;
+				if (im_menu_item("Linear", "", args->cfg->filter == MTY_FILTER_LINEAR))
+					event->cfg.filter = MTY_FILTER_LINEAR;
 
-				if (im_menu_item("Gaussian Soft", "", args->cfg->filter == FILTER_GAUSSIAN_SOFT))
-					event->cfg.filter = FILTER_GAUSSIAN_SOFT;
+				if (im_menu_item("Gaussian Soft", "", args->cfg->filter == MTY_FILTER_GAUSSIAN_SOFT))
+					event->cfg.filter = MTY_FILTER_GAUSSIAN_SOFT;
 
-				if (im_menu_item("Gaussian Sharp", "", args->cfg->filter == FILTER_GAUSSIAN_SHARP))
-					event->cfg.filter = FILTER_GAUSSIAN_SHARP;
+				if (im_menu_item("Gaussian Sharp", "", args->cfg->filter == MTY_FILTER_GAUSSIAN_SHARP))
+					event->cfg.filter = MTY_FILTER_GAUSSIAN_SHARP;
 
 				im_end_menu();
 			}
 
 			if (im_begin_menu("Effect", true)) {
-				if (im_menu_item("None", "", args->cfg->effect == EFFECT_NONE))
-					event->cfg.effect = EFFECT_NONE;
+				if (im_menu_item("None", "", args->cfg->effect == MTY_EFFECT_NONE))
+					event->cfg.effect = MTY_EFFECT_NONE;
 
-				if (im_menu_item("Scanlines", "", args->cfg->effect == EFFECT_SCANLINES))
-					event->cfg.effect = EFFECT_SCANLINES;
+				if (im_menu_item("Scanlines", "", args->cfg->effect == MTY_EFFECT_SCANLINES))
+					event->cfg.effect = MTY_EFFECT_SCANLINES;
 
-				if (im_menu_item("Scanlines x2", "", args->cfg->effect == EFFECT_SCANLINES_X2))
-					event->cfg.effect = EFFECT_SCANLINES_X2;
+				if (im_menu_item("Scanlines x2", "", args->cfg->effect == MTY_EFFECT_SCANLINES_X2))
+					event->cfg.effect = MTY_EFFECT_SCANLINES_X2;
 
 				im_end_menu();
 			}
@@ -504,7 +503,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 static void ui_hotkeys(const struct ui_args *args, struct ui_event *event)
 {
-	if (im_key(SCANCODE_ESCAPE)) {
+	if (im_key(MTY_SCANCODE_ESCAPE)) {
 		CMP.nav ^= NAV_MENU;
 		CMP.ts = 0;
 
@@ -512,29 +511,29 @@ static void ui_hotkeys(const struct ui_args *args, struct ui_event *event)
 			CMP.nav = NAV_NONE;
 	}
 
-	if (im_key(SCANCODE_W) && im_ctrl())
+	if (im_key(MTY_SCANCODE_W) && im_ctrl())
 		event->cfg.fullscreen = !event->cfg.fullscreen;
 
-	if (im_key(SCANCODE_O) && im_ctrl())
+	if (im_key(MTY_SCANCODE_O) && im_ctrl())
 		CMP.nav ^= NAV_OPEN_ROM;
 
-	if (im_key(SCANCODE_P) && im_ctrl())
+	if (im_key(MTY_SCANCODE_P) && im_ctrl())
 		event->type = UI_EVENT_PAUSE;
 
-	if (im_key(SCANCODE_R) && im_ctrl())
+	if (im_key(MTY_SCANCODE_R) && im_ctrl())
 		NES_Reset(args->nes, false);
 
-	if (im_key(SCANCODE_T) && im_ctrl())
+	if (im_key(MTY_SCANCODE_T) && im_ctrl())
 		NES_Reset(args->nes, true);
 
-	if (im_key(SCANCODE_M) && im_ctrl())
+	if (im_key(MTY_SCANCODE_M) && im_ctrl())
 		event->cfg.mute = !event->cfg.mute;
 
 	for (uint8_t x = 0; x < 8; x++) {
-		if (im_key(SCANCODE_1 + x) && im_ctrl()) {
+		if (im_key(MTY_SCANCODE_1 + x) && im_ctrl()) {
 			ui_load_state(args->nes, args->crc32, x + 1);
 
-		} else if (im_key(SCANCODE_1 + x)) {
+		} else if (im_key(MTY_SCANCODE_1 + x)) {
 			ui_save_state(args->nes, args->crc32, x + 1);
 		}
 	}
@@ -612,7 +611,7 @@ void ui_close_menu(void)
 
 void ui_destroy(void)
 {
-	fs_free_list(&CMP.fi, CMP.fi_n);
+	MTY_FsFreeList(&CMP.fi, CMP.fi_n);
 	CMP.fi_n = 0;
 
 	free(CMP.msg);

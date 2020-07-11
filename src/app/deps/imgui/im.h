@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/lib.h"
+#include "matoya.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -132,15 +132,15 @@ enum ImGuiWindowFlags_
 // Framework
 void im_create(const void *font, size_t font_size, float font_height);
 void im_destroy(void);
-void im_input(struct window_msg *wmsg);
-bool im_begin(float dpi_scale, OpaqueDevice *device, OpaqueContext *context, OpaqueTexture *texture);
+void im_input(MTY_WindowMsg *wmsg);
+bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Texture *texture);
 void im_draw(void (*callback)(void *opaque), const void *opaque);
 void im_render(bool clear);
 
 float im_dpi_scale(void);
 float im_display_x(void);
 float im_display_y(void);
-bool im_key(enum scancode key);
+bool im_key(MTY_Scancode key);
 bool im_ctrl(void);
 
 // Drawing

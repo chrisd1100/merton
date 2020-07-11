@@ -1,9 +1,3 @@
-!IF [if /I "%Platform%" EQU "x64" exit 1]
-PLATFORM = windows
-!ELSE
-PLATFORM = windows32
-!ENDIF
-
 BIN_NAME = \
 	merton.exe
 
@@ -16,13 +10,7 @@ OBJS = \
 	src\app\main.obj \
 	src\app\ui.obj \
 	src\app\deps\imgui\im.obj \
-	src\app\deps\imgui\impl\im-dx11.obj \
-	src\lib\crypto.obj \
-	src\lib\windows\window.obj \
-	src\lib\windows\window-quad.obj \
-	src\lib\windows\audio.obj \
-	src\lib\windows\time.obj \
-	src\lib\windows\fs.obj
+	src\app\deps\imgui\impl\im-dx11.obj
 
 RESOURCES = \
 	assets\windows\icon.res \
@@ -34,6 +22,7 @@ RFLAGS = \
 
 CFLAGS = \
 	-I. \
+	-I..\libmatoya\src \
 	-Isrc \
 	-DWIN32_LEAN_AND_MEAN \
 	-DUNICODE \
@@ -56,6 +45,7 @@ CPPFLAGS = $(CFLAGS) \
 	/wd4505
 
 LIBS = \
+	..\libmatoya\bin\windows\%Platform%\matoya.lib \
 	libvcruntime.lib \
 	libucrt.lib \
 	libcmt.lib \
@@ -67,7 +57,9 @@ LIBS = \
 	ole32.lib \
 	uuid.lib \
 	winmm.lib \
-	shcore.lib
+	shcore.lib \
+	bcrypt.lib \
+	shlwapi.lib
 
 LD_FLAGS = \
 	/subsystem:windows \
@@ -84,12 +76,6 @@ LD_FLAGS = $(LD_FLAGS) /LTCG
 
 all: clean clear $(OBJS) $(RESOURCES)
 	link *.obj $(LIBS) $(RESOURCES) /out:$(BIN_NAME) $(LD_FLAGS)
-
-SHADER_DIR = src\lib\windows\shaders
-
-shaders: clear
-	fxc /nologo /O3 /Ges /Fh $(SHADER_DIR)\vs.h /T vs_4_0 /Vn VS $(SHADER_DIR)\vs.hlsl
-	fxc /nologo /O3 /Ges /Fh $(SHADER_DIR)\ps.h /T ps_4_0 /Vn PS $(SHADER_DIR)\ps.hlsl
 
 clean:
 	-del $(RESOURCES)
