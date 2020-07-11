@@ -35,8 +35,8 @@ struct config {
 	// Video
 	bool fullscreen;
 	int32_t frame_size;
-	enum filter filter;
-	enum effect effect;
+	MTY_Filter filter;
+	MTY_Effect effect;
 	enum config_shader shader;
 	struct {
 		int32_t x;

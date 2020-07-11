@@ -38,6 +38,16 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 		ctx->ib = [cq.device newBufferWithLength:ctx->ib_len * sizeof(uint16_t) options:MTLResourceStorageModeShared];
 	}
 
+	// Set viewport based on display size
+	MTLViewport viewport = {
+		.originX = 0.0,
+		.originY = 0.0,
+		.width = dd->display_size.x * dd->framebuffer_scale.x,
+		.height = dd->display_size.y * dd->framebuffer_scale.y,
+		.znear = 0.0,
+		.zfar = 1.0
+	};
+
 	// Update the vertex shader's projection data based on the current display size
 	float L = dd->display_pos.x;
 	float R = dd->display_pos.x + dd->display_size.x;
@@ -50,16 +60,6 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 		{0.0f,           2.0f / (T-B), 0.0f,         0.0f},
 		{0.0f,           0.0f,         1.0f / (F-N), 0.0f},
 		{(R+L) / (L-R), (T+B) / (B-T), N / (F-N),    1.0f},
-	};
-
-	// Set viewport based on display size
-	MTLViewport viewport = {
-		.originX = 0.0,
-		.originY = 0.0,
-		.width = dd->display_size.x * dd->framebuffer_scale.x,
-		.height = dd->display_size.y * dd->framebuffer_scale.y,
-		.znear = 0.0,
-		.zfar = 1.0
 	};
 
 	// Begin render pass, pipeline has been created in advance

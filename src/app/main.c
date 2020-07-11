@@ -110,7 +110,7 @@ static bool main_load_rom(struct main *ctx, const char *name)
 	size_t rom_size = 0;
 	uint8_t *rom = NULL;
 
-	if (MTY_FsRead(name, &rom, &rom_size) && rom_size > 16) {
+	if (MTY_FsRead(name, (void **) &rom, &rom_size) && rom_size > 16) {
 		uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
 
 		if (rom_size > offset) {
@@ -379,7 +379,7 @@ static struct config main_load_config(void)
 {
 	size_t size = 0;
 	struct config *cfg = NULL;
-	bool ok = MTY_FsRead(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "config.bin"), &cfg, &size);
+	bool ok = MTY_FsRead(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "config.bin"), (void **) &cfg, &size);
 
 	struct config r = ok && size == sizeof(struct config) && cfg->version == CONFIG_VERSION ?
 		*cfg : (struct config) CONFIG_DEFAULTS;

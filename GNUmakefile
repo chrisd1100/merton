@@ -40,7 +40,7 @@ ifeq ($(UNAME), Darwin)
 export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
 
 OBJS := $(OBJS) \
-	src/app/deps/imgui/imgui_impl_metal.o
+	src/app/deps/imgui/impl/im-mtl.o
 
 LIBS = \
 	-lc++ \

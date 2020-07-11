@@ -156,7 +156,7 @@ static bool im_impl_init(MTY_Device *device, MTY_Context *context)
 	#elif defined(__APPLE__)
 		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
-		bool r = device != NULL && im_mtl_create(device, pixels, width, height, &IM.mtl);
+		bool r = device != NULL && im_mtl_create((MTL_Device *) device, pixels, width, height, &IM.mtl);
 	#endif
 
 	if (!r) {
@@ -204,8 +204,8 @@ bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Tex
 		IM.height = (float) desc.Height;
 
 	#elif defined(__APPLE__)
-		IM.texture = im_mtl_get_drawable_texture(texture); // this is an id<CAMetalDrawable>
-		im_mtl_texture_size(IM.texture, &IM.width, &IM.height);
+		IM.texture = (MTY_Texture *) im_mtl_get_drawable_texture((CA_MetalDrawable *) texture); // this is an id<CAMetalDrawable>
+		im_mtl_texture_size((MTL_Texture *) IM.texture, &IM.width, &IM.height);
 	#endif
 
 	return true;
@@ -363,7 +363,7 @@ void im_render(bool clear)
 		}
 
 	#elif defined(__APPLE__)
-		im_mtl_render(IM.mtl, &IM.draw_data, IM.context, IM.texture);
+		im_mtl_render(IM.mtl, &IM.draw_data, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);
 	#endif
 }
 
