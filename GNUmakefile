@@ -1,5 +1,5 @@
 UNAME = $(shell uname -s)
-MACHINE = $(shell uname -m)
+ARCH = $(shell uname -m)
 
 NAME = \
 	merton
@@ -12,15 +12,12 @@ OBJS = \
 	src/nes/ppu.o \
 	src/app/main.o \
 	src/app/ui.o \
-	src/app/deps/imgui/im.o \
-	src/lib/crypto.o \
-	src/lib/unix/fs.o \
-	src/lib/unix/time.o
+	src/app/deps/imgui/im.o
 
 FLAGS = \
 	-I. \
 	-Isrc \
-	-Isrc/lib \
+	-I../libmatoya/src \
 	-Wall \
 	-Wextra \
 	-D_POSIX_C_SOURCE=200112L \
@@ -32,14 +29,10 @@ FLAGS = \
 
 ifeq ($(UNAME), Linux)
 
-OBJS := $(OBJS) \
-	src/lib/unix/linux/window.o \
-	src/lib/unix/linux/window-quad.o \
-	src/lib/unix/linux/audio.o
-
 LIBS = \
 	-lm
 
+OS = linux
 endif
 
 ifeq ($(UNAME), Darwin)
@@ -47,10 +40,7 @@ ifeq ($(UNAME), Darwin)
 export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
 
 OBJS := $(OBJS) \
-	src/app/deps/imgui/imgui_impl_metal.o \
-	src/lib/unix/macos/window.o \
-	src/lib/unix/macos/window-quad.o \
-	src/lib/unix/macos/audio.o
+	src/app/deps/imgui/imgui_impl_metal.o
 
 LIBS = \
 	-lc++ \
@@ -59,7 +49,10 @@ LIBS = \
 	-framework Metal \
 	-framework AudioToolbox
 
+OS = macos
 endif
+
+LIBS := $(LIBS) ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a
 
 LD_FLAGS = \
 
