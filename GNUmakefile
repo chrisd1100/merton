@@ -23,13 +23,17 @@ FLAGS = \
 	-D_POSIX_C_SOURCE=200112L \
 	-Wno-unused-function \
 	-Wno-unused-result \
-	-Wno-undefined-internal \
 	-Wno-unused-value \
 	-Wno-unused-parameter
 
 ifeq ($(UNAME), Linux)
 
+OBJS := $(OBJS) \
+	src/app/deps/imgui/impl/im-gl.o
+
 LIBS = \
+	-ldl \
+	-lstdc++ \
 	-lm
 
 OS = linux

@@ -7,10 +7,6 @@
 
 #include "deps/imgui/im.h"
 
-#if !defined(_WIN32)
-	#define _strdup(s) strdup(s)
-#endif
-
 #define COLOR_TEXT    0xFEEEEEEE
 #define COLOR_LABEL   0xFFAAAAAA
 #define COLOR_BUTTON  0xFF555555
@@ -51,7 +47,7 @@ static struct component_state {
 void ui_set_message(const char *msg, int32_t timeout)
 {
 	free(CMP.msg);
-	CMP.msg = _strdup(msg);
+	CMP.msg = MTY_MemDuplicate(msg, strlen(msg));
 
 	CMP.ts = MTY_Timestamp();
 	CMP.timeout = timeout;

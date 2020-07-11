@@ -6,8 +6,10 @@
 
 #if defined(_WIN32)
 	#include "impl/im-dx11.h"
-#else
+#elif defined(__APPLE__)
 	#include "impl/im-mtl.h"
+#else
+	#include "impl/im-gl.h"
 #endif
 
 using namespace ImGui;
@@ -23,6 +25,8 @@ static struct im {
 	struct im_dx11 *dx11;
 	#elif defined(__APPLE__)
 	struct im_mtl *mtl;
+	#else
+	struct im_gl *gl;
 	#endif
 	struct im_draw_data draw_data;
 	MTY_Device *device;
@@ -138,6 +142,8 @@ static void im_impl_destroy(void)
 		im_dx11_destroy(&IM.dx11);
 	#elif defined(__APPLE__)
 		im_mtl_destroy(&IM.mtl);
+	#else
+		im_gl_destroy(&IM.gl);
 	#endif
 }
 
@@ -151,12 +157,15 @@ static bool im_impl_init(MTY_Device *device, MTY_Context *context)
 
 	#if defined(_WIN32)
 		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
-		bool r = device != NULL && context != NULL &&
+		bool r = device && context &&
 			im_dx11_create((ID3D11Device *) device, pixels, width, height, &IM.dx11);
 	#elif defined(__APPLE__)
 		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
-		bool r = device != NULL && im_mtl_create((MTL_Device *) device, pixels, width, height, &IM.mtl);
+		bool r = device && im_mtl_create((MTL_Device *) device, pixels, width, height, &IM.mtl);
+	#else
+		//TODO decide between GL and GLES here
+		bool r = im_gl_create("", pixels, width, height, &IM.gl);
 	#endif
 
 	if (!r) {
@@ -206,6 +215,8 @@ bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Tex
 	#elif defined(__APPLE__)
 		IM.texture = (MTY_Texture *) im_mtl_get_drawable_texture((CA_MetalDrawable *) texture); // this is an id<CAMetalDrawable>
 		im_mtl_texture_size((MTL_Texture *) IM.texture, &IM.width, &IM.height);
+	#else
+		//TODO get texture height and width here
 	#endif
 
 	return true;
@@ -313,6 +324,8 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 		io.Fonts->TexID = im_dx11_font_texture(IM.dx11);
 	#elif defined(__APPLE__)
 		io.Fonts->TexID = im_mtl_font_texture(IM.mtl);
+	#else
+		io.Fonts->TexID = (void *) im_gl_font_texture(IM.gl);
 	#endif
 
 	int64_t now = MTY_Timestamp();
@@ -364,6 +377,8 @@ void im_render(bool clear)
 
 	#elif defined(__APPLE__)
 		im_mtl_render(IM.mtl, &IM.draw_data, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);
+	#else
+		im_gl_render(IM.gl, &IM.draw_data);
 	#endif
 }
 

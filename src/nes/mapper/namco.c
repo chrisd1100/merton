@@ -80,6 +80,7 @@ static void namco_prg_write(struct cart *cart, uint16_t addr, uint8_t v)
 			case 0xC000: // Nametables (mapper 19), RAM enable (mapper 210.1)
 				if (cart->hdr.mapper == 210 && cart->hdr.submapper == 1)
 					cart->ram_enable = v & 0x1;
+				break;
 			case 0xC800:
 			case 0xD000:
 			case 0xD800:
