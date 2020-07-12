@@ -56,9 +56,7 @@ LIBS = \
 OS = macos
 endif
 
-LIBS := $(LIBS) ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a
-
-LD_FLAGS = \
+LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
 
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
@@ -72,9 +70,6 @@ CFLAGS = $(FLAGS) \
 
 CXXFLAGS = $(FLAGS) \
 	-std=c++11
-
-%.o: %.mm
-	$(CC) $(CXXFLAGS)   -c -o $@ $<
 
 LD_COMMAND = \
 	$(CC) \
