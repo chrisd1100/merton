@@ -435,9 +435,10 @@ int32_t main(int32_t argc, char **argv)
 			MTY_Context *context = MTY_WindowGetContext(ctx.window);
 			MTY_Texture *back_buffer = MTY_WindowGetBackBuffer(ctx.window);
 
-			im_begin(MTY_WindowGetDPIScale(ctx.window), device, context, back_buffer);
-			im_draw(main_im_root, &ctx);
-			im_render(!NES_CartLoaded(ctx.nes));
+			if (im_begin(MTY_WindowGetDPIScale(ctx.window), device, context, back_buffer)) {
+				im_draw(main_im_root, &ctx);
+				im_render(!NES_CartLoaded(ctx.nes));
+			}
 
 			MTY_WindowReleaseBackBuffer(back_buffer);
 			double wait = floor(1000.0 / 60.0 - MTY_TimestampDiff(ts, MTY_Timestamp())) - 1.0;

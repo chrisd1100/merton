@@ -178,7 +178,7 @@ static bool im_impl_init(MTY_Device *device, MTY_Context *context)
 
 bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Texture *texture)
 {
-	if (device != IM.device || context != IM.context || dpi_scale != IM.dpi_scale) {
+	if (!IM.impl_init || device != IM.device || context != IM.context || dpi_scale != IM.dpi_scale) {
 		if (IM.impl_init) {
 			im_impl_destroy();
 			IM.impl_init = false;
