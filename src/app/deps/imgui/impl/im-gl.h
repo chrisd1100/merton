@@ -18,6 +18,8 @@ GL_Uint im_gl_font_texture(struct im_gl *ctx);
 void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd);
 void im_gl_destroy(struct im_gl **gl);
 
+void im_gl_texture_size(struct im_gl *ctx, GL_Uint texture, float *width, float *height);
+
 #ifdef __cplusplus
 }
 #endif

@@ -23,46 +23,47 @@ struct im_gl {
 	GLuint vb;
 	GLuint eb;
 
-	PFNGLENABLEPROC glEnable;
-	PFNGLDISABLEPROC glDisable;
-	PFNGLISENABLEDPROC glIsEnabled;
-	PFNGLVIEWPORTPROC glViewport;
-	PFNGLSCISSORPROC glScissor;
-	PFNGLGETINTEGERVPROC glGetIntegerv;
-	PFNGLBINDTEXTUREPROC glBindTexture;
-	PFNGLDELETETEXTURESPROC glDeleteTextures;
-	PFNGLBLENDFUNCPROC glBlendFunc;
-	PFNGLTEXPARAMETERIPROC glTexParameteri;
-	PFNGLGENTEXTURESPROC glGenTextures;
-	PFNGLTEXIMAGE2DPROC glTexImage2D;
-	PFNGLDRAWELEMENTSPROC glDrawElements;
-
-	PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
-	PFNGLSHADERSOURCEPROC glShaderSource;
-	PFNGLBINDBUFFERPROC glBindBuffer;
-	PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
-	PFNGLCREATEPROGRAMPROC glCreateProgram;
-	PFNGLUNIFORM1IPROC glUniform1i;
-	PFNGLACTIVETEXTUREPROC glActiveTexture;
-	PFNGLDELETEBUFFERSPROC glDeleteBuffers;
+	// OpenGL / GLES 3.0
+	PFNGLENABLEPROC                  glEnable;
+	PFNGLDISABLEPROC                 glDisable;
+	PFNGLISENABLEDPROC               glIsEnabled;
+	PFNGLVIEWPORTPROC                glViewport;
+	PFNGLSCISSORPROC                 glScissor;
+	PFNGLGETINTEGERVPROC             glGetIntegerv;
+	PFNGLBINDTEXTUREPROC             glBindTexture;
+	PFNGLDELETETEXTURESPROC          glDeleteTextures;
+	PFNGLGETTEXLEVELPARAMETERIVPROC  glGetTexLevelParameteriv;
+	PFNGLBLENDFUNCPROC               glBlendFunc;
+	PFNGLTEXPARAMETERIPROC           glTexParameteri;
+	PFNGLGENTEXTURESPROC             glGenTextures;
+	PFNGLTEXIMAGE2DPROC              glTexImage2D;
+	PFNGLDRAWELEMENTSPROC            glDrawElements;
+	PFNGLGETATTRIBLOCATIONPROC       glGetAttribLocation;
+	PFNGLSHADERSOURCEPROC            glShaderSource;
+	PFNGLBINDBUFFERPROC              glBindBuffer;
+	PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer;
+	PFNGLCREATEPROGRAMPROC           glCreateProgram;
+	PFNGLUNIFORM1IPROC               glUniform1i;
+	PFNGLACTIVETEXTUREPROC           glActiveTexture;
+	PFNGLDELETEBUFFERSPROC           glDeleteBuffers;
 	PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-	PFNGLBUFFERDATAPROC glBufferData;
-	PFNGLDELETESHADERPROC glDeleteShader;
-	PFNGLGENBUFFERSPROC glGenBuffers;
-	PFNGLCOMPILESHADERPROC glCompileShader;
-	PFNGLLINKPROGRAMPROC glLinkProgram;
-	PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
-	PFNGLCREATESHADERPROC glCreateShader;
-	PFNGLATTACHSHADERPROC glAttachShader;
-	PFNGLUSEPROGRAMPROC glUseProgram;
-	PFNGLGETSHADERIVPROC glGetShaderiv;
-	PFNGLDETACHSHADERPROC glDetachShader;
-	PFNGLDELETEPROGRAMPROC glDeleteProgram;
-	PFNGLBLENDEQUATIONPROC glBlendEquation;
-	PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-	PFNGLBLENDEQUATIONSEPARATEPROC glBlendEquationSeparate;
-	PFNGLBLENDFUNCSEPARATEPROC glBlendFuncSeparate;
-	PFNGLGETPROGRAMIVPROC glGetProgramiv;
+	PFNGLBUFFERDATAPROC              glBufferData;
+	PFNGLDELETESHADERPROC            glDeleteShader;
+	PFNGLGENBUFFERSPROC              glGenBuffers;
+	PFNGLCOMPILESHADERPROC           glCompileShader;
+	PFNGLLINKPROGRAMPROC             glLinkProgram;
+	PFNGLGETUNIFORMLOCATIONPROC      glGetUniformLocation;
+	PFNGLCREATESHADERPROC            glCreateShader;
+	PFNGLATTACHSHADERPROC            glAttachShader;
+	PFNGLUSEPROGRAMPROC              glUseProgram;
+	PFNGLGETSHADERIVPROC             glGetShaderiv;
+	PFNGLDETACHSHADERPROC            glDetachShader;
+	PFNGLDELETEPROGRAMPROC           glDeleteProgram;
+	PFNGLBLENDEQUATIONPROC           glBlendEquation;
+	PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv;
+	PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
+	PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
+	PFNGLGETPROGRAMIVPROC            glGetProgramiv;
 };
 
 struct im_gl_state {
@@ -208,57 +209,57 @@ void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd)
 	im_gl_pop_state(ctx, &state);
 }
 
-#define GL_PROC(cast, func) \
-	ctx->func = (cast) MTY_GLGetProcAddress(#func); \
-	if (!ctx->func) {r = false; goto except;}
-
 bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_t height, struct im_gl **gl)
 {
 	struct im_gl *ctx = *gl = calloc(1, sizeof(struct im_gl));
 
 	bool r = true;
 
-	// Load functions
-	GL_PROC(PFNGLENABLEPROC, glEnable);
-	GL_PROC(PFNGLDISABLEPROC, glDisable);
-	GL_PROC(PFNGLISENABLEDPROC, glIsEnabled);
-	GL_PROC(PFNGLVIEWPORTPROC, glViewport);
-	GL_PROC(PFNGLSCISSORPROC, glScissor);
-	GL_PROC(PFNGLGETINTEGERVPROC, glGetIntegerv);
-	GL_PROC(PFNGLBINDTEXTUREPROC, glBindTexture);
-	GL_PROC(PFNGLDELETETEXTURESPROC, glDeleteTextures);
-	GL_PROC(PFNGLBLENDFUNCPROC, glBlendFunc);
-	GL_PROC(PFNGLTEXPARAMETERIPROC, glTexParameteri);
-	GL_PROC(PFNGLGENTEXTURESPROC, glGenTextures);
-	GL_PROC(PFNGLTEXIMAGE2DPROC, glTexImage2D);
-	GL_PROC(PFNGLDRAWELEMENTSPROC, glDrawElements);
+	// Load the API
+	#define IM_GL_PROC(cast, func) \
+		ctx->func = (cast) MTY_GLGetProcAddress(#func); \
+		if (!ctx->func) {r = false; goto except;}
 
-	GL_PROC(PFNGLGETATTRIBLOCATIONPROC, glGetAttribLocation);
-	GL_PROC(PFNGLSHADERSOURCEPROC, glShaderSource);
-	GL_PROC(PFNGLBINDBUFFERPROC, glBindBuffer);
-	GL_PROC(PFNGLVERTEXATTRIBPOINTERPROC, glVertexAttribPointer);
-	GL_PROC(PFNGLCREATEPROGRAMPROC, glCreateProgram);
-	GL_PROC(PFNGLUNIFORM1IPROC, glUniform1i);
-	GL_PROC(PFNGLACTIVETEXTUREPROC, glActiveTexture);
-	GL_PROC(PFNGLDELETEBUFFERSPROC, glDeleteBuffers);
-	GL_PROC(PFNGLENABLEVERTEXATTRIBARRAYPROC, glEnableVertexAttribArray);
-	GL_PROC(PFNGLBUFFERDATAPROC, glBufferData);
-	GL_PROC(PFNGLDELETESHADERPROC, glDeleteShader);
-	GL_PROC(PFNGLGENBUFFERSPROC, glGenBuffers);
-	GL_PROC(PFNGLCOMPILESHADERPROC, glCompileShader);
-	GL_PROC(PFNGLLINKPROGRAMPROC, glLinkProgram);
-	GL_PROC(PFNGLGETUNIFORMLOCATIONPROC, glGetUniformLocation);
-	GL_PROC(PFNGLCREATESHADERPROC, glCreateShader);
-	GL_PROC(PFNGLATTACHSHADERPROC, glAttachShader);
-	GL_PROC(PFNGLUSEPROGRAMPROC, glUseProgram);
-	GL_PROC(PFNGLGETSHADERIVPROC, glGetShaderiv);
-	GL_PROC(PFNGLDETACHSHADERPROC, glDetachShader);
-	GL_PROC(PFNGLDELETEPROGRAMPROC, glDeleteProgram);
-	GL_PROC(PFNGLBLENDEQUATIONPROC, glBlendEquation);
-	GL_PROC(PFNGLUNIFORMMATRIX4FVPROC, glUniformMatrix4fv);
-	GL_PROC(PFNGLBLENDEQUATIONSEPARATEPROC, glBlendEquationSeparate);
-	GL_PROC(PFNGLBLENDFUNCSEPARATEPROC, glBlendFuncSeparate);
-	GL_PROC(PFNGLGETPROGRAMIVPROC, glGetProgramiv);
+	IM_GL_PROC(PFNGLENABLEPROC,                  glEnable);
+	IM_GL_PROC(PFNGLDISABLEPROC,                 glDisable);
+	IM_GL_PROC(PFNGLISENABLEDPROC,               glIsEnabled);
+	IM_GL_PROC(PFNGLVIEWPORTPROC,                glViewport);
+	IM_GL_PROC(PFNGLSCISSORPROC,                 glScissor);
+	IM_GL_PROC(PFNGLGETINTEGERVPROC,             glGetIntegerv);
+	IM_GL_PROC(PFNGLBINDTEXTUREPROC,             glBindTexture);
+	IM_GL_PROC(PFNGLDELETETEXTURESPROC,          glDeleteTextures);
+	IM_GL_PROC(PFNGLGETTEXLEVELPARAMETERIVPROC,  glGetTexLevelParameteriv);
+	IM_GL_PROC(PFNGLBLENDFUNCPROC,               glBlendFunc);
+	IM_GL_PROC(PFNGLTEXPARAMETERIPROC,           glTexParameteri);
+	IM_GL_PROC(PFNGLGENTEXTURESPROC,             glGenTextures);
+	IM_GL_PROC(PFNGLTEXIMAGE2DPROC,              glTexImage2D);
+	IM_GL_PROC(PFNGLDRAWELEMENTSPROC,            glDrawElements);
+	IM_GL_PROC(PFNGLGETATTRIBLOCATIONPROC,       glGetAttribLocation);
+	IM_GL_PROC(PFNGLSHADERSOURCEPROC,            glShaderSource);
+	IM_GL_PROC(PFNGLBINDBUFFERPROC,              glBindBuffer);
+	IM_GL_PROC(PFNGLVERTEXATTRIBPOINTERPROC,     glVertexAttribPointer);
+	IM_GL_PROC(PFNGLCREATEPROGRAMPROC,           glCreateProgram);
+	IM_GL_PROC(PFNGLUNIFORM1IPROC,               glUniform1i);
+	IM_GL_PROC(PFNGLACTIVETEXTUREPROC,           glActiveTexture);
+	IM_GL_PROC(PFNGLDELETEBUFFERSPROC,           glDeleteBuffers);
+	IM_GL_PROC(PFNGLENABLEVERTEXATTRIBARRAYPROC, glEnableVertexAttribArray);
+	IM_GL_PROC(PFNGLBUFFERDATAPROC,              glBufferData);
+	IM_GL_PROC(PFNGLDELETESHADERPROC,            glDeleteShader);
+	IM_GL_PROC(PFNGLGENBUFFERSPROC,              glGenBuffers);
+	IM_GL_PROC(PFNGLCOMPILESHADERPROC,           glCompileShader);
+	IM_GL_PROC(PFNGLLINKPROGRAMPROC,             glLinkProgram);
+	IM_GL_PROC(PFNGLGETUNIFORMLOCATIONPROC,      glGetUniformLocation);
+	IM_GL_PROC(PFNGLCREATESHADERPROC,            glCreateShader);
+	IM_GL_PROC(PFNGLATTACHSHADERPROC,            glAttachShader);
+	IM_GL_PROC(PFNGLUSEPROGRAMPROC,              glUseProgram);
+	IM_GL_PROC(PFNGLGETSHADERIVPROC,             glGetShaderiv);
+	IM_GL_PROC(PFNGLDETACHSHADERPROC,            glDetachShader);
+	IM_GL_PROC(PFNGLDELETEPROGRAMPROC,           glDeleteProgram);
+	IM_GL_PROC(PFNGLBLENDEQUATIONPROC,           glBlendEquation);
+	IM_GL_PROC(PFNGLUNIFORMMATRIX4FVPROC,        glUniformMatrix4fv);
+	IM_GL_PROC(PFNGLBLENDEQUATIONSEPARATEPROC,   glBlendEquationSeparate);
+	IM_GL_PROC(PFNGLBLENDFUNCSEPARATEPROC,       glBlendFuncSeparate);
+	IM_GL_PROC(PFNGLGETPROGRAMIVPROC,            glGetProgramiv);
 
 	// Create vertex, fragment shaders
 	const GLchar *vertex_shader[2] = {0};
@@ -408,4 +409,17 @@ void im_gl_destroy(struct im_gl **gl)
 
 	free(ctx);
 	*gl = NULL;
+}
+
+void im_gl_texture_size(struct im_gl *ctx, GL_Uint texture, float *width, float *height)
+{
+	GLint w = 0;
+	GLint h = 0;
+
+	ctx->glBindTexture(GL_TEXTURE_2D, texture);
+	ctx->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+	ctx->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+
+	*width = (float) w;
+	*height = (float) h;
 }

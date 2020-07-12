@@ -164,8 +164,8 @@ static bool im_impl_init(MTY_Device *device, MTY_Context *context)
 
 		bool r = device && im_mtl_create((MTL_Device *) device, pixels, width, height, &IM.mtl);
 	#else
-		//TODO decide between GL and GLES here
-		bool r = im_gl_create("", pixels, width, height, &IM.gl);
+		// FIXME GLES needs version 100 here
+		bool r = im_gl_create("#version 110", pixels, width, height, &IM.gl);
 	#endif
 
 	if (!r) {
@@ -216,7 +216,8 @@ bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Tex
 		IM.texture = (MTY_Texture *) im_mtl_get_drawable_texture((CA_MetalDrawable *) texture); // this is an id<CAMetalDrawable>
 		im_mtl_texture_size((MTL_Texture *) IM.texture, &IM.width, &IM.height);
 	#else
-		//TODO get texture height and width here
+		IM.texture = texture;
+		im_gl_texture_size(IM.gl, (GL_Uint) (size_t) texture, &IM.width, &IM.height);
 	#endif
 
 	return true;
