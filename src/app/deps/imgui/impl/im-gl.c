@@ -149,7 +149,7 @@ void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd)
 
 			// Make sure the rect is actually in the viewport
 			if (r.x < fb_width && r.y < fb_height && r.z >= 0.0f && r.w >= 0.0f) {
-				glScissor(lrint(r.x), lrint(fb_height - r.w), lrint(r.z - clip_rect.x), lrint(r.w - r.y));
+				glScissor(lrint(r.x), lrint(fb_height - r.w), lrint(r.z - r.x), lrint(r.w - r.y));
 
 				// Optionally sample from a texture (fonts, images)
 				glBindTexture(GL_TEXTURE_2D, (GLuint) (size_t) pcmd->texture_id);

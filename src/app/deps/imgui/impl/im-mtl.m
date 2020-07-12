@@ -38,29 +38,23 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 		ctx->ib = [cq.device newBufferWithLength:ctx->ib_len * sizeof(uint16_t) options:MTLResourceStorageModeShared];
 	}
 
-	// Set viewport based on display size
-	MTLViewport viewport = {
-		.originX = 0.0,
-		.originY = 0.0,
-		.width = dd->display_size.x * dd->framebuffer_scale.x,
-		.height = dd->display_size.y * dd->framebuffer_scale.y,
-		.znear = 0.0,
-		.zfar = 1.0
-	};
-
 	// Update the vertex shader's projection data based on the current display size
 	float L = dd->display_pos.x;
 	float R = dd->display_pos.x + dd->display_size.x;
 	float T = dd->display_pos.y;
 	float B = dd->display_pos.y + dd->display_size.y;
-	float N = viewport.znear;
-	float F = viewport.zfar;
 	const float proj[4][4] = {
-		{2.0f / (R-L),   0.0f,         0.0f,         0.0f},
-		{0.0f,           2.0f / (T-B), 0.0f,         0.0f},
-		{0.0f,           0.0f,         1.0f / (F-N), 0.0f},
-		{(R+L) / (L-R), (T+B) / (B-T), N / (F-N),    1.0f},
+		{2.0f / (R-L),   0.0f,         0.0f,  0.0f},
+		{0.0f,           2.0f / (T-B), 0.0f,  0.0f},
+		{0.0f,           0.0f,         1.0f,  0.0f},
+		{(R+L) / (L-R), (T+B) / (B-T), 0.0f,  1.0f},
 	};
+
+	// Set viewport based on display size
+	MTLViewport viewport = {0};
+	viewport.width = dd->display_size.x * dd->framebuffer_scale.x;
+	viewport.height = dd->display_size.y * dd->framebuffer_scale.y;
+	viewport.zfar = 1.0;
 
 	// Begin render pass, pipeline has been created in advance
 	id<MTLCommandBuffer> cb = [cq commandBuffer];
@@ -109,8 +103,7 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 				[re setScissorRect:scissorRect];
 
 				// Optionally sample from a texture (fonts, images)
-				if (pcmd->texture_id)
-					[re setFragmentTexture:(__bridge id<MTLTexture>) pcmd->texture_id atIndex:0];
+				[re setFragmentTexture:(__bridge id<MTLTexture>) pcmd->texture_id atIndex:0];
 
 				// Draw indexed
 				[re setVertexBufferOffset:(vertex_offset + pcmd->vtx_offset * sizeof(struct im_vtx)) atIndex:0];
@@ -127,6 +120,7 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 	// End render pass
 	[re endEncoding];
 	[cb commit];
+	[cb waitUntilCompleted];
 }
 
 bool im_mtl_create(MTL_Device *odevice, const void *font, uint32_t width, uint32_t height, struct im_mtl **mtl)
@@ -161,7 +155,7 @@ bool im_mtl_create(MTL_Device *odevice, const void *font, uint32_t width, uint32
 		"};                                                                   \n"
 		"                                                                     \n"
 		"struct VertexOut {                                                   \n"
-		"    float4 pos [[pos]];                                              \n"
+		"    float4 pos [[position]];                                         \n"
 		"    float2 uv;                                                       \n"
 		"    float4 color;                                                    \n"
 		"};                                                                   \n"
@@ -231,13 +225,8 @@ bool im_mtl_create(MTL_Device *odevice, const void *font, uint32_t width, uint32
 
 	// Font texture
 	tdesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:width height:height mipmapped:NO];
-
 	tdesc.usage = MTLTextureUsageShaderRead;
-	#if TARGET_OS_OSX
-		tdesc.storageMode = MTLStorageModeManaged;
-	#else
-		tdesc.storageMode = MTLStorageModeShared;
-	#endif
+	tdesc.cpuCacheMode = MTLCPUCacheModeWriteCombined;
 	ctx->font = [device newTextureWithDescriptor:tdesc];
 
 	[ctx->font replaceRegion:MTLRegionMake2D(0, 0, width, height) mipmapLevel:0 withBytes:font bytesPerRow:width * 4];
