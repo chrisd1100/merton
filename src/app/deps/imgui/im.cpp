@@ -202,8 +202,9 @@ bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Tex
 		IM.context = context;
 	}
 
+	IM.texture = texture;
+
 	#if defined(_WIN32)
-		IM.texture = texture;
 		ID3D11Texture2D *d3d11texture = (ID3D11Texture2D *) texture;
 
 		D3D11_TEXTURE2D_DESC desc = {0};
@@ -213,11 +214,9 @@ bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Tex
 		IM.height = (float) desc.Height;
 
 	#elif defined(__APPLE__)
-		IM.texture = (MTY_Texture *) im_mtl_get_drawable_texture((CA_MetalDrawable *) texture); // this is an id<CAMetalDrawable>
 		im_mtl_texture_size((MTL_Texture *) IM.texture, &IM.width, &IM.height);
 
 	#else
-		IM.texture = texture;
 		im_gl_texture_size(IM.gl, (GL_Uint) (size_t) texture, &IM.width, &IM.height);
 	#endif
 

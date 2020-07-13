@@ -272,10 +272,3 @@ void im_mtl_texture_size(MTL_Texture *texture, float *width, float *height)
 	*width = mtltex.width;
 	*height = mtltex.height;
 }
-
-MTL_Texture *im_mtl_get_drawable_texture(CA_MetalDrawable *drawable)
-{
-	id<CAMetalDrawable> d = (__bridge id<CAMetalDrawable>) drawable;
-
-	return (__bridge MTL_Texture *) d.texture;
-}
