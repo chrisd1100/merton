@@ -354,10 +354,10 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 
 void im_render(bool clear)
 {
-	if (!IM.device || !IM.context)
-		return;
-
 	#if defined(_WIN32)
+		if (!IM.device || !IM.context)
+			return;
+
 		ID3D11RenderTargetView *rtv = NULL;
 		ID3D11Device *device = (ID3D11Device *) IM.device;
 		HRESULT e = device->CreateRenderTargetView((ID3D11Texture2D *) IM.texture, NULL, &rtv);
@@ -377,6 +377,9 @@ void im_render(bool clear)
 		}
 
 	#elif defined(__APPLE__)
+		if (!IM.context)
+			return;
+
 		im_mtl_render(IM.mtl, &IM.draw_data, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);
 
 	#else
