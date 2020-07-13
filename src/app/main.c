@@ -440,7 +440,6 @@ int32_t main(int32_t argc, char **argv)
 				im_render(!NES_CartLoaded(ctx.nes));
 			}
 
-			MTY_WindowReleaseBackBuffer(back_buffer);
 			double wait = floor(1000.0 / 60.0 - MTY_TimestampDiff(ts, MTY_Timestamp())) - 1.0;
 			MTY_WindowPresent(ctx.window, main_sync_to_60(&ctx));
 
