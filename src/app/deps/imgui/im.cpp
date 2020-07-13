@@ -215,6 +215,7 @@ bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Tex
 	#elif defined(__APPLE__)
 		IM.texture = (MTY_Texture *) im_mtl_get_drawable_texture((CA_MetalDrawable *) texture); // this is an id<CAMetalDrawable>
 		im_mtl_texture_size((MTL_Texture *) IM.texture, &IM.width, &IM.height);
+
 	#else
 		IM.texture = texture;
 		im_gl_texture_size(IM.gl, (GL_Uint) (size_t) texture, &IM.width, &IM.height);
@@ -378,7 +379,9 @@ void im_render(bool clear)
 
 	#elif defined(__APPLE__)
 		im_mtl_render(IM.mtl, &IM.draw_data, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);
+
 	#else
+		// FIXME For this to be correct, we should use framebuffers
 		im_gl_render(IM.gl, &IM.draw_data);
 	#endif
 }
