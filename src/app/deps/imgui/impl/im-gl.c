@@ -5,8 +5,7 @@
 #include <stddef.h>
 #include <math.h>
 
-#include "glcorearb.h"
-#include "glext.h"
+#include "../../GL/glcorearb30.h"
 
 #include "matoya.h"
 
