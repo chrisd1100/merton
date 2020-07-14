@@ -34,7 +34,9 @@ OBJS := $(OBJS) \
 LIBS = \
 	-ldl \
 	-lstdc++ \
-	-lm
+	-lm \
+	-lc \
+	-lgcc_s
 
 OS = linux
 endif
@@ -57,6 +59,9 @@ OS = macos
 endif
 
 LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
+
+LD_FLAGS = \
+	-nodefaultlibs
 
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
