@@ -49,6 +49,7 @@ OBJS := $(OBJS) \
 	src/app/deps/imgui/impl/im-mtl.o
 
 LIBS = \
+	-lc \
 	-lc++ \
 	-framework AppKit \
 	-framework QuartzCore \
