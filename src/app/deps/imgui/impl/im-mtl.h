@@ -16,7 +16,8 @@ typedef struct MTL_CommandQueue MTL_CommandQueue;
 typedef struct MTL_Texture MTL_Texture;
 
 bool im_mtl_create(MTL_Device *device, const void *font, uint32_t width, uint32_t height, struct im_mtl **mtl);
-void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_CommandQueue *cq, MTL_Texture *texture);
+void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, bool clear,
+	MTL_CommandQueue *ocq, MTL_Texture *otexture);
 MTL_Texture *im_mtl_font_texture(struct im_mtl *ctx);
 void im_mtl_destroy(struct im_mtl **mtl);
 

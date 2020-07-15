@@ -359,11 +359,13 @@ void im_render(bool clear)
 		if (!IM.context || !IM.texture)
 			return;
 
-		im_mtl_render(IM.mtl, &IM.draw_data, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);
+		im_mtl_render(IM.mtl, &IM.draw_data, clear, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);
 
 	#else
-		// FIXME For this to be correct, we should use framebuffers
-		im_gl_render(IM.gl, &IM.draw_data);
+		if (!IM.texture)
+			return;
+
+		im_gl_render(IM.gl, &IM.draw_data, clear, (GL_Uint) (size_t) IM.texture);
 	#endif
 }
 

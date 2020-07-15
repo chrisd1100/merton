@@ -15,7 +15,8 @@ struct im_mtl {
 	uint32_t ib_len;
 };
 
-void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_CommandQueue *ocq, MTL_Texture *otexture)
+void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, bool clear,
+	MTL_CommandQueue *ocq, MTL_Texture *otexture)
 {
 	id<MTLCommandQueue> cq = (__bridge id<MTLCommandQueue>) ocq;
 	id<MTLTexture> texture = (__bridge id<MTLTexture>) otexture;
@@ -60,8 +61,9 @@ void im_mtl_render(struct im_mtl *ctx, const struct im_draw_data *dd, MTL_Comman
 	id<MTLCommandBuffer> cb = [cq commandBuffer];
 	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
 	rpd.colorAttachments[0].texture = texture;
-	rpd.colorAttachments[0].loadAction = MTLLoadActionLoad;
+	rpd.colorAttachments[0].loadAction = clear ? MTLLoadActionClear : MTLLoadActionLoad;
 	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
+	rpd.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 1.0);
 
 	id<MTLRenderCommandEncoder> re = [cb renderCommandEncoderWithDescriptor:rpd];
 	[re setViewport:viewport];

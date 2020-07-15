@@ -14,6 +14,7 @@ struct im_gl {
 	GLuint prog;
 	GLuint vs;
 	GLuint fs;
+	GLuint fb;
 	GLint loc_tex;
 	GLint loc_proj;
 	GLint loc_pos;
@@ -63,15 +64,24 @@ struct im_gl {
 	PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
 	PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
 	PFNGLGETPROGRAMIVPROC            glGetProgramiv;
+	PFNGLGENFRAMEBUFFERSPROC         glGenFramebuffers;
+	PFNGLDELETEFRAMEBUFFERSPROC      glDeleteFramebuffers;
+	PFNGLBINDFRAMEBUFFERPROC         glBindFramebuffer;
+	PFNGLFRAMEBUFFERTEXTURE2DPROC    glFramebufferTexture2D;
+	PFNGLCLEARPROC                   glClear;
+	PFNGLCLEARCOLORPROC              glClearColor;
+	PFNGLGETFLOATVPROC               glGetFloatv;
 };
 
 struct im_gl_state {
 	GLint array_buffer;
+	GLint fb;
 	GLenum active_texture;
 	GLint program;
 	GLint texture;
 	GLint viewport[4];
 	GLint scissor_box[4];
+	GLfloat color_clear_value[4];
 	GLenum blend_src_rgb;
 	GLenum blend_dst_rgb;
 	GLenum blend_src_alpha;
@@ -87,7 +97,6 @@ struct im_gl_state {
 static void im_gl_push_state(struct im_gl *ctx, struct im_gl_state *s)
 {
 	ctx->glGetIntegerv(GL_ACTIVE_TEXTURE, (GLint *) &s->active_texture);
-	ctx->glActiveTexture(GL_TEXTURE0);
 	ctx->glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &s->array_buffer);
 	ctx->glGetIntegerv(GL_CURRENT_PROGRAM, &s->program);
 	ctx->glGetIntegerv(GL_TEXTURE_BINDING_2D, &s->texture);
@@ -99,6 +108,8 @@ static void im_gl_push_state(struct im_gl *ctx, struct im_gl_state *s)
 	ctx->glGetIntegerv(GL_BLEND_DST_ALPHA, (GLint *) &s->blend_dst_alpha);
 	ctx->glGetIntegerv(GL_BLEND_EQUATION_RGB, (GLint *) &s->blend_equation_rgb);
 	ctx->glGetIntegerv(GL_BLEND_EQUATION_ALPHA, (GLint *) &s->blend_equation_alpha);
+	ctx->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, (GLint *) &s->fb);
+	ctx->glGetFloatv(GL_COLOR_CLEAR_VALUE, s->color_clear_value);
 	s->enable_blend = ctx->glIsEnabled(GL_BLEND);
 	s->enable_cull_face = ctx->glIsEnabled(GL_CULL_FACE);
 	s->enable_depth_test = ctx->glIsEnabled(GL_DEPTH_TEST);
@@ -109,10 +120,12 @@ static void im_gl_pop_state(struct im_gl *ctx, struct im_gl_state *s)
 {
 	ctx->glUseProgram(s->program);
 	ctx->glBindTexture(GL_TEXTURE_2D, s->texture);
+	ctx->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s->fb);
 	ctx->glActiveTexture(s->active_texture);
 	ctx->glBindBuffer(GL_ARRAY_BUFFER, s->array_buffer);
 	ctx->glBlendEquationSeparate(s->blend_equation_rgb, s->blend_equation_alpha);
 	ctx->glBlendFuncSeparate(s->blend_src_rgb, s->blend_dst_rgb, s->blend_src_alpha, s->blend_dst_alpha);
+	ctx->glClearColor(s->color_clear_value[0], s->color_clear_value[1], s->color_clear_value[2], s->color_clear_value[3]);
 	if (s->enable_blend) ctx->glEnable(GL_BLEND); else ctx->glDisable(GL_BLEND);
 	if (s->enable_cull_face) ctx->glEnable(GL_CULL_FACE); else ctx->glDisable(GL_CULL_FACE);
 	if (s->enable_depth_test) ctx->glEnable(GL_DEPTH_TEST); else ctx->glDisable(GL_DEPTH_TEST);
@@ -121,7 +134,7 @@ static void im_gl_pop_state(struct im_gl *ctx, struct im_gl_state *s)
 	ctx->glScissor(s->scissor_box[0], s->scissor_box[1], s->scissor_box[2], s->scissor_box[3]);
 }
 
-void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd)
+void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd, bool clear, GL_Uint texture)
 {
 	int32_t fb_width = lrint(dd->display_size.x * dd->framebuffer_scale.x);
 	int32_t fb_height = lrint(dd->display_size.y * dd->framebuffer_scale.y);
@@ -151,11 +164,21 @@ void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd)
 	struct im_gl_state state = {0};
 	im_gl_push_state(ctx, &state);
 
+	// Bind texture to draw framebuffer
+	ctx->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ctx->fb);
+	ctx->glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+	if (clear) {
+		ctx->glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		ctx->glClear(GL_COLOR_BUFFER_BIT);
+	}
+
 	// Set viewport based on display size
 	ctx->glViewport(0, 0, fb_width, fb_height);
 
 	// Set up rendering pipeline
 	ctx->glUseProgram(ctx->prog);
+	ctx->glActiveTexture(GL_TEXTURE0);
 	ctx->glUniform1i(ctx->loc_tex, 0);
 	ctx->glUniformMatrix4fv(ctx->loc_proj, 1, GL_FALSE, &proj[0][0]);
 	ctx->glEnable(GL_BLEND);
@@ -259,6 +282,13 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 	IM_GL_PROC(PFNGLBLENDEQUATIONSEPARATEPROC,   glBlendEquationSeparate);
 	IM_GL_PROC(PFNGLBLENDFUNCSEPARATEPROC,       glBlendFuncSeparate);
 	IM_GL_PROC(PFNGLGETPROGRAMIVPROC,            glGetProgramiv);
+	IM_GL_PROC(PFNGLGENFRAMEBUFFERSPROC,         glGenFramebuffers);
+	IM_GL_PROC(PFNGLDELETEFRAMEBUFFERSPROC,      glDeleteFramebuffers);
+	IM_GL_PROC(PFNGLBINDFRAMEBUFFERPROC,         glBindFramebuffer);
+	IM_GL_PROC(PFNGLFRAMEBUFFERTEXTURE2DPROC,    glFramebufferTexture2D);
+	IM_GL_PROC(PFNGLCLEARPROC,                   glClear);
+	IM_GL_PROC(PFNGLCLEARCOLORPROC,              glClearColor);
+	IM_GL_PROC(PFNGLGETFLOATVPROC,               glGetFloatv);
 
 	// Create vertex, fragment shaders
 	const GLchar *vertex_shader[2] = {0};
@@ -356,6 +386,8 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 
 	ctx->glBindTexture(GL_TEXTURE_2D, prev_texture);
 
+	ctx->glGenFramebuffers(1, &ctx->fb);
+
 	except:
 
 	if (!r)
@@ -405,6 +437,9 @@ void im_gl_destroy(struct im_gl **gl)
 
 	if (ctx->glDeleteTextures && ctx->font)
 		ctx->glDeleteTextures(1, &ctx->font);
+
+	if (ctx->glDeleteFramebuffers && ctx->fb)
+		ctx->glDeleteFramebuffers(1, &ctx->fb);
 
 	free(ctx);
 	*gl = NULL;
