@@ -47,7 +47,7 @@ static struct component_state {
 void ui_set_message(const char *msg, int32_t timeout)
 {
 	free(CMP.msg);
-	CMP.msg = MTY_MemDuplicate(msg, strlen(msg));
+	CMP.msg = MTY_Strdup(msg);
 
 	CMP.ts = MTY_Timestamp();
 	CMP.timeout = timeout;
