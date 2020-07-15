@@ -396,11 +396,18 @@ static void main_save_config(struct config *cfg)
 
 /*** MAIN ***/
 
+static void main_mty_log_callback(const char *msg, void *opaque)
+{
+	printf("MTY: %s", msg);
+}
+
 int32_t main(int32_t argc, char **argv)
 {
 	struct main ctx = {0};
 	ctx.cfg = main_load_config();
 	ctx.running = true;
+
+	MTY_SetLogCallback(main_mty_log_callback, NULL);
 
 	bool r = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
 		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, &ctx.window);
