@@ -205,13 +205,7 @@ bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Tex
 	IM.texture = texture;
 
 	#if defined(_WIN32)
-		ID3D11Texture2D *d3d11texture = (ID3D11Texture2D *) texture;
-
-		D3D11_TEXTURE2D_DESC desc = {0};
-		d3d11texture->GetDesc(&desc);
-
-		IM.width = (float) desc.Width;
-		IM.height = (float) desc.Height;
+		im_dx11_texture_size((ID3D11Texture2D *) texture, &IM.width, &IM.height);
 
 	#elif defined(__APPLE__)
 		im_mtl_texture_size((MTL_Texture *) IM.texture, &IM.width, &IM.height);
@@ -355,29 +349,14 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 void im_render(bool clear)
 {
 	#if defined(_WIN32)
-		if (!IM.device || !IM.context)
+		if (!IM.device || !IM.context || !IM.texture)
 			return;
 
-		ID3D11RenderTargetView *rtv = NULL;
-		ID3D11Device *device = (ID3D11Device *) IM.device;
-		HRESULT e = device->CreateRenderTargetView((ID3D11Texture2D *) IM.texture, NULL, &rtv);
-
-		if (e == S_OK) {
-			ID3D11DeviceContext *context = (ID3D11DeviceContext *) IM.context;
-
-			if (clear) {
-				FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-				context->ClearRenderTargetView(rtv, clear_color);
-			}
-
-			context->OMSetRenderTargets(1, &rtv, NULL);
-
-			im_dx11_render(IM.dx11, &IM.draw_data, device, context);
-			rtv->Release();
-		}
+		im_dx11_render(IM.dx11, &IM.draw_data, clear,
+			(ID3D11Device *) IM.device, (ID3D11DeviceContext *) IM.context, (ID3D11Texture2D *) IM.texture);
 
 	#elif defined(__APPLE__)
-		if (!IM.context)
+		if (!IM.context || !IM.texture)
 			return;
 
 		im_mtl_render(IM.mtl, &IM.draw_data, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);

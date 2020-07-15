@@ -189,33 +189,37 @@ static HRESULT im_dx11_resize_buffer(ID3D11Device *device, struct im_dx11_buffer
 	return S_OK;
 }
 
-void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11Device *device, ID3D11DeviceContext *context)
+void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, bool clear, ID3D11Device *device,
+	ID3D11DeviceContext *context, ID3D11Texture2D *texture)
 {
+	ID3D11Resource *tex_res = NULL;
+	ID3D11RenderTargetView *rtv = NULL;
+
 	// Prevent rendering under invalid scenarios
 	if (dd->display_size.x <= 0 || dd->display_size.y <= 0 || dd->cmd_list_len == 0)
-		return;
+		goto except;
 
 	// Resize vertex and index buffers if necessary
 	HRESULT e = im_dx11_resize_buffer(device, &ctx->vb, dd->vtx_len, VTX_INCR, sizeof(struct im_vtx),
 		D3D11_BIND_VERTEX_BUFFER);
 	if (e != S_OK)
-		return;
+		goto except;
 
 	e = im_dx11_resize_buffer(device, &ctx->ib, dd->idx_len, IDX_INCR, sizeof(uint16_t),
 		D3D11_BIND_INDEX_BUFFER);
 	if (e != S_OK)
-		return;
+		goto except;
 
 	// Map both vertex and index buffers and bulk copy the data
 	D3D11_MAPPED_SUBRESOURCE vtx_map = {0};
 	e = ID3D11DeviceContext_Map(context, ctx->vb.res, 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_map);
 	if (e != S_OK)
-		return;
+		goto except;
 
 	D3D11_MAPPED_SUBRESOURCE idx_map = {0};
 	e = ID3D11DeviceContext_Map(context, ctx->ib.res, 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_map);
 	if (e != S_OK)
-		return;
+		goto except;
 
 	struct im_vtx *vtx_dst = (struct im_vtx *) vtx_map.pData;
 	uint16_t *idx_dst = (uint16_t *) idx_map.pData;
@@ -253,7 +257,7 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 	D3D11_MAPPED_SUBRESOURCE cb_map = {0};
 	e = ID3D11DeviceContext_Map(context, ctx->cb_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &cb_map);
 	if (e != S_OK)
-		return;
+		goto except;
 
 	struct im_dx11_cb *cb = (struct im_dx11_cb *) cb_map.pData;
 	memcpy(&cb->proj, proj, sizeof(proj));
@@ -262,6 +266,22 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 	// Store current context state
 	struct im_dx11_state state = {0};
 	im_dx11_push_state(context, &state);
+
+	// Set render target (wraps the texture)
+	e = ID3D11Texture2D_QueryInterface(texture, &IID_ID3D11Resource, &tex_res);
+	if (e != S_OK)
+		goto except;
+
+	e = ID3D11Device_CreateRenderTargetView(device, tex_res, NULL, &rtv);
+	if (e != S_OK)
+		goto except;
+
+	ID3D11DeviceContext_OMSetRenderTargets(context, 1, &rtv, NULL);
+
+	if (clear) {
+		FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+		ID3D11DeviceContext_ClearRenderTargetView(context, rtv, clear_color);
+	}
 
 	// Set viewport based on display size
 	D3D11_VIEWPORT vp = {0};
@@ -327,6 +347,14 @@ void im_dx11_render(struct im_dx11 *ctx, const struct im_draw_data *dd, ID3D11De
 
 	// Restore previous context state
 	im_dx11_pop_state(context, &state);
+
+	except:
+
+	if (rtv)
+		ID3D11RenderTargetView_Release(rtv);
+
+	if (tex_res)
+		ID3D11Resource_Release(tex_res);
 }
 
 bool im_dx11_create(ID3D11Device *device, const void *font, uint32_t width, uint32_t height, struct im_dx11 **dx11)
@@ -519,6 +547,15 @@ void im_dx11_destroy(struct im_dx11 **dx11)
 
 	free(ctx);
 	*dx11 = NULL;
+}
+
+void im_dx11_texture_size(ID3D11Texture2D *texture, float *width, float *height)
+{
+	D3D11_TEXTURE2D_DESC desc = {0};
+	ID3D11Texture2D_GetDesc(texture, &desc);
+
+	*width = (float) desc.Width;
+	*height = (float) desc.Height;
 }
 
 #pragma warning(pop)
