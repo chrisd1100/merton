@@ -506,7 +506,7 @@ static void ui_hotkeys(const struct ui_args *args, struct ui_event *event)
 			CMP.nav ^= NAV_OPEN_ROM;
 
 		} else {
-			CMP.nav = NAV_NONE;
+			CMP.nav ^= NAV_MENU;
 		}
 	}
 
@@ -577,7 +577,7 @@ void ui_root(const struct ui_args *args,
 	ui_hotkeys(args, &event);
 
 	if (args->show_menu)
-		CMP.nav = NAV_MENU;
+		CMP.nav |= NAV_MENU;
 
 	if (CMP.nav & NAV_MENU)
 		ui_menu(args, &event);
