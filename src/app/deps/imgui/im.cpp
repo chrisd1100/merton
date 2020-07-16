@@ -108,7 +108,8 @@ void im_input(MTY_WindowMsg *wmsg)
 
 		case MTY_WINDOW_MSG_MOUSE_MOTION:
 			if (!wmsg->mouseMotion.relative)
-				io.MousePos = ImVec2((float) wmsg->mouseMotion.x, (float) wmsg->mouseMotion.y);
+				io.MousePos = ImVec2((float) wmsg->mouseMotion.x * IM.dpi_scale,
+					(float) wmsg->mouseMotion.y * IM.dpi_scale);
 			break;
 
 		case MTY_WINDOW_MSG_KEYBOARD: {

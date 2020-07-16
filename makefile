@@ -28,17 +28,26 @@ CFLAGS = \
 	-DUNICODE \
 	/nologo \
 	/wd4201 \
-	/Gw \
-	/GS- \
 	/W4 \
-	/O2 \
 	/MT \
 	/MP
 
+LD_FLAGS = \
+	/subsystem:windows \
+	/nodefaultlib \
+	/manifest:embed \
+	/manifestinput:assets\windows\embed.manifest \
+	/nologo
+
 !IFDEF DEBUG
 CFLAGS = $(CFLAGS) /Oy- /Ob0 /Zi
+LD_FLAGS = $(LD_FLAGS) /debug
 !ELSE
+CFLAGS = $(CFLAGS) /O2 /GS- /Gw /Gy
+!IFDEF LTO
 CFLAGS = $(CFLAGS) /GL
+LD_FLAGS = $(LD_FLAGS) /LTCG
+!ENDIF
 !ENDIF
 
 CPPFLAGS = $(CFLAGS) \
@@ -60,19 +69,6 @@ LIBS = \
 	shcore.lib \
 	bcrypt.lib \
 	shlwapi.lib
-
-LD_FLAGS = \
-	/subsystem:windows \
-	/nodefaultlib \
-	/manifest:embed \
-	/manifestinput:assets\windows\embed.manifest \
-	/nologo
-
-!IFDEF DEBUG
-LD_FLAGS = $(LD_FLAGS) /debug
-!ELSE
-LD_FLAGS = $(LD_FLAGS) /LTCG
-!ENDIF
 
 all: clean clear $(OBJS) $(RESOURCES)
 	link *.obj $(LIBS) $(RESOURCES) /out:$(BIN_NAME) $(LD_FLAGS)
