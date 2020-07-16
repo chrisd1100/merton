@@ -1,5 +1,6 @@
-BIN_NAME = \
-	merton.exe
+OS = windows
+ARCH = %Platform%
+BIN_NAME = merton.exe
 
 OBJS = \
 	src\nes\cart.obj \
@@ -13,48 +14,40 @@ OBJS = \
 	src\app\deps\imgui\impl\im-dx11.obj
 
 RESOURCES = \
-	assets\windows\icon.res \
-	assets\windows\versioninfo.res
+	assets\$(OS)\icon.res \
+	assets\$(OS)\versioninfo.res
 
 RFLAGS = \
 	-Isrc \
 	/nologo
 
-CFLAGS = \
-	-I. \
-	-I..\libmatoya\src \
-	-Isrc \
-	-DWIN32_LEAN_AND_MEAN \
-	-DUNICODE \
-	/nologo \
-	/wd4201 \
+FLAGS = \
 	/W4 \
 	/MT \
-	/MP
+	/MP \
+	/volatile:iso \
+	/wd4100 \
+	/wd4201 \
+	/nologo
 
-LD_FLAGS = \
+INCLUDES = \
+	-I. \
+	-I..\libmatoya\src \
+	-Isrc
+
+DEFS = \
+	-DWIN32_LEAN_AND_MEAN \
+	-DUNICODE
+
+LINK_FLAGS = \
 	/subsystem:windows \
 	/nodefaultlib \
 	/manifest:embed \
-	/manifestinput:assets\windows\embed.manifest \
+	/manifestinput:assets\$(OS)\embed.manifest \
 	/nologo
 
-!IFDEF DEBUG
-CFLAGS = $(CFLAGS) /Oy- /Ob0 /Zi
-LD_FLAGS = $(LD_FLAGS) /debug
-!ELSE
-CFLAGS = $(CFLAGS) /O2 /GS- /Gw /Gy
-!IFDEF LTO
-CFLAGS = $(CFLAGS) /GL
-LD_FLAGS = $(LD_FLAGS) /LTCG
-!ENDIF
-!ENDIF
-
-CPPFLAGS = $(CFLAGS) \
-	/wd4505
-
 LIBS = \
-	..\libmatoya\bin\windows\%Platform%\matoya.lib \
+	..\libmatoya\bin\$(OS)\$(ARCH)\matoya.lib \
 	libvcruntime.lib \
 	libucrt.lib \
 	libcmt.lib \
@@ -70,15 +63,29 @@ LIBS = \
 	bcrypt.lib \
 	shlwapi.lib
 
+!IFDEF DEBUG
+FLAGS = $(FLAGS) /Oy- /Ob0 /Zi
+LINK_FLAGS = $(LINK_FLAGS) /debug
+!ELSE
+FLAGS = $(FLAGS) /O2 /GS- /Gw /Gy
+!IFDEF LTO
+FLAGS = $(FLAGS) /GL
+LINK_FLAGS = $(LINK_FLAGS) /LTCG
+!ENDIF
+!ENDIF
+
+CFLAGS = $(INCLUDES) $(DEFS) $(FLAGS)
+CPPFLAGS = $(CFLAGS) /wd4505
+
 all: clean clear $(OBJS) $(RESOURCES)
-	link *.obj $(LIBS) $(RESOURCES) /out:$(BIN_NAME) $(LD_FLAGS)
+	link /out:$(BIN_NAME) $(LINK_FLAGS) *.obj $(LIBS) $(RESOURCES)
 
 clean:
-	-del $(RESOURCES)
-	-del *.obj
-	-del *.exe
-	-del *.ilk
-	-del *.pdb
+	@del /q $(RESOURCES) 2>nul
+	@del /q *.obj        2>nul
+	@del /q *.exe        2>nul
+	@del /q *.ilk        2>nul
+	@del /q *.pdb        2>nul
 
 clear:
-	cls
+	@cls
