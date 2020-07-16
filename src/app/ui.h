@@ -21,6 +21,7 @@ struct ui_args {
 	uint32_t crc32;
 	bool paused;
 	bool show_menu;
+	bool fullscreen;
 	NES *nes;
 };
 

@@ -367,6 +367,7 @@ static void main_im_root(void *opaque)
 	args.cfg = &ctx->cfg;
 	args.paused = ctx->paused;
 	args.show_menu = !ctx->loaded;
+	args.fullscreen = MTY_WindowIsFullscreen(ctx->window);
 	ctx->loaded = true;
 
 	ui_root(&args, main_ui_event, ctx);

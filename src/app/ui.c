@@ -316,7 +316,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 		if (im_begin_menu("Video", true)) {
 			if (im_begin_menu("Window", true)) {
-				if (im_menu_item("Fullscreen", "Ctrl+W", args->cfg->fullscreen))
+				if (im_menu_item("Fullscreen", "Ctrl+W", args->fullscreen))
 					event->cfg.fullscreen = !event->cfg.fullscreen;
 
 				if (im_menu_item("Reset", "", false))
