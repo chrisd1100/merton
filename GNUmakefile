@@ -1,6 +1,9 @@
 UNAME = $(shell uname -s)
 ARCH = $(shell uname -m)
 
+.m.o:
+	$(CC) $(OCFLAGS)  -c -o $@ $<
+
 NAME = \
 	merton
 
@@ -73,6 +76,9 @@ endif
 
 CFLAGS = $(FLAGS) \
 	-std=c99
+
+OCFLAGS = $(CFLAGS) \
+	-fobjc-arc
 
 CXXFLAGS = $(FLAGS) \
 	-std=c++11
