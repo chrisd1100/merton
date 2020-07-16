@@ -132,7 +132,7 @@ static void ui_open_rom(struct ui_event *event)
 
 	if (im_begin_window("OPEN_ROM", flags)) {
 		if (im_button("Close"))
-			CMP.nav = NAV_NONE;
+			CMP.nav ^= NAV_OPEN_ROM;
 
 		im_push_style_f2(ImGuiStyleVar_FramePadding, 0, 0);
 		im_begin_frame(0x01, w, h - X(50), ImGuiWindowFlags_NavFlattened);
@@ -500,11 +500,14 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 static void ui_hotkeys(const struct ui_args *args, struct ui_event *event)
 {
 	if (im_key(MTY_SCANCODE_ESCAPE)) {
-		CMP.nav ^= NAV_MENU;
 		CMP.ts = 0;
 
-		if (!(CMP.nav & NAV_MENU))
+		if (CMP.nav & NAV_OPEN_ROM) {
+			CMP.nav ^= NAV_OPEN_ROM;
+
+		} else {
 			CMP.nav = NAV_NONE;
+		}
 	}
 
 	if (im_key(MTY_SCANCODE_W) && im_ctrl())
