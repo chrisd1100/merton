@@ -70,7 +70,7 @@ LD_FLAGS = \
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
 else
-FLAGS := $(FLAGS) -O2 -fvisibility=hidden
+FLAGS := $(FLAGS) -O3 -fvisibility=hidden
 ifdef LTO
 FLAGS := $(FLAGS) -flto
 LD_FLAGS := $(LD_FLAGS) -flto
