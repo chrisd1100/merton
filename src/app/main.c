@@ -290,7 +290,7 @@ static void main_audio_adjustment(struct main *ctx)
 		int64_t now = MTY_Timestamp();
 
 		if (ctx->ts != 0) {
-			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / MTY_TimestampDiff(ctx->ts, now));
+			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / MTY_TimeDiff(ctx->ts, now));
 			NES_APUClockDrift(ctx->nes, cycles_sec, queued >= audio_buffer);
 		}
 
@@ -408,6 +408,7 @@ int32_t main(int32_t argc, char **argv)
 	ctx.cfg = main_load_config();
 	ctx.running = true;
 
+	MTY_SetTimerResolution(1);
 	MTY_SetLogCallback(main_mty_log_callback, NULL);
 
 	bool r = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
@@ -448,7 +449,7 @@ int32_t main(int32_t argc, char **argv)
 				im_render(!NES_CartLoaded(ctx.nes));
 			}
 
-			double wait = floor(1000.0 / 60.0 - MTY_TimestampDiff(ts, MTY_Timestamp())) - 1.0;
+			double wait = floor(1000.0 / 60.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;
 			MTY_WindowPresent(ctx.window, main_sync_to_60(&ctx));
 
 			if (ctx.cfg.reduce_latency && wait > 0.0)
@@ -470,6 +471,7 @@ int32_t main(int32_t argc, char **argv)
 	NES_Destroy(&ctx.nes);
 	MTY_AudioDestroy(&ctx.audio);
 	MTY_WindowDestroy(&ctx.window);
+	MTY_RevertTimerResolution();
 
 	return 0;
 }
@@ -477,7 +479,6 @@ int32_t main(int32_t argc, char **argv)
 #if defined(_WIN32)
 
 #include <windows.h>
-#include <timeapi.h>
 
 int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int32_t nCmdShow)
 {
@@ -491,15 +492,9 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 	freopen_s(&f, "CONOUT$", "w", stdout);
 	*/
 
-	timeBeginPeriod(1);
-
 	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
-	int32_t r = main(__argc, __argv);
-
-	timeEndPeriod(1);
-
-	return r;
+	return main(__argc, __argv);
 }
 #endif

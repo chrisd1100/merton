@@ -108,8 +108,7 @@ void im_input(MTY_WindowMsg *wmsg)
 
 		case MTY_WINDOW_MSG_MOUSE_MOTION:
 			if (!wmsg->mouseMotion.relative)
-				io.MousePos = ImVec2((float) wmsg->mouseMotion.x * IM.dpi_scale,
-					(float) wmsg->mouseMotion.y * IM.dpi_scale);
+				io.MousePos = ImVec2((float) wmsg->mouseMotion.x, (float) wmsg->mouseMotion.y);
 			break;
 
 		case MTY_WINDOW_MSG_KEYBOARD: {
@@ -327,7 +326,7 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 	int64_t now = MTY_Timestamp();
 
 	if (IM.ts != 0)
-		io.DeltaTime = (float) MTY_TimestampDiff(IM.ts, now) / 1000.0f;
+		io.DeltaTime = (float) MTY_TimeDiff(IM.ts, now) / 1000.0f;
 
 	IM.ts = now;
 

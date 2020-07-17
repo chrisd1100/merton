@@ -55,7 +55,7 @@ void ui_set_message(const char *msg, int32_t timeout)
 
 static void ui_message(void)
 {
-	if (CMP.ts != 0 && MTY_TimestampDiff(CMP.ts, MTY_Timestamp()) < CMP.timeout) {
+	if (CMP.ts != 0 && MTY_TimeDiff(CMP.ts, MTY_Timestamp()) < CMP.timeout) {
 		im_push_color(ImGuiCol_WindowBg, COLOR_MSG_BG);
 
 		im_set_window_pos(X(12), X((CMP.nav & NAV_MENU) ? 34 : 12));
@@ -92,7 +92,7 @@ void ui_clear_log(void)
 
 static void ui_log(bool always)
 {
-	if (always || (CMP.log_ts != 0 && MTY_TimestampDiff(CMP.log_ts, MTY_Timestamp()) < CMP.log_timeout)) {
+	if (always || (CMP.log_ts != 0 && MTY_TimeDiff(CMP.log_ts, MTY_Timestamp()) < CMP.log_timeout)) {
 		im_push_color(ImGuiCol_WindowBg, COLOR_MSG_BG);
 		im_push_style_f2(ImGuiStyleVar_ItemSpacing, X(5), X(4));
 
