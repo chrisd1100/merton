@@ -203,25 +203,6 @@ static void main_window_msg_func(MTY_WindowMsg *wmsg, const void *opaque)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
 			break;
 		}
-		case MTY_WINDOW_MSG_GAMEPAD: {
-			uint8_t state = 0;
-			state |= wmsg->gamepad.a     ? NES_BUTTON_A : 0;
-			state |= wmsg->gamepad.b     ? NES_BUTTON_B : 0;
-			state |= wmsg->gamepad.back  ? NES_BUTTON_SELECT : 0;
-			state |= wmsg->gamepad.start ? NES_BUTTON_START : 0;
-			state |= wmsg->gamepad.up    ? NES_BUTTON_UP : 0;
-			state |= wmsg->gamepad.down  ? NES_BUTTON_DOWN : 0;
-			state |= wmsg->gamepad.left  ? NES_BUTTON_LEFT : 0;
-			state |= wmsg->gamepad.right ? NES_BUTTON_RIGHT : 0;
-
-			state |= wmsg->gamepad.leftThumbX < -50 ? NES_BUTTON_LEFT : 0;
-			state |= wmsg->gamepad.leftThumbX > 50  ? NES_BUTTON_RIGHT : 0;
-			state |= wmsg->gamepad.leftThumbY < -50 ? NES_BUTTON_UP : 0;
-			state |= wmsg->gamepad.leftThumbY > 50  ? NES_BUTTON_DOWN : 0;
-
-			NES_ControllerState(ctx->nes, 0, state);
-			break;
-		}
 		default:
 			break;
 	}
