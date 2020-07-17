@@ -67,7 +67,7 @@ static void main_nes_audio(const int16_t *frames, uint32_t count, void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
-	if (!ctx->cfg.mute)
+	if (ctx->audio && !ctx->cfg.mute)
 		MTY_AudioQueue(ctx->audio, frames, count);
 }
 
@@ -256,6 +256,9 @@ static uint32_t main_sync_to_60(struct main *ctx)
 
 static void main_audio_adjustment(struct main *ctx)
 {
+	if (!ctx->audio)
+		return;
+
 	uint32_t queued = MTY_AudioGetQueuedFrames(ctx->audio);
 
 	uint32_t audio_start = 100 * (ctx->cfg.nes.sampleRate / 1000);
