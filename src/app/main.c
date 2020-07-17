@@ -399,7 +399,7 @@ static void main_save_config(struct config *cfg)
 
 static void main_mty_log_callback(const char *msg, void *opaque)
 {
-	printf("MTY: %s", msg);
+	printf("MTY: %s\n", msg);
 }
 
 int32_t main(int32_t argc, char **argv)
