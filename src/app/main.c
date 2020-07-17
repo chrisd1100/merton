@@ -396,8 +396,7 @@ int32_t main(int32_t argc, char **argv)
 		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, &ctx.window);
 	if (!r) goto except;
 
-	r = MTY_AudioCreate(&ctx.audio, ctx.cfg.nes.sampleRate);
-	if (!r) goto except;
+	MTY_AudioCreate(&ctx.audio, ctx.cfg.nes.sampleRate);
 
 	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
