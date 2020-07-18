@@ -34,6 +34,24 @@ DEFS = \
 LD_FLAGS = \
 	-nodefaultlibs
 
+############
+### WASM ###
+############
+ifdef EMSDK
+
+OBJS := $(OBJS) \
+	src/app/deps/imgui/impl/im-gl.o
+
+CC = emcc
+CXX = em++
+AR = emar
+
+CXXFLAGS = -fno-threadsafe-statics
+
+OS = web
+ARCH := wasm
+
+else
 #############
 ### LINUX ###
 #############
@@ -72,6 +90,7 @@ LIBS = \
 
 OS = macos
 endif
+endif
 
 LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
 
@@ -86,7 +105,7 @@ endif
 endif
 
 CFLAGS = $(INCLUDES) $(DEFS) $(FLAGS) -std=c99
-CXXFLAGS = $(INCLUDES) $(DEFS) $(FLAGS) -std=c++11
+CXXFLAGS := $(CXXFLAGS) $(INCLUDES) $(DEFS) $(FLAGS) -std=c++11
 OCFLAGS = $(CFLAGS) -fobjc-arc
 
 all: clean clear
