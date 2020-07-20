@@ -37,7 +37,7 @@ LD_FLAGS = \
 ############
 ### WASM ###
 ############
-ifdef EMSDK
+ifdef WASM
 
 # https://surma.dev/things/c-to-webassembly/
 # https://webassembly.org/getting-started/js-api/
@@ -45,14 +45,15 @@ ifdef EMSDK
 OBJS := $(OBJS) \
 	src/app/deps/imgui/impl/im-gl.o
 
-CC = emcc
-CXX = em++
-AR = emar
+WASI_SDK = $(HOME)/wasi-sdk-11.0
 
-CXXFLAGS = -fno-threadsafe-statics
+LD_FLAGS := \
+
+CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
+CXX = $(CC)
 
 OS = web
-ARCH := wasm
+ARCH := wasm32
 
 else
 #############
@@ -71,7 +72,6 @@ LIBS = \
 	-lgcc_s
 
 OS = linux
-LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
 endif
 
 #############
@@ -93,9 +93,10 @@ LIBS = \
 	-framework AudioToolbox
 
 OS = macos
+endif
+endif
+
 LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
-endif
-endif
 
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
@@ -108,14 +109,14 @@ endif
 endif
 
 CFLAGS = $(INCLUDES) $(DEFS) $(FLAGS) -std=c99
-CXXFLAGS := $(CXXFLAGS) $(INCLUDES) $(DEFS) $(FLAGS) -std=c++11
+CXXFLAGS = $(INCLUDES) $(DEFS) $(FLAGS) -std=c++11 -fno-exceptions -fno-threadsafe-statics
 OCFLAGS = $(CFLAGS) -fobjc-arc
 
 all: clean clear
 	make objs -j4
 
 objs: $(OBJS)
-	$(CC) -o $(BIN_NAME) $(OBJS) $(LIBS) $(LD_FLAGS)
+	$(CC) -o $(BIN_NAME) $(LIBS) $(OBJS) $(LD_FLAGS)
 
 clean:
 	@rm -rf $(OBJS)
