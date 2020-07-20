@@ -116,6 +116,7 @@ objs: $(OBJS)
 	$(CC) -o $(BIN_NAME) $(OBJS) $(LIBS) $(LD_FLAGS)
 
 clean:
+	@rm -rf $(BIN_NAME)
 	@rm -rf $(OBJS)
 
 clear:
