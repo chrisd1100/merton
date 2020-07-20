@@ -48,6 +48,8 @@ OBJS := $(OBJS) \
 WASI_SDK = $(HOME)/wasi-sdk-11.0
 
 LD_FLAGS := \
+	-Wl,--allow-undefined \
+	-Wl,-z,stack-size=$$((8 * 1024 * 1024))
 
 CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
 CXX = $(CC)
