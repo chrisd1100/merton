@@ -101,7 +101,7 @@
 
 				// High resolution timestamp
 				// id: 1 == CLOCK_MONOTONIC
-				// precision: 1 means '1 nanosecond'
+				// precision: in nanoseconds?
 				// time_out: buffer to write the 64-bit timestamp
 				clock_time_get: function (id, precision, time_out) {
 					setUint64(time_out, Math.trunc(performance.now() * 1000 * 1000));
