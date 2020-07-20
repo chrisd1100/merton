@@ -66,10 +66,8 @@ OBJS := $(OBJS) \
 
 LIBS = \
 	-ldl \
-	-lstdc++ \
 	-lm \
-	-lc \
-	-lgcc_s
+	-lc
 
 OS = linux
 endif
@@ -116,7 +114,7 @@ all: clean clear
 	make objs -j4
 
 objs: $(OBJS)
-	$(CC) -o $(BIN_NAME) $(LIBS) $(OBJS) $(LD_FLAGS)
+	$(CC) -o $(BIN_NAME) $(OBJS) $(LIBS) $(LD_FLAGS)
 
 clean:
 	@rm -rf $(OBJS)
