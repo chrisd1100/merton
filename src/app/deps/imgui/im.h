@@ -132,7 +132,7 @@ enum ImGuiWindowFlags_
 // Framework
 void im_create(const void *font, size_t font_size, float font_height);
 void im_destroy(void);
-void im_input(MTY_WindowMsg *wmsg);
+void im_input(const MTY_WindowMsg *wmsg);
 bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Texture *texture);
 void im_draw(void (*callback)(void *opaque), const void *opaque);
 void im_render(bool clear);

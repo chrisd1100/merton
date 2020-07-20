@@ -182,7 +182,7 @@ static const NES_Button NES_KEYBOARD_MAP[MTY_SCANCODE_MAX] = {
 	[MTY_SCANCODE_D]         = NES_BUTTON_RIGHT,
 };
 
-static void main_window_msg_func(MTY_WindowMsg *wmsg, const void *opaque)
+static void main_window_msg_func(const MTY_WindowMsg *wmsg, void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
@@ -386,6 +386,46 @@ static void main_mty_log_callback(const char *msg, void *opaque)
 	printf("MTY: %s\n", msg);
 }
 
+static bool main_loop(void *opaque)
+{
+	struct main *ctx = (struct main *) opaque;
+
+	int64_t ts = MTY_Timestamp();
+	MTY_WindowPoll(ctx->window);
+
+	if (MTY_WindowIsForeground(ctx->window) || !ctx->cfg.bg_pause) {
+		main_audio_adjustment(ctx);
+
+		if (!ctx->paused) {
+			ctx->cycles += NES_NextFrame(ctx->nes, main_nes_video, main_nes_audio, ctx);
+
+		} else {
+			main_nes_video(NULL, ctx);
+		}
+
+		MTY_Device *device = MTY_WindowGetDevice(ctx->window);
+		MTY_Context *context = MTY_WindowGetContext(ctx->window);
+		MTY_Texture *back_buffer = MTY_WindowGetBackBuffer(ctx->window);
+
+		if (im_begin(MTY_WindowGetDPIScale(ctx->window), device, context, back_buffer)) {
+			im_draw(main_im_root, ctx);
+			im_render(!NES_CartLoaded(ctx->nes));
+		}
+
+		double wait = floor(1000.0 / 60.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;
+		MTY_WindowPresent(ctx->window, main_sync_to_60(ctx));
+
+		if (ctx->cfg.reduce_latency && wait > 0.0)
+			MTY_Sleep(lrint(wait));
+
+	} else {
+		ctx->ts = 0;
+		MTY_Sleep(16);
+	}
+
+	return ctx->running;
+}
+
 int32_t main(int32_t argc, char **argv)
 {
 	struct main ctx = {0};
@@ -409,40 +449,7 @@ int32_t main(int32_t argc, char **argv)
 	if (argc >= 2)
 		ctx.loaded = main_load_rom(&ctx, argv[1]);
 
-	while (ctx.running) {
-		int64_t ts = MTY_Timestamp();
-		MTY_WindowPoll(ctx.window);
-
-		if (MTY_WindowIsForeground(ctx.window) || !ctx.cfg.bg_pause) {
-			main_audio_adjustment(&ctx);
-
-			if (!ctx.paused) {
-				ctx.cycles += NES_NextFrame(ctx.nes, main_nes_video, main_nes_audio, &ctx);
-
-			} else {
-				main_nes_video(NULL, &ctx);
-			}
-
-			MTY_Device *device = MTY_WindowGetDevice(ctx.window);
-			MTY_Context *context = MTY_WindowGetContext(ctx.window);
-			MTY_Texture *back_buffer = MTY_WindowGetBackBuffer(ctx.window);
-
-			if (im_begin(MTY_WindowGetDPIScale(ctx.window), device, context, back_buffer)) {
-				im_draw(main_im_root, &ctx);
-				im_render(!NES_CartLoaded(ctx.nes));
-			}
-
-			double wait = floor(1000.0 / 60.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;
-			MTY_WindowPresent(ctx.window, main_sync_to_60(&ctx));
-
-			if (ctx.cfg.reduce_latency && wait > 0.0)
-				MTY_Sleep(lrint(wait));
-
-		} else {
-			ctx.ts = 0;
-			MTY_Sleep(16);
-		}
-	}
+	MTY_AppRun(main_loop, &ctx);
 
 	main_save_sram(&ctx);
 	main_save_config(&ctx.cfg);

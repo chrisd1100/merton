@@ -86,7 +86,7 @@ void im_create(const void *font, size_t font_size, float font_height)
 	IM.init = true;
 }
 
-void im_input(MTY_WindowMsg *wmsg)
+void im_input(const MTY_WindowMsg *wmsg)
 {
 	ImGuiIO &io = GetIO();
 
