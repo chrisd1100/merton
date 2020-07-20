@@ -68,6 +68,7 @@ LIBS = \
 	-lgcc_s
 
 OS = linux
+LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
 endif
 
 #############
@@ -89,10 +90,9 @@ LIBS = \
 	-framework AudioToolbox
 
 OS = macos
-endif
-endif
-
 LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
+endif
+endif
 
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
