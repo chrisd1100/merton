@@ -84,7 +84,6 @@ OBJS := $(OBJS) \
 
 LIBS = \
 	-lc \
-	-lc++ \
 	-framework AppKit \
 	-framework QuartzCore \
 	-framework Metal \
