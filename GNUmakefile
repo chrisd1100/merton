@@ -45,7 +45,7 @@ OBJS := $(OBJS) \
 
 DEFS := $(DEFS) \
 	-DMTY_GL_EXTERNAL \
-	-DGLES
+	-DGL_ES
 
 WASI_SDK = $(HOME)/wasi-sdk-11.0
 

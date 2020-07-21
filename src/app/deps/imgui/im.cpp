@@ -164,7 +164,7 @@ static bool im_impl_init(MTY_Device *device, MTY_Context *context)
 
 		bool r = device && im_mtl_create((MTL_Device *) device, pixels, width, height, &IM.mtl);
 	#else
-		#if defined(GLES)
+		#if defined(GL_ES)
 			const char *version = "#version 100";
 		#else
 			const char *version = "#version 110";
