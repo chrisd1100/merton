@@ -9,6 +9,54 @@
 
 #include "matoya.h"
 
+static PFNGLENABLEPROC                  glEnable;
+static PFNGLDISABLEPROC                 glDisable;
+static PFNGLISENABLEDPROC               glIsEnabled;
+static PFNGLVIEWPORTPROC                glViewport;
+static PFNGLSCISSORPROC                 glScissor;
+static PFNGLGETINTEGERVPROC             glGetIntegerv;
+static PFNGLBINDTEXTUREPROC             glBindTexture;
+static PFNGLDELETETEXTURESPROC          glDeleteTextures;
+static PFNGLGETTEXLEVELPARAMETERIVPROC  glGetTexLevelParameteriv;
+static PFNGLBLENDFUNCPROC               glBlendFunc;
+static PFNGLTEXPARAMETERIPROC           glTexParameteri;
+static PFNGLGENTEXTURESPROC             glGenTextures;
+static PFNGLTEXIMAGE2DPROC              glTexImage2D;
+static PFNGLDRAWELEMENTSPROC            glDrawElements;
+static PFNGLGETATTRIBLOCATIONPROC       glGetAttribLocation;
+static PFNGLSHADERSOURCEPROC            glShaderSource;
+static PFNGLBINDBUFFERPROC              glBindBuffer;
+static PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer;
+static PFNGLCREATEPROGRAMPROC           glCreateProgram;
+static PFNGLUNIFORM1IPROC               glUniform1i;
+static PFNGLACTIVETEXTUREPROC           glActiveTexture;
+static PFNGLDELETEBUFFERSPROC           glDeleteBuffers;
+static PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+static PFNGLBUFFERDATAPROC              glBufferData;
+static PFNGLDELETESHADERPROC            glDeleteShader;
+static PFNGLGENBUFFERSPROC              glGenBuffers;
+static PFNGLCOMPILESHADERPROC           glCompileShader;
+static PFNGLLINKPROGRAMPROC             glLinkProgram;
+static PFNGLGETUNIFORMLOCATIONPROC      glGetUniformLocation;
+static PFNGLCREATESHADERPROC            glCreateShader;
+static PFNGLATTACHSHADERPROC            glAttachShader;
+static PFNGLUSEPROGRAMPROC              glUseProgram;
+static PFNGLGETSHADERIVPROC             glGetShaderiv;
+static PFNGLDETACHSHADERPROC            glDetachShader;
+static PFNGLDELETEPROGRAMPROC           glDeleteProgram;
+static PFNGLBLENDEQUATIONPROC           glBlendEquation;
+static PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv;
+static PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
+static PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
+static PFNGLGETPROGRAMIVPROC            glGetProgramiv;
+static PFNGLGENFRAMEBUFFERSPROC         glGenFramebuffers;
+static PFNGLDELETEFRAMEBUFFERSPROC      glDeleteFramebuffers;
+static PFNGLBINDFRAMEBUFFERPROC         glBindFramebuffer;
+static PFNGLFRAMEBUFFERTEXTURE2DPROC    glFramebufferTexture2D;
+static PFNGLCLEARPROC                   glClear;
+static PFNGLCLEARCOLORPROC              glClearColor;
+static PFNGLGETFLOATVPROC               glGetFloatv;
+
 struct im_gl {
 	GLuint font;
 	GLuint prog;
@@ -22,55 +70,6 @@ struct im_gl {
 	GLint loc_col;
 	GLuint vb;
 	GLuint eb;
-
-	// OpenGL / GLES 3.0
-	PFNGLENABLEPROC                  glEnable;
-	PFNGLDISABLEPROC                 glDisable;
-	PFNGLISENABLEDPROC               glIsEnabled;
-	PFNGLVIEWPORTPROC                glViewport;
-	PFNGLSCISSORPROC                 glScissor;
-	PFNGLGETINTEGERVPROC             glGetIntegerv;
-	PFNGLBINDTEXTUREPROC             glBindTexture;
-	PFNGLDELETETEXTURESPROC          glDeleteTextures;
-	PFNGLGETTEXLEVELPARAMETERIVPROC  glGetTexLevelParameteriv;
-	PFNGLBLENDFUNCPROC               glBlendFunc;
-	PFNGLTEXPARAMETERIPROC           glTexParameteri;
-	PFNGLGENTEXTURESPROC             glGenTextures;
-	PFNGLTEXIMAGE2DPROC              glTexImage2D;
-	PFNGLDRAWELEMENTSPROC            glDrawElements;
-	PFNGLGETATTRIBLOCATIONPROC       glGetAttribLocation;
-	PFNGLSHADERSOURCEPROC            glShaderSource;
-	PFNGLBINDBUFFERPROC              glBindBuffer;
-	PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer;
-	PFNGLCREATEPROGRAMPROC           glCreateProgram;
-	PFNGLUNIFORM1IPROC               glUniform1i;
-	PFNGLACTIVETEXTUREPROC           glActiveTexture;
-	PFNGLDELETEBUFFERSPROC           glDeleteBuffers;
-	PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-	PFNGLBUFFERDATAPROC              glBufferData;
-	PFNGLDELETESHADERPROC            glDeleteShader;
-	PFNGLGENBUFFERSPROC              glGenBuffers;
-	PFNGLCOMPILESHADERPROC           glCompileShader;
-	PFNGLLINKPROGRAMPROC             glLinkProgram;
-	PFNGLGETUNIFORMLOCATIONPROC      glGetUniformLocation;
-	PFNGLCREATESHADERPROC            glCreateShader;
-	PFNGLATTACHSHADERPROC            glAttachShader;
-	PFNGLUSEPROGRAMPROC              glUseProgram;
-	PFNGLGETSHADERIVPROC             glGetShaderiv;
-	PFNGLDETACHSHADERPROC            glDetachShader;
-	PFNGLDELETEPROGRAMPROC           glDeleteProgram;
-	PFNGLBLENDEQUATIONPROC           glBlendEquation;
-	PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv;
-	PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
-	PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
-	PFNGLGETPROGRAMIVPROC            glGetProgramiv;
-	PFNGLGENFRAMEBUFFERSPROC         glGenFramebuffers;
-	PFNGLDELETEFRAMEBUFFERSPROC      glDeleteFramebuffers;
-	PFNGLBINDFRAMEBUFFERPROC         glBindFramebuffer;
-	PFNGLFRAMEBUFFERTEXTURE2DPROC    glFramebufferTexture2D;
-	PFNGLCLEARPROC                   glClear;
-	PFNGLCLEARCOLORPROC              glClearColor;
-	PFNGLGETFLOATVPROC               glGetFloatv;
 };
 
 struct im_gl_state {
@@ -96,42 +95,42 @@ struct im_gl_state {
 
 static void im_gl_push_state(struct im_gl *ctx, struct im_gl_state *s)
 {
-	ctx->glGetIntegerv(GL_ACTIVE_TEXTURE, (GLint *) &s->active_texture);
-	ctx->glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &s->array_buffer);
-	ctx->glGetIntegerv(GL_CURRENT_PROGRAM, &s->program);
-	ctx->glGetIntegerv(GL_TEXTURE_BINDING_2D, &s->texture);
-	ctx->glGetIntegerv(GL_VIEWPORT, s->viewport);
-	ctx->glGetIntegerv(GL_SCISSOR_BOX, s->scissor_box);
-	ctx->glGetIntegerv(GL_BLEND_SRC_RGB, (GLint *) &s->blend_src_rgb);
-	ctx->glGetIntegerv(GL_BLEND_DST_RGB, (GLint *) &s->blend_dst_rgb);
-	ctx->glGetIntegerv(GL_BLEND_SRC_ALPHA, (GLint *) &s->blend_src_alpha);
-	ctx->glGetIntegerv(GL_BLEND_DST_ALPHA, (GLint *) &s->blend_dst_alpha);
-	ctx->glGetIntegerv(GL_BLEND_EQUATION_RGB, (GLint *) &s->blend_equation_rgb);
-	ctx->glGetIntegerv(GL_BLEND_EQUATION_ALPHA, (GLint *) &s->blend_equation_alpha);
-	ctx->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, (GLint *) &s->fb);
-	ctx->glGetFloatv(GL_COLOR_CLEAR_VALUE, s->color_clear_value);
-	s->enable_blend = ctx->glIsEnabled(GL_BLEND);
-	s->enable_cull_face = ctx->glIsEnabled(GL_CULL_FACE);
-	s->enable_depth_test = ctx->glIsEnabled(GL_DEPTH_TEST);
-	s->enable_scissor_test = ctx->glIsEnabled(GL_SCISSOR_TEST);
+	glGetIntegerv(GL_ACTIVE_TEXTURE, (GLint *) &s->active_texture);
+	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &s->array_buffer);
+	glGetIntegerv(GL_CURRENT_PROGRAM, &s->program);
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &s->texture);
+	glGetIntegerv(GL_VIEWPORT, s->viewport);
+	glGetIntegerv(GL_SCISSOR_BOX, s->scissor_box);
+	glGetIntegerv(GL_BLEND_SRC_RGB, (GLint *) &s->blend_src_rgb);
+	glGetIntegerv(GL_BLEND_DST_RGB, (GLint *) &s->blend_dst_rgb);
+	glGetIntegerv(GL_BLEND_SRC_ALPHA, (GLint *) &s->blend_src_alpha);
+	glGetIntegerv(GL_BLEND_DST_ALPHA, (GLint *) &s->blend_dst_alpha);
+	glGetIntegerv(GL_BLEND_EQUATION_RGB, (GLint *) &s->blend_equation_rgb);
+	glGetIntegerv(GL_BLEND_EQUATION_ALPHA, (GLint *) &s->blend_equation_alpha);
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, (GLint *) &s->fb);
+	glGetFloatv(GL_COLOR_CLEAR_VALUE, s->color_clear_value);
+	s->enable_blend = glIsEnabled(GL_BLEND);
+	s->enable_cull_face = glIsEnabled(GL_CULL_FACE);
+	s->enable_depth_test = glIsEnabled(GL_DEPTH_TEST);
+	s->enable_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
 }
 
 static void im_gl_pop_state(struct im_gl *ctx, struct im_gl_state *s)
 {
-	ctx->glUseProgram(s->program);
-	ctx->glBindTexture(GL_TEXTURE_2D, s->texture);
-	ctx->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s->fb);
-	ctx->glActiveTexture(s->active_texture);
-	ctx->glBindBuffer(GL_ARRAY_BUFFER, s->array_buffer);
-	ctx->glBlendEquationSeparate(s->blend_equation_rgb, s->blend_equation_alpha);
-	ctx->glBlendFuncSeparate(s->blend_src_rgb, s->blend_dst_rgb, s->blend_src_alpha, s->blend_dst_alpha);
-	ctx->glClearColor(s->color_clear_value[0], s->color_clear_value[1], s->color_clear_value[2], s->color_clear_value[3]);
-	if (s->enable_blend) ctx->glEnable(GL_BLEND); else ctx->glDisable(GL_BLEND);
-	if (s->enable_cull_face) ctx->glEnable(GL_CULL_FACE); else ctx->glDisable(GL_CULL_FACE);
-	if (s->enable_depth_test) ctx->glEnable(GL_DEPTH_TEST); else ctx->glDisable(GL_DEPTH_TEST);
-	if (s->enable_scissor_test) ctx->glEnable(GL_SCISSOR_TEST); else ctx->glDisable(GL_SCISSOR_TEST);
-	ctx->glViewport(s->viewport[0], s->viewport[1], s->viewport[2], s->viewport[3]);
-	ctx->glScissor(s->scissor_box[0], s->scissor_box[1], s->scissor_box[2], s->scissor_box[3]);
+	glUseProgram(s->program);
+	glBindTexture(GL_TEXTURE_2D, s->texture);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s->fb);
+	glActiveTexture(s->active_texture);
+	glBindBuffer(GL_ARRAY_BUFFER, s->array_buffer);
+	glBlendEquationSeparate(s->blend_equation_rgb, s->blend_equation_alpha);
+	glBlendFuncSeparate(s->blend_src_rgb, s->blend_dst_rgb, s->blend_src_alpha, s->blend_dst_alpha);
+	glClearColor(s->color_clear_value[0], s->color_clear_value[1], s->color_clear_value[2], s->color_clear_value[3]);
+	if (s->enable_blend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
+	if (s->enable_cull_face) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
+	if (s->enable_depth_test) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+	if (s->enable_scissor_test) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST);
+	glViewport(s->viewport[0], s->viewport[1], s->viewport[2], s->viewport[3]);
+	glScissor(s->scissor_box[0], s->scissor_box[1], s->scissor_box[2], s->scissor_box[3]);
 }
 
 void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd, bool clear, GL_Uint texture)
@@ -165,44 +164,44 @@ void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd, bool clear, 
 	im_gl_push_state(ctx, &state);
 
 	// Bind texture to draw framebuffer
-	ctx->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ctx->fb);
-	ctx->glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ctx->fb);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
 
 	if (clear) {
-		ctx->glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		ctx->glClear(GL_COLOR_BUFFER_BIT);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
 	// Set viewport based on display size
-	ctx->glViewport(0, 0, fb_width, fb_height);
+	glViewport(0, 0, fb_width, fb_height);
 
 	// Set up rendering pipeline
-	ctx->glUseProgram(ctx->prog);
-	ctx->glActiveTexture(GL_TEXTURE0);
-	ctx->glUniform1i(ctx->loc_tex, 0);
-	ctx->glUniformMatrix4fv(ctx->loc_proj, 1, GL_FALSE, &proj[0][0]);
-	ctx->glEnable(GL_BLEND);
-	ctx->glBlendEquation(GL_FUNC_ADD);
-	ctx->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	ctx->glDisable(GL_CULL_FACE);
-	ctx->glDisable(GL_DEPTH_TEST);
-	ctx->glEnable(GL_SCISSOR_TEST);
-	ctx->glBindBuffer(GL_ARRAY_BUFFER, ctx->vb);
-	ctx->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->eb);
-	ctx->glEnableVertexAttribArray(ctx->loc_pos);
-	ctx->glEnableVertexAttribArray(ctx->loc_uv);
-	ctx->glEnableVertexAttribArray(ctx->loc_col);
-	ctx->glVertexAttribPointer(ctx->loc_pos, 2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, pos));
-	ctx->glVertexAttribPointer(ctx->loc_uv,  2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, uv));
-	ctx->glVertexAttribPointer(ctx->loc_col, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, col));
+	glUseProgram(ctx->prog);
+	glActiveTexture(GL_TEXTURE0);
+	glUniform1i(ctx->loc_tex, 0);
+	glUniformMatrix4fv(ctx->loc_proj, 1, GL_FALSE, &proj[0][0]);
+	glEnable(GL_BLEND);
+	glBlendEquation(GL_FUNC_ADD);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_SCISSOR_TEST);
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->vb);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->eb);
+	glEnableVertexAttribArray(ctx->loc_pos);
+	glEnableVertexAttribArray(ctx->loc_uv);
+	glEnableVertexAttribArray(ctx->loc_col);
+	glVertexAttribPointer(ctx->loc_pos, 2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, pos));
+	glVertexAttribPointer(ctx->loc_uv,  2, GL_FLOAT,         GL_FALSE, sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, uv));
+	glVertexAttribPointer(ctx->loc_col, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(struct im_vtx), (GLvoid *) offsetof(struct im_vtx, col));
 
 	// Draw
 	for (uint32_t n = 0; n < dd->cmd_list_len; n++) {
 		struct im_cmd_list *cmd_list = &dd->cmd_list[n];
 
 		// Copy vertex, index buffer data
-		ctx->glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) cmd_list->vtx_len * sizeof(struct im_vtx), cmd_list->vtx, GL_STREAM_DRAW);
-		ctx->glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr) cmd_list->idx_len * sizeof(uint16_t), cmd_list->idx, GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) cmd_list->vtx_len * sizeof(struct im_vtx), cmd_list->vtx, GL_STREAM_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr) cmd_list->idx_len * sizeof(uint16_t), cmd_list->idx, GL_STREAM_DRAW);
 
 		for (uint32_t cmd_i = 0; cmd_i < cmd_list->cmd_len; cmd_i++) {
 			struct im_cmd *pcmd = &cmd_list->cmd[cmd_i];
@@ -216,13 +215,13 @@ void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd, bool clear, 
 
 			// Make sure the rect is actually in the viewport
 			if (r.x < fb_width && r.y < fb_height && r.z >= 0.0f && r.w >= 0.0f) {
-				ctx->glScissor(lrint(r.x), lrint(fb_height - r.w), lrint(r.z - r.x), lrint(r.w - r.y));
+				glScissor(lrint(r.x), lrint(fb_height - r.w), lrint(r.z - r.x), lrint(r.w - r.y));
 
 				// Optionally sample from a texture (fonts, images)
-				ctx->glBindTexture(GL_TEXTURE_2D, (GLuint) (size_t) pcmd->texture_id);
+				glBindTexture(GL_TEXTURE_2D, (GLuint) (size_t) pcmd->texture_id);
 
 				// Draw indexed
-				ctx->glDrawElements(GL_TRIANGLES, pcmd->elem_count, GL_UNSIGNED_SHORT, (void *) (size_t) (pcmd->idx_offset * sizeof(uint16_t)));
+				glDrawElements(GL_TRIANGLES, pcmd->elem_count, GL_UNSIGNED_SHORT, (void *) (size_t) (pcmd->idx_offset * sizeof(uint16_t)));
 			}
 		}
 	}
@@ -239,8 +238,8 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 
 	// Load the API
 	#define IM_GL_PROC(cast, func) \
-		ctx->func = (cast) MTY_GLGetProcAddress(#func); \
-		if (!ctx->func) {r = false; goto except;}
+		func = (cast) MTY_GLGetProcAddress(#func); \
+		if (!func) {r = false; goto except;}
 
 	IM_GL_PROC(PFNGLENABLEPROC,                  glEnable);
 	IM_GL_PROC(PFNGLDISABLEPROC,                 glDisable);
@@ -312,11 +311,11 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 		"}                                            \n";
 
 	GLint status = 0;
-	ctx->vs = ctx->glCreateShader(GL_VERTEX_SHADER);
-	ctx->glShaderSource(ctx->vs, 2, vertex_shader, NULL);
-	ctx->glCompileShader(ctx->vs);
+	ctx->vs = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(ctx->vs, 2, vertex_shader, NULL);
+	glCompileShader(ctx->vs);
 
-	ctx->glGetShaderiv(ctx->vs, GL_COMPILE_STATUS, &status);
+	glGetShaderiv(ctx->vs, GL_COMPILE_STATUS, &status);
 	if (status == GL_FALSE) {
 		fprintf(stderr, "Vertex shader failed to compile\n");
 		r = false;
@@ -341,22 +340,22 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 		"    gl_FragColor = frag_col * texture2D(tex, frag_uv.st); \n"
 		"}                                                         \n";
 
-	ctx->fs = ctx->glCreateShader(GL_FRAGMENT_SHADER);
-	ctx->glShaderSource(ctx->fs, 2, fragment_shader, NULL);
-	ctx->glCompileShader(ctx->fs);
-	ctx->glGetShaderiv(ctx->fs, GL_COMPILE_STATUS, &status);
+	ctx->fs = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(ctx->fs, 2, fragment_shader, NULL);
+	glCompileShader(ctx->fs);
+	glGetShaderiv(ctx->fs, GL_COMPILE_STATUS, &status);
 	if (status == GL_FALSE) {
 		fprintf(stderr, "Fragment shader failed to compile\n");
 		r = false;
 		goto except;
 	}
 
-	ctx->prog = ctx->glCreateProgram();
-	ctx->glAttachShader(ctx->prog, ctx->vs);
-	ctx->glAttachShader(ctx->prog, ctx->fs);
-	ctx->glLinkProgram(ctx->prog);
+	ctx->prog = glCreateProgram();
+	glAttachShader(ctx->prog, ctx->vs);
+	glAttachShader(ctx->prog, ctx->fs);
+	glLinkProgram(ctx->prog);
 
-	ctx->glGetProgramiv(ctx->prog, GL_LINK_STATUS, &status);
+	glGetProgramiv(ctx->prog, GL_LINK_STATUS, &status);
 	if (status == GL_FALSE) {
 		fprintf(stderr, "Program failed to link\n");
 		r = false;
@@ -364,29 +363,29 @@ bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_
 	}
 
 	// Store uniform locations
-	ctx->loc_proj = ctx->glGetUniformLocation(ctx->prog, "proj");
-	ctx->loc_pos = ctx->glGetAttribLocation(ctx->prog, "pos");
-	ctx->loc_uv = ctx->glGetAttribLocation(ctx->prog, "uv");
-	ctx->loc_col = ctx->glGetAttribLocation(ctx->prog, "col");
-	ctx->loc_tex = ctx->glGetUniformLocation(ctx->prog, "tex");
+	ctx->loc_proj = glGetUniformLocation(ctx->prog, "proj");
+	ctx->loc_pos = glGetAttribLocation(ctx->prog, "pos");
+	ctx->loc_uv = glGetAttribLocation(ctx->prog, "uv");
+	ctx->loc_col = glGetAttribLocation(ctx->prog, "col");
+	ctx->loc_tex = glGetUniformLocation(ctx->prog, "tex");
 
 	// Pre create dynamically resizing vertex, index (element) buffers
-	ctx->glGenBuffers(1, &ctx->vb);
-	ctx->glGenBuffers(1, &ctx->eb);
+	glGenBuffers(1, &ctx->vb);
+	glGenBuffers(1, &ctx->eb);
 
 	// Font texture
 	GLint prev_texture = 0;
-	ctx->glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev_texture);
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev_texture);
 
-	ctx->glGenTextures(1, &ctx->font);
-	ctx->glBindTexture(GL_TEXTURE_2D, ctx->font);
-	ctx->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	ctx->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	ctx->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, font);
+	glGenTextures(1, &ctx->font);
+	glBindTexture(GL_TEXTURE_2D, ctx->font);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, font);
 
-	ctx->glBindTexture(GL_TEXTURE_2D, prev_texture);
+	glBindTexture(GL_TEXTURE_2D, prev_texture);
 
-	ctx->glGenFramebuffers(1, &ctx->fb);
+	glGenFramebuffers(1, &ctx->fb);
 
 	except:
 
@@ -408,38 +407,38 @@ void im_gl_destroy(struct im_gl **gl)
 
 	struct im_gl *ctx = *gl;
 
-	if (ctx->glDeleteBuffers) {
+	if (glDeleteBuffers) {
 		if (ctx->vb)
-			ctx->glDeleteBuffers(1, &ctx->vb);
+			glDeleteBuffers(1, &ctx->vb);
 
 		if (ctx->eb)
-			ctx->glDeleteBuffers(1, &ctx->eb);
+			glDeleteBuffers(1, &ctx->eb);
 	}
 
-	if (ctx->glDetachShader && ctx->prog) {
+	if (glDetachShader && ctx->prog) {
 		if (ctx->vs)
-			ctx->glDetachShader(ctx->prog, ctx->vs);
+			glDetachShader(ctx->prog, ctx->vs);
 
 		if (ctx->fs)
-			ctx->glDetachShader(ctx->prog, ctx->fs);
+			glDetachShader(ctx->prog, ctx->fs);
 	}
 
-	if (ctx->glDeleteShader) {
+	if (glDeleteShader) {
 		if (ctx->vs)
-			ctx->glDeleteShader(ctx->vs);
+			glDeleteShader(ctx->vs);
 
 		if (ctx->fs)
-			ctx->glDeleteShader(ctx->fs);
+			glDeleteShader(ctx->fs);
 	}
 
-	if (ctx->glDeleteProgram && ctx->prog)
-		ctx->glDeleteProgram(ctx->prog);
+	if (glDeleteProgram && ctx->prog)
+		glDeleteProgram(ctx->prog);
 
-	if (ctx->glDeleteTextures && ctx->font)
-		ctx->glDeleteTextures(1, &ctx->font);
+	if (glDeleteTextures && ctx->font)
+		glDeleteTextures(1, &ctx->font);
 
-	if (ctx->glDeleteFramebuffers && ctx->fb)
-		ctx->glDeleteFramebuffers(1, &ctx->fb);
+	if (glDeleteFramebuffers && ctx->fb)
+		glDeleteFramebuffers(1, &ctx->fb);
 
 	free(ctx);
 	*gl = NULL;
@@ -450,9 +449,9 @@ void im_gl_texture_size(struct im_gl *ctx, GL_Uint texture, float *width, float 
 	GLint w = 0;
 	GLint h = 0;
 
-	ctx->glBindTexture(GL_TEXTURE_2D, texture);
-	ctx->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
-	ctx->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
 
 	*width = (float) w;
 	*height = (float) h;
