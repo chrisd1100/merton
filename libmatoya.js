@@ -70,84 +70,69 @@ function gl_obj(index) {
 
 const GL_API = {
 	glGenFramebuffers: function (n, ids) {
-		// console.log('1');
 		for (let x = 0; x < n; x++)
 			setUint32(ids + x * 4, gl_new(GL.createFramebuffer()));
 	},
 	glDeleteFramebuffers: function (n, ids) {
-		// console.log('2');
 		for (let x = 0; x < n; x++)
 			GL.deleteFramebuffer(gl_del(getUint32(ids + x * 4)));
 	},
 	glBindFramebuffer: function (target, fb) {
-		//console.log('3');
 		GL.bindFramebuffer(target, fb ? gl_obj(fb) : null);
 	},
 	glBlitFramebuffer: function (srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter) {
-		console.log('4');
 		GL.blitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
 	},
 	glFramebufferTexture2D: function (target, attachment, textarget, texture, level) {
-		// console.log('5');
 		GL.framebufferTexture2D(target, attachment, textarget, gl_obj(texture), level);
 	},
 	glEnable: function (cap) {
-		console.log('6');
 		GL.enable(cap);
 	},
 	glIsEnabled: function (cap) {
-		// console.log('7');
 		return GL.isEnabled(cap);
 	},
 	glDisable: function (cap) {
-		//console.log('8');
 		GL.disable(cap);
 	},
 	glViewport: function (x, y, width, height) {
-		//console.log('9');
 		GL.viewport(x, y, width, height);
 	},
 	glGetIntegerv: function (name, data) {
-		// console.log('10');
-		// XXX these can be objects
+		// FIXME these can be objects and arrays
 		const p = GL.getParameter(name);
 		setUint32(data, p);
 	},
 	glGetFloatv: function (name, data) {
-		// console.log('11');
+		// FIXME these can be objects and arrays
 		setFloat(data, GL.getParameter(name));
 	},
 	glBindTexture: function (target, texture) {
-		//console.log('12');
 		GL.bindTexture(target, texture ? gl_obj(texture) : null);
 		GL_BOUND_TEX = texture;
 	},
-	glDeleteTextures: function () {
-		console.log('13');
+	glDeleteTextures: function (n, ids) {
+		for (let x = 0; x < n; x++)
+			GL.deleteTexture(gl_del(getUint32(ids + x * 4)));
 	},
 	glGetTexLevelParameteriv: function (target, level, pname, params) {
-		// console.log('14');
-
 		switch (pname) {
 			case 0x1000: // Width
-				setUint32(params, GL_TEX[target].x;
+				setUint32(params, GL_TEX[GL_BOUND_TEX].x);
 				break;
 			case 0x1001: // Height
-				setUint32(params, GL_TEX[target].y;
+				setUint32(params, GL_TEX[GL_BOUND_TEX].y);
 				break;
 		}
 	},
 	glTexParameteri: function (target, pname, param) {
-		// console.log('15');
 		GL.texParameteri(target, pname, param);
 	},
 	glGenTextures: function (n, ids) {
-		// console.log('16');
 		for (let x = 0; x < n; x++)
 			setUint32(ids + x * 4, gl_new(GL.createTexture()));
 	},
 	glTexImage2D: function (target, level, internalformat, width, height, border, format, type, data) {
-		// console.log('17');
 		GL.texImage2D(target, level, internalformat, width, height, border, format, type,
 			new Uint8Array(mem_raw(), data));
 
@@ -157,19 +142,17 @@ const GL_API = {
 		GL_TEX[GL_BOUND_TEX].x = width;
 		GL_TEX[GL_BOUND_TEX].y = height;
 	},
-	glTexSubImage2D: function () {
-		console.log('18');
+	glTexSubImage2D: function (target, level, xofset, yoffset, width, height, format, type, pixels) {
+		GL.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type,
+			new Uint8Array(mem_raw(), pixels));
 	},
-	glDrawElements: function () {
-		console.log('19');
+	glDrawElements: function (mode, count, type, indices) {
+		GL.drawElements(mode, count, type, indices);
 	},
 	glGetAttribLocation: function (program, c_name) {
-		// console.log('20');
-		return GL.getAttribLocation(gl_obj(program), c_to_js(name));
+		return GL.getAttribLocation(gl_obj(program), c_to_js(c_name));
 	},
 	glShaderSource: function (shader, count, c_strings, c_len) {
-		//console.log('21');
-
 		let source = '';
 		for (let x = 0; x < count; x++)
 			source += c_to_js(getUint32(c_strings + x * 4));
@@ -177,118 +160,107 @@ const GL_API = {
 		GL.shaderSource(gl_obj(shader), source);
 	},
 	glBindBuffer: function (target, buffer) {
-		//console.log('22');
 		GL.bindBuffer(target, buffer ? gl_obj(buffer) : null);
 	},
-	glVertexAttribPointer: function () {
-		console.log('23');
+	glVertexAttribPointer: function (index, size, type, normalized, stride, pointer) {
+		GL.vertexAttribPointer(index, size, type, normalized, stride, pointer);
 	},
 	glCreateProgram: function () {
-		// console.log('24');
 		return gl_new(GL.createProgram());
 	},
-	glUniform1i: function () {
-		console.log('25');
+	glUniform1i: function (loc, v0) {
+		GL.uniform1i(gl_obj(loc), v0);
 	},
 	glActiveTexture: function (texture) {
-		// console.log('26');
 		GL.activeTexture(texture);
 	},
 	glDeleteBuffers: function () {
-		console.log('27');
+		for (let x = 0; x < n; x++)
+			GL.deleteBuffer(gl_del(getUint32(ids + x * 4)));
 	},
-	glEnableVertexAttribArray: function () {
-		console.log('28');
+	glEnableVertexAttribArray: function (index) {
+		GL.enableVertexAttribArray(index);
 	},
 	glBufferData: function (target, size, data, usage) {
-		// console.log('29');
 		GL.bufferData(target, new Uint8Array(mem_raw(), data, size), usage);
 	},
-	glDeleteShader: function () {
-		console.log('30');
+	glDeleteShader: function (shader) {
+		GL.deleteShader(gl_del(shader));
 	},
 	glGenBuffers: function (n, ids) {
-		// console.log('31');
 		for (let x = 0; x < n; x++)
 			setUint32(ids + x * 4, gl_new(GL.createBuffer()));
 	},
 	glCompileShader: function (shader) {
-		// console.log('32');
 		GL.compileShader(gl_obj(shader));
 	},
 	glLinkProgram: function (program) {
-		// console.log('33');
 		GL.linkProgram(gl_obj(program));
 	},
 	glGetUniformLocation: function (program, name) {
-		// console.log('34');
-		return GL.getUniformLocation(gl_obj(program), c_to_js(name));
+		return gl_new(GL.getUniformLocation(gl_obj(program), c_to_js(name)));
 	},
 	glCreateShader: function (type) {
-		// console.log('35');
 		return gl_new(GL.createShader(type));
 	},
 	glAttachShader: function (program, shader) {
-		// console.log('36');
 		GL.attachShader(gl_obj(program), gl_obj(shader));
 	},
 	glUseProgram: function (program) {
-		//console.log('37');
 		GL.useProgram(program ? gl_obj(program) : null);
 	},
 	glGetShaderiv: function (shader, pname, params) {
-		//console.log('38');
 		if (pname == 0x8B81) {
 			let ok = GL.getShaderParameter(gl_obj(shader), GL.COMPILE_STATUS);
 			setUint32(params, ok);
 
 			if (!ok)
 				console.warn(GL.getShaderInfoLog(gl_obj(shader)));
+
+		} else {
+			setUint32(params, 0);
 		}
 	},
-	glDetachShader: function () {
-		console.log('39');
+	glDetachShader: function (program, shader) {
+		GL.detachShader(gl_obj(program), gl_obj(shader));
 	},
-	glDeleteProgram: function () {
-		console.log('40');
+	glDeleteProgram: function (program) {
+		GL.deleteProgram(gl_del(program));
 	},
-	glClear: function () {
-		console.log('41');
+	glClear: function (mask) {
+		GL.clear(mask);
 	},
 	glClearColor: function (red, green, blue, alpha) {
-		//console.log('42');
 		GL.clearColor(red, green, blue, alpha);
 	},
 	glGetError: function () {
-		// console.log('43');
 		return GL.getError();
 	},
 	glGetShaderInfoLog: function () {
-		console.log('44');
+		// Logged automatically as part of glGetShaderiv
 	},
 	glFinish: function () {
-		console.log('45');
+		GL.finish();
 	},
-	glScissor: function () {
-		console.log('46');
+	glScissor: function (x, y, width, height) {
+		GL.scissor(x, y, width, height);
 	},
-	glBlendFunc: function () {
-		console.log('47');
+	glBlendFunc: function (sfactor, dfactor) {
+		GL.blendFunc(sfactor, dfactor);
 	},
-	glBlendEquation: function () {
-		console.log('48');
+	glBlendEquation: function (mode) {
+		GL.blendEquation(mode);
 	},
-	glUniformMatrix4fv: function () {
-		console.log('49');
+	glUniformMatrix4fv: function (loc, count, transpose, value) {
+		GL.uniformMatrix4fv(gl_obj(loc), transpose, new Float32Array(mem_raw(), value, 4 * 4 * count));
 	},
-	glBlendEquationSeparate: function () {
-		console.log('50');
+	glBlendEquationSeparate: function (modeRGB, modeAlpha) {
+		GL.blendEquationSeparate(modeRGB, modeAlpha);
 	},
-	glBlendFuncSeparate: function () {
-		console.log('51');
+	glBlendFuncSeparate: function (srcRGB, dstRGB, srcAlpha, dstAlpha) {
+		GL.blendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
 	},
 	glGetProgramiv: function (program, pname, params) {
-		// console.log('52');
 		setUint32(params, GL.getProgramParameter(gl_obj(program), pname));
 	},
 };
@@ -329,7 +301,7 @@ const MTY_WEB_API = {
 		CANVAS = document.createElement('canvas');
 		document.body.appendChild(CANVAS);
 
-		GL = CANVAS.getContext('webgl2');
+		GL = CANVAS.getContext('webgl2', {depth: 0, antialias: 0});
 	},
 	web_raf: function (func, opaque) {
 		const step = () => {
@@ -423,7 +395,7 @@ const WASI_API = {
 		console.log('path_readlink:', arguments);
 	},
 	poll_oneoff: function (sin, sout, nsubscriptions, nevents) {
-		console.log('poll_oneoff:', arguments);
+		//console.log('poll_oneoff:', arguments);
 		return 0;
 	},
 	proc_exit: function () {
