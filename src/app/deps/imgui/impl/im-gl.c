@@ -5,57 +5,9 @@
 #include <stddef.h>
 #include <math.h>
 
-#include "../../GL/glcorearb30.h"
+#include "gl-dl.h"
 
 #include "matoya.h"
-
-static PFNGLENABLEPROC                  glEnable;
-static PFNGLDISABLEPROC                 glDisable;
-static PFNGLISENABLEDPROC               glIsEnabled;
-static PFNGLVIEWPORTPROC                glViewport;
-static PFNGLSCISSORPROC                 glScissor;
-static PFNGLGETINTEGERVPROC             glGetIntegerv;
-static PFNGLBINDTEXTUREPROC             glBindTexture;
-static PFNGLDELETETEXTURESPROC          glDeleteTextures;
-static PFNGLGETTEXLEVELPARAMETERIVPROC  glGetTexLevelParameteriv;
-static PFNGLBLENDFUNCPROC               glBlendFunc;
-static PFNGLTEXPARAMETERIPROC           glTexParameteri;
-static PFNGLGENTEXTURESPROC             glGenTextures;
-static PFNGLTEXIMAGE2DPROC              glTexImage2D;
-static PFNGLDRAWELEMENTSPROC            glDrawElements;
-static PFNGLGETATTRIBLOCATIONPROC       glGetAttribLocation;
-static PFNGLSHADERSOURCEPROC            glShaderSource;
-static PFNGLBINDBUFFERPROC              glBindBuffer;
-static PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer;
-static PFNGLCREATEPROGRAMPROC           glCreateProgram;
-static PFNGLUNIFORM1IPROC               glUniform1i;
-static PFNGLACTIVETEXTUREPROC           glActiveTexture;
-static PFNGLDELETEBUFFERSPROC           glDeleteBuffers;
-static PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-static PFNGLBUFFERDATAPROC              glBufferData;
-static PFNGLDELETESHADERPROC            glDeleteShader;
-static PFNGLGENBUFFERSPROC              glGenBuffers;
-static PFNGLCOMPILESHADERPROC           glCompileShader;
-static PFNGLLINKPROGRAMPROC             glLinkProgram;
-static PFNGLGETUNIFORMLOCATIONPROC      glGetUniformLocation;
-static PFNGLCREATESHADERPROC            glCreateShader;
-static PFNGLATTACHSHADERPROC            glAttachShader;
-static PFNGLUSEPROGRAMPROC              glUseProgram;
-static PFNGLGETSHADERIVPROC             glGetShaderiv;
-static PFNGLDETACHSHADERPROC            glDetachShader;
-static PFNGLDELETEPROGRAMPROC           glDeleteProgram;
-static PFNGLBLENDEQUATIONPROC           glBlendEquation;
-static PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv;
-static PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
-static PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
-static PFNGLGETPROGRAMIVPROC            glGetProgramiv;
-static PFNGLGENFRAMEBUFFERSPROC         glGenFramebuffers;
-static PFNGLDELETEFRAMEBUFFERSPROC      glDeleteFramebuffers;
-static PFNGLBINDFRAMEBUFFERPROC         glBindFramebuffer;
-static PFNGLFRAMEBUFFERTEXTURE2DPROC    glFramebufferTexture2D;
-static PFNGLCLEARPROC                   glClear;
-static PFNGLCLEARCOLORPROC              glClearColor;
-static PFNGLGETFLOATVPROC               glGetFloatv;
 
 struct im_gl {
 	GLuint font;
@@ -232,62 +184,12 @@ void im_gl_render(struct im_gl *ctx, const struct im_draw_data *dd, bool clear, 
 
 bool im_gl_create(const char *version, const void *font, uint32_t width, uint32_t height, struct im_gl **gl)
 {
+	if (!gl_dl_global_init())
+		return false;
+
 	struct im_gl *ctx = *gl = calloc(1, sizeof(struct im_gl));
 
 	bool r = true;
-
-	// Load the API
-	#define IM_GL_PROC(cast, func) \
-		func = (cast) MTY_GLGetProcAddress(#func); \
-		if (!func) {r = false; goto except;}
-
-	IM_GL_PROC(PFNGLENABLEPROC,                  glEnable);
-	IM_GL_PROC(PFNGLDISABLEPROC,                 glDisable);
-	IM_GL_PROC(PFNGLISENABLEDPROC,               glIsEnabled);
-	IM_GL_PROC(PFNGLVIEWPORTPROC,                glViewport);
-	IM_GL_PROC(PFNGLSCISSORPROC,                 glScissor);
-	IM_GL_PROC(PFNGLGETINTEGERVPROC,             glGetIntegerv);
-	IM_GL_PROC(PFNGLBINDTEXTUREPROC,             glBindTexture);
-	IM_GL_PROC(PFNGLDELETETEXTURESPROC,          glDeleteTextures);
-	IM_GL_PROC(PFNGLGETTEXLEVELPARAMETERIVPROC,  glGetTexLevelParameteriv);
-	IM_GL_PROC(PFNGLBLENDFUNCPROC,               glBlendFunc);
-	IM_GL_PROC(PFNGLTEXPARAMETERIPROC,           glTexParameteri);
-	IM_GL_PROC(PFNGLGENTEXTURESPROC,             glGenTextures);
-	IM_GL_PROC(PFNGLTEXIMAGE2DPROC,              glTexImage2D);
-	IM_GL_PROC(PFNGLDRAWELEMENTSPROC,            glDrawElements);
-	IM_GL_PROC(PFNGLGETATTRIBLOCATIONPROC,       glGetAttribLocation);
-	IM_GL_PROC(PFNGLSHADERSOURCEPROC,            glShaderSource);
-	IM_GL_PROC(PFNGLBINDBUFFERPROC,              glBindBuffer);
-	IM_GL_PROC(PFNGLVERTEXATTRIBPOINTERPROC,     glVertexAttribPointer);
-	IM_GL_PROC(PFNGLCREATEPROGRAMPROC,           glCreateProgram);
-	IM_GL_PROC(PFNGLUNIFORM1IPROC,               glUniform1i);
-	IM_GL_PROC(PFNGLACTIVETEXTUREPROC,           glActiveTexture);
-	IM_GL_PROC(PFNGLDELETEBUFFERSPROC,           glDeleteBuffers);
-	IM_GL_PROC(PFNGLENABLEVERTEXATTRIBARRAYPROC, glEnableVertexAttribArray);
-	IM_GL_PROC(PFNGLBUFFERDATAPROC,              glBufferData);
-	IM_GL_PROC(PFNGLDELETESHADERPROC,            glDeleteShader);
-	IM_GL_PROC(PFNGLGENBUFFERSPROC,              glGenBuffers);
-	IM_GL_PROC(PFNGLCOMPILESHADERPROC,           glCompileShader);
-	IM_GL_PROC(PFNGLLINKPROGRAMPROC,             glLinkProgram);
-	IM_GL_PROC(PFNGLGETUNIFORMLOCATIONPROC,      glGetUniformLocation);
-	IM_GL_PROC(PFNGLCREATESHADERPROC,            glCreateShader);
-	IM_GL_PROC(PFNGLATTACHSHADERPROC,            glAttachShader);
-	IM_GL_PROC(PFNGLUSEPROGRAMPROC,              glUseProgram);
-	IM_GL_PROC(PFNGLGETSHADERIVPROC,             glGetShaderiv);
-	IM_GL_PROC(PFNGLDETACHSHADERPROC,            glDetachShader);
-	IM_GL_PROC(PFNGLDELETEPROGRAMPROC,           glDeleteProgram);
-	IM_GL_PROC(PFNGLBLENDEQUATIONPROC,           glBlendEquation);
-	IM_GL_PROC(PFNGLUNIFORMMATRIX4FVPROC,        glUniformMatrix4fv);
-	IM_GL_PROC(PFNGLBLENDEQUATIONSEPARATEPROC,   glBlendEquationSeparate);
-	IM_GL_PROC(PFNGLBLENDFUNCSEPARATEPROC,       glBlendFuncSeparate);
-	IM_GL_PROC(PFNGLGETPROGRAMIVPROC,            glGetProgramiv);
-	IM_GL_PROC(PFNGLGENFRAMEBUFFERSPROC,         glGenFramebuffers);
-	IM_GL_PROC(PFNGLDELETEFRAMEBUFFERSPROC,      glDeleteFramebuffers);
-	IM_GL_PROC(PFNGLBINDFRAMEBUFFERPROC,         glBindFramebuffer);
-	IM_GL_PROC(PFNGLFRAMEBUFFERTEXTURE2DPROC,    glFramebufferTexture2D);
-	IM_GL_PROC(PFNGLCLEARPROC,                   glClear);
-	IM_GL_PROC(PFNGLCLEARCOLORPROC,              glClearColor);
-	IM_GL_PROC(PFNGLGETFLOATVPROC,               glGetFloatv);
 
 	// Create vertex, fragment shaders
 	const GLchar *vertex_shader[2] = {0};
@@ -407,15 +309,13 @@ void im_gl_destroy(struct im_gl **gl)
 
 	struct im_gl *ctx = *gl;
 
-	if (glDeleteBuffers) {
-		if (ctx->vb)
-			glDeleteBuffers(1, &ctx->vb);
+	if (ctx->vb)
+		glDeleteBuffers(1, &ctx->vb);
 
-		if (ctx->eb)
-			glDeleteBuffers(1, &ctx->eb);
-	}
+	if (ctx->eb)
+		glDeleteBuffers(1, &ctx->eb);
 
-	if (glDetachShader && ctx->prog) {
+	if (ctx->prog) {
 		if (ctx->vs)
 			glDetachShader(ctx->prog, ctx->vs);
 
@@ -423,21 +323,19 @@ void im_gl_destroy(struct im_gl **gl)
 			glDetachShader(ctx->prog, ctx->fs);
 	}
 
-	if (glDeleteShader) {
-		if (ctx->vs)
-			glDeleteShader(ctx->vs);
+	if (ctx->vs)
+		glDeleteShader(ctx->vs);
 
-		if (ctx->fs)
-			glDeleteShader(ctx->fs);
-	}
+	if (ctx->fs)
+		glDeleteShader(ctx->fs);
 
-	if (glDeleteProgram && ctx->prog)
+	if (ctx->prog)
 		glDeleteProgram(ctx->prog);
 
-	if (glDeleteTextures && ctx->font)
+	if (ctx->font)
 		glDeleteTextures(1, &ctx->font);
 
-	if (glDeleteFramebuffers && ctx->fb)
+	if (ctx->fb)
 		glDeleteFramebuffers(1, &ctx->fb);
 
 	free(ctx);

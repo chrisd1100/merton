@@ -39,11 +39,11 @@ LD_FLAGS = \
 ############
 ifdef WASM
 
-# https://surma.dev/things/c-to-webassembly/
-# https://webassembly.org/getting-started/js-api/
-
 OBJS := $(OBJS) \
 	src/app/deps/imgui/impl/im-gl.o
+
+DEFS := $(DEFS) \
+	-DGL_EXTERNAL
 
 WASI_SDK = $(HOME)/wasi-sdk-11.0
 
