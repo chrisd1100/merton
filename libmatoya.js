@@ -15,6 +15,19 @@ function mem_raw() {
 	return MODULE.instance.exports.memory.buffer;
 }
 
+function malloc(size) {
+	return MODULE.instance.exports.malloc(size);
+}
+
+function free(cptr) {
+	return MODULE.instance.exports.free(cptr);
+}
+
+function copy(cptr, abuffer) {
+	let heap = new Uint8Array(mem_raw(), cptr);
+	heap.set(abuffer);
+}
+
 function setUint32(ptr, value) {
 	mem().setUint32(ptr, value, true);
 }
@@ -302,6 +315,35 @@ const MTY_WEB_API = {
 		document.body.appendChild(CANVAS);
 
 		GL = CANVAS.getContext('webgl2', {depth: 0, antialias: 0});
+	},
+	web_register_drag: function () {
+		CANVAS.addEventListener('drop', (ev) => {
+			ev.preventDefault();
+
+			if (ev.dataTransfer.items) {
+				for (let x = 0; x < ev.dataTransfer.items.length; x++) {
+					if (ev.dataTransfer.items[x].kind == 'file') {
+						let file = ev.dataTransfer.items[x].getAsFile();
+
+						const reader = new FileReader();
+						reader.addEventListener('loadend', (fev) => {
+							if (reader.readyState == 2) {
+								let buf = new Uint8Array(reader.result);
+								let cmem = malloc(buf.length);
+								copy(cmem, buf);
+								// Memory is ready
+							}
+						});
+						reader.readAsArrayBuffer(file);
+						break;
+					}
+				}
+			}
+		});
+
+		CANVAS.addEventListener('dragover', (ev) => {
+			ev.preventDefault();
+		});
 	},
 	web_raf: function (func, opaque) {
 		const step = () => {
