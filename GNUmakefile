@@ -26,6 +26,7 @@ FLAGS = \
 INCLUDES = \
 	-I. \
 	-Isrc \
+	-Isrc/app/deps \
 	-I../libmatoya/src
 
 DEFS = \
@@ -43,7 +44,8 @@ OBJS := $(OBJS) \
 	src/app/deps/imgui/impl/im-gl.o
 
 DEFS := $(DEFS) \
-	-DGL_EXTERNAL
+	-DMTY_GL_EXTERNAL \
+	-DGLES
 
 WASI_SDK = $(HOME)/wasi-sdk-11.0
 

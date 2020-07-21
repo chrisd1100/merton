@@ -5,9 +5,8 @@
 #include <stddef.h>
 #include <math.h>
 
-#include "gl-dl.h"
-
 #include "matoya.h"
+#include "gl-dl.h" // Included from matoya repo
 
 struct im_gl {
 	GLuint font;
