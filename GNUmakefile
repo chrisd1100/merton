@@ -49,6 +49,7 @@ WASI_SDK = $(HOME)/wasi-sdk-11.0
 
 LD_FLAGS := \
 	-Wl,--allow-undefined \
+	-Wl,--export-table \
 	-Wl,-z,stack-size=$$((8 * 1024 * 1024))
 
 CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
@@ -113,6 +114,9 @@ OCFLAGS = $(CFLAGS) -fobjc-arc
 
 all: clean clear
 	make objs -j4
+
+web:
+	python3 -m http.server 8000 --bind 127.0.0.1
 
 objs: $(OBJS)
 	$(CC) -o $(BIN_NAME) $(OBJS) $(LIBS) $(LD_FLAGS)
