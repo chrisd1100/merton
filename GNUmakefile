@@ -116,6 +116,7 @@ all: clean clear
 	make objs -j4
 
 web:
+	make WASM=1 DEBUG=1
 	python3 -m http.server 8000 --bind 127.0.0.1
 
 objs: $(OBJS)

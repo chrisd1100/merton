@@ -165,7 +165,7 @@ static bool im_impl_init(MTY_Device *device, MTY_Context *context)
 		bool r = device && im_mtl_create((MTL_Device *) device, pixels, width, height, &IM.mtl);
 	#else
 		// FIXME GLES needs version 100 here
-		bool r = im_gl_create("#version 110", pixels, width, height, &IM.gl);
+		bool r = im_gl_create("#version 100", pixels, width, height, &IM.gl);
 	#endif
 
 	if (!r) {
