@@ -71,6 +71,7 @@ OBJS := $(OBJS) \
 
 LIBS = \
 	-ldl \
+	-lpthread \
 	-lm \
 	-lc
 
