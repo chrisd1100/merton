@@ -1,3 +1,9 @@
+// Copyright (c) 2019-2020 Christopher D. Dickson <cdd@matoya.group>
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // https://wiki.nesdev.com/w/index.php/MMC5
 
 static void mmc5_map_prg16(struct cart *cart, enum mem type, uint16_t addr, uint16_t bank)
