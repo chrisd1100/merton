@@ -1,0 +1,2 @@
+src/app/deps/* linguist-vendored
+src/nes/libretro/include/* linguist-vendored

@@ -1,0 +1,13 @@
+*.obj
+*.pdb
+*.ilk
+*.res
+*.o
+*.sav
+*.state
+.vs/
+rom/
+/merton
+/merton.exe
+config.bin
+libmatoya
