@@ -265,7 +265,7 @@ void im_mtl_destroy(struct im_mtl **mtl)
 }
 
 
-/*** UTILITY ***/
+// Utility
 
 void im_mtl_texture_size(MTL_Texture *texture, float *width, float *height)
 {

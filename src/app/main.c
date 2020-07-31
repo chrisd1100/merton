@@ -43,7 +43,7 @@ struct main {
 };
 
 
-/*** NES CALLBACKS ***/
+// NES callbacks
 
 static void main_crop_copy(uint32_t *dest, const uint32_t *src, uint32_t top, uint32_t right,
 	uint32_t bottom, uint32_t left)
@@ -92,7 +92,7 @@ static void main_nes_log(const char *str)
 }
 
 
-/*** ROM / SRAM LOADING ***/
+// ROM / SRAM loading
 
 static bool main_get_desc_from_db(uint32_t offset, uint32_t crc32, NES_CartDesc *desc)
 {
@@ -195,7 +195,7 @@ static void main_save_sram(struct main *ctx)
 }
 
 
-/*** WINDOW MSG / INPUT HANDLING ***/
+// Window message / input handling
 
 static const NES_Button NES_KEYBOARD_MAP[MTY_SCANCODE_MAX] = {
 	[MTY_SCANCODE_SEMICOLON] = NES_BUTTON_A,
@@ -235,7 +235,7 @@ static void main_window_msg_func(const MTY_WindowMsg *wmsg, void *opaque)
 }
 
 
-/*** AUDIO / VIDEO TIMING & SYNCHRONIZATION ***/
+// Audio / video timing & synchronization
 
 static const uint8_t PATTERN_60[]  = {1};
 static const uint8_t PATTERN_75[]  = {1, 1, 1, 2, 1, 1, 1, 2};
@@ -310,7 +310,7 @@ static void main_audio_adjustment(struct main *ctx)
 }
 
 
-/*** UI ***/
+// UI
 
 static void main_ui_event(struct ui_event *event, void *opaque)
 {
@@ -384,7 +384,7 @@ static void main_im_root(void *opaque)
 }
 
 
-/*** CONFIG ***/
+// Configuration
 
 static struct config main_load_config(void)
 {
@@ -405,7 +405,7 @@ static void main_save_config(struct config *cfg)
 }
 
 
-/*** MAIN ***/
+// Main
 
 static void main_mty_log_callback(const char *msg, void *opaque)
 {
