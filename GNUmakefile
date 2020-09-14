@@ -94,10 +94,11 @@ LIBS = \
 	-lc \
 	-framework AppKit \
 	-framework QuartzCore \
+	-framework OpenGL \
 	-framework Metal \
 	-framework AudioToolbox
 
-OS = macos
+OS = macosx
 endif
 endif
 

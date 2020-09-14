@@ -128,7 +128,7 @@ static bool main_load_rom(struct main *ctx, const char *name, const uint8_t *rom
 	uint32_t offset = 16 + ((rom[6] & 0x04) ? 512 : 0); // iNES and optional trainer
 
 	if (rom_size > offset) {
-		ctx->crc32 = MTY_CryptoCRC32(rom + offset, rom_size - offset);
+		ctx->crc32 = MTY_CRC32(rom + offset, rom_size - offset);
 
 		ui_clear_log();
 		ui_set_message("Press ESC to access the menu", 3000);
@@ -146,12 +146,12 @@ static bool main_load_rom(struct main *ctx, const char *name, const uint8_t *rom
 		}
 
 		size_t sram_size = 0;
-		void *sram = NULL;
-		MTY_FsRead(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), MTY_FsPath("save", sram_name)), &sram, &sram_size);
-		NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
-		free(sram);
+		void *sram = MTY_ReadFile(MTY_Path(MTY_GetDir(MTY_DIR_EXECUTABLE), MTY_Path("save", sram_name)), &sram_size);
 
-		MTY_WindowSetTitle(ctx->window, APP_NAME, MTY_FsName(name, false));
+		NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
+		MTY_Free(sram);
+
+		MTY_WindowSetTitle(ctx->window, APP_NAME, MTY_GetFileName(name, false));
 
 		return true;
 	}
@@ -161,13 +161,13 @@ static bool main_load_rom(struct main *ctx, const char *name, const uint8_t *rom
 
 static bool main_load_rom_file(struct main *ctx, const char *name)
 {
+	bool r = false;
 	size_t rom_size = 0;
-	uint8_t *rom = NULL;
+	uint8_t *rom = MTY_ReadFile(name, &rom_size);
 
-	bool r = MTY_FsRead(name, (void **) &rom, &rom_size);
-	if (r) {
+	if (rom) {
 		r = main_load_rom(ctx, name, rom, rom_size);
-		free(rom);
+		MTY_Free(rom);
 	}
 
 	return r;
@@ -187,9 +187,9 @@ static void main_save_sram(struct main *ctx)
 		char sram_name[16];
 		snprintf(sram_name, 16, "%02X.sav", ctx->crc32);
 
-		const char *save_path = MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "save");
-		MTY_FsMkdir(save_path);
-		MTY_FsWrite(MTY_FsPath(save_path, sram_name), sram, sram_size);
+		const char *save_path = MTY_Path(MTY_GetDir(MTY_DIR_EXECUTABLE), "save");
+		MTY_Mkdir(save_path);
+		MTY_WriteFile(MTY_Path(save_path, sram_name), sram, sram_size);
 		free(sram);
 	}
 }
@@ -208,7 +208,7 @@ static const NES_Button NES_KEYBOARD_MAP[MTY_SCANCODE_MAX] = {
 	[MTY_SCANCODE_D]         = NES_BUTTON_RIGHT,
 };
 
-static void main_window_msg_func(const MTY_WindowMsg *wmsg, void *opaque)
+static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 {
 	struct main *ctx = (struct main *) opaque;
 
@@ -217,6 +217,11 @@ static void main_window_msg_func(const MTY_WindowMsg *wmsg, void *opaque)
 	switch (wmsg->type) {
 		case MTY_WINDOW_MSG_CLOSE:
 			ctx->running = false;
+			break;
+		case MTY_WINDOW_MSG_MOUSE_MOTION:
+			break;
+		case MTY_WINDOW_MSG_MOUSE_BUTTON:
+			MTY_WindowSetRelativeMouse(ctx->window, wmsg->mouseButton.pressed);
 			break;
 		case MTY_WINDOW_MSG_DROP:
 			main_save_sram(ctx);
@@ -328,13 +333,13 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			// Audio device must be reset on sample rate changes
 			if (event->cfg.nes.sampleRate != ctx->cfg.nes.sampleRate) {
 				MTY_AudioDestroy(&ctx->audio);
-				MTY_AudioCreate(&ctx->audio, event->cfg.nes.sampleRate);
+				ctx->audio = MTY_AudioCreate(event->cfg.nes.sampleRate);
 			}
 
 			// Fullscreen/windowed transitions
 			if (event->cfg.fullscreen != ctx->cfg.fullscreen) {
 				if (MTY_WindowIsFullscreen(ctx->window)) {
-					MTY_WindowSetWindowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
+					MTY_WindowSetSize(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
 
 				} else {
 					MTY_WindowSetFullscreen(ctx->window);
@@ -359,7 +364,7 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			MTY_WindowSetTitle(ctx->window, APP_NAME, NULL);
 			break;
 		case UI_EVENT_RESET:
-			MTY_WindowSetWindowed(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
+			MTY_WindowSetSize(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
 			ctx->cfg.fullscreen = MTY_WindowIsFullscreen(ctx->window);
 			break;
 		default:
@@ -389,19 +394,18 @@ static void main_im_root(void *opaque)
 static struct config main_load_config(void)
 {
 	size_t size = 0;
-	struct config *cfg = NULL;
-	bool ok = MTY_FsRead(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "config.bin"), (void **) &cfg, &size);
+	struct config *cfg = MTY_ReadFile(MTY_Path(MTY_GetDir(MTY_DIR_EXECUTABLE), "config.bin"), &size);
 
-	struct config r = ok && size == sizeof(struct config) && cfg->version == CONFIG_VERSION ?
+	struct config r = cfg && size == sizeof(struct config) && cfg->version == CONFIG_VERSION ?
 		*cfg : (struct config) CONFIG_DEFAULTS;
 
-	free(cfg);
+	MTY_Free(cfg);
 	return r;
 }
 
 static void main_save_config(struct config *cfg)
 {
-	MTY_FsWrite(MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "config.bin"), cfg, sizeof(struct config));
+	MTY_WriteFile(MTY_Path(MTY_GetDir(MTY_DIR_EXECUTABLE), "config.bin"), cfg, sizeof(struct config));
 }
 
 
@@ -409,7 +413,7 @@ static void main_save_config(struct config *cfg)
 
 static void main_mty_log_callback(const char *msg, void *opaque)
 {
-	printf("MTY: %s\n", msg);
+	printf("%s\n", msg);
 }
 
 static bool main_loop(void *opaque)
@@ -461,11 +465,11 @@ int32_t main(int32_t argc, char **argv)
 	MTY_SetTimerResolution(1);
 	MTY_SetLogCallback(main_mty_log_callback, NULL);
 
-	bool r = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
-		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, &ctx.window);
-	if (!r) goto except;
+	ctx.window = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
+		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen);
+	if (!ctx.window) goto except;
 
-	MTY_AudioCreate(&ctx.audio, ctx.cfg.nes.sampleRate);
+	ctx.audio = MTY_AudioCreate(ctx.cfg.nes.sampleRate);
 
 	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);

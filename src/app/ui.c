@@ -35,8 +35,7 @@ enum nav {
 
 static struct component_state {
 	uint32_t nav;
-	MTY_FileDesc *fi;
-	uint32_t fi_n;
+	MTY_FileList *fl;
 	bool refreshed;
 	const char *dir;
 
@@ -144,27 +143,25 @@ static void ui_open_rom(struct ui_event *event)
 		im_begin_frame(0x01, w, h - X(50), ImGuiWindowFlags_NavFlattened);
 
 		if (!CMP.refreshed) {
-			MTY_FileDesc *fi = NULL;
-			uint32_t n = MTY_FsList(CMP.dir ? CMP.dir : ".", &fi);
+			MTY_FileList *fl = MTY_GetFileList(CMP.dir ? CMP.dir : ".", ".nes");
 
-			if (n > 0) {
-				MTY_FsFreeList(&CMP.fi, CMP.fi_n);
-				CMP.fi = fi;
-				CMP.fi_n = n;
+			if (fl->len > 0) {
+				MTY_FreeFileList(&CMP.fl);
+				CMP.fl = fl;
 
 				CMP.refreshed = true;
 			}
 		}
 
-		for (uint32_t x = 0; x < CMP.fi_n; x++) {
-			if (im_selectable(CMP.fi[x].name)) {
-				if (CMP.fi[x].dir) {
-					CMP.dir = CMP.fi[x].path;
+		for (uint32_t x = 0; x < CMP.fl->len; x++) {
+			if (im_selectable(CMP.fl->files[x].name)) {
+				if (CMP.fl->files[x].dir) {
+					CMP.dir = CMP.fl->files[x].path;
 					CMP.refreshed = false;
 
 				} else {
 					event->type = UI_EVENT_OPEN_ROM;
-					event->rom_name = CMP.fi[x].path;
+					event->rom_name = CMP.fl->files[x].path;
 					ui_close_menu();
 				}
 			}
@@ -183,12 +180,12 @@ static void ui_save_state(NES *nes, uint32_t crc32, uint8_t index)
 	void *state = NES_GetState(nes, &size);
 
 	if (state) {
-		const char *path = MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "state");
-		MTY_FsMkdir(path);
+		const char *path = MTY_Path(MTY_GetDir(MTY_DIR_EXECUTABLE), "state");
+		MTY_Mkdir(path);
 
 		char name[32];
 		snprintf(name, 32, "%02X-%u.state", crc32, index);
-		MTY_FsWrite(MTY_FsPath(path, name), state, size);
+		MTY_WriteFile(MTY_Path(path, name), state, size);
 
 		char msg[64];
 		snprintf(msg, 64, "State saved to slot %u", index);
@@ -200,17 +197,17 @@ static void ui_save_state(NES *nes, uint32_t crc32, uint8_t index)
 
 static void ui_load_state(NES *nes, uint32_t crc32, uint8_t index)
 {
-	const char *path = MTY_FsPath(MTY_FsGetDir(MTY_DIR_PROGRAM), "state");
-	MTY_FsMkdir(path);
+	const char *path = MTY_Path(MTY_GetDir(MTY_DIR_EXECUTABLE), "state");
+	MTY_Mkdir(path);
 
 	char name[32];
 	snprintf(name, 32, "%02X-%u.state", crc32, index);
 
 	size_t size = 0;
-	void *state = NULL;
+	void *state = MTY_ReadFile(MTY_Path(path, name), &size);
 	char msg[64];
 
-	if (MTY_FsRead(MTY_FsPath(path, name), &state, &size)) {
+	if (state) {
 		if (NES_SetState(nes, state, size)) {
 			snprintf(msg, 64, "State loaded from slot %u", index);
 
@@ -616,8 +613,7 @@ void ui_close_menu(void)
 
 void ui_destroy(void)
 {
-	MTY_FsFreeList(&CMP.fi, CMP.fi_n);
-	CMP.fi_n = 0;
+	MTY_FreeFileList(&CMP.fl);
 
 	free(CMP.msg);
 
