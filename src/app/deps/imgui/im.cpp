@@ -213,7 +213,7 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 }
 
 const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
-	void *font_res, void (*callback)(void *opaque), const void *opaque)
+	void *font_res, bool clear, void (*callback)(void *opaque), const void *opaque)
 {
 	ImGuiIO &io = GetIO();
 	io.DisplaySize = ImVec2((float) width, (float) height);
@@ -232,6 +232,7 @@ const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
 	Render();
 
 	im_copy_draw_data(&IM.dd, GetDrawData());
+	IM.dd.clear = clear;
 
 	io.MouseDown[0] = IM.mouse[0];
 	io.MouseDown[1] = IM.mouse[1];

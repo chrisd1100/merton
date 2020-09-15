@@ -450,7 +450,8 @@ static bool main_loop(void *opaque)
 		MTY_WindowGetSize(ctx->window, &window_width, &window_height);
 
 		void *font_res = MTY_WindowGetUIFontResource(ctx->window);
-		const MTY_DrawData *dd = im_draw(window_width, window_height, scale, font_res, main_im_root, ctx);
+		const MTY_DrawData *dd = im_draw(window_width, window_height, scale, font_res,
+			!NES_CartLoaded(ctx->nes), main_im_root, ctx);
 		MTY_WindowDrawUI(ctx->window, dd);
 
 		double wait = floor(1000.0 / 60.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;

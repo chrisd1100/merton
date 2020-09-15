@@ -135,7 +135,7 @@ void im_destroy(void);
 void im_input(const MTY_Msg *wmsg);
 void *im_get_font(const void *font, size_t size, float lheight, float scale, int32_t *width, int32_t *height);
 const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
-	void *font_res, void (*callback)(void *opaque), const void *opaque);
+	void *font_res, bool clear, void (*callback)(void *opaque), const void *opaque);
 
 float im_scale(void);
 float im_display_x(void);
