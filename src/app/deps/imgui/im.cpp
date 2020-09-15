@@ -130,52 +130,47 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 {
 	MTY_DrawData pdd = *dd;
 
-	dd->vtx_len = idd->TotalVtxCount;
-	dd->idx_len = idd->TotalIdxCount;
+	dd->vtxTotalLength = idd->TotalVtxCount;
+	dd->idxTotalLength = idd->TotalIdxCount;
 
-	dd->display_size.x = idd->DisplaySize.x;
-	dd->display_size.y = idd->DisplaySize.y;
-	dd->display_pos.x = idd->DisplayPos.x;
-	dd->display_pos.y = idd->DisplayPos.y;
-	dd->framebuffer_scale.x = idd->FramebufferScale.x;
-	dd->framebuffer_scale.y = idd->FramebufferScale.y;
+	dd->displaySize.x = idd->DisplaySize.x;
+	dd->displaySize.y = idd->DisplaySize.y;
+	dd->displayPos.x = idd->DisplayPos.x;
+	dd->displayPos.y = idd->DisplayPos.y;
+	dd->fbScale.x = idd->FramebufferScale.x;
+	dd->fbScale.y = idd->FramebufferScale.y;
 
 	// Command Lists
-	if ((uint32_t) idd->CmdListsCount > dd->cmd_list_max_len) {
-		dd->cmd_list = (MTY_CmdList *) realloc(dd->cmd_list, idd->CmdListsCount * sizeof(MTY_CmdList));
-		memset(dd->cmd_list + dd->cmd_list_max_len, 0,
-			(idd->CmdListsCount - dd->cmd_list_max_len) * sizeof(MTY_CmdList));
-		dd->cmd_list_max_len = idd->CmdListsCount;
+	if ((uint32_t) idd->CmdListsCount > pdd.cmdListLength) {
+		dd->cmdList = (MTY_CmdList *) realloc(dd->cmdList, idd->CmdListsCount * sizeof(MTY_CmdList));
+		memset(dd->cmdList + pdd.cmdListLength, 0,
+			(idd->CmdListsCount - pdd.cmdListLength) * sizeof(MTY_CmdList));
 	}
-	dd->cmd_list_len = idd->CmdListsCount;
+	dd->cmdListLength = idd->CmdListsCount;
 
 	bool diff = memcmp(dd, &pdd, sizeof(MTY_DrawData));
 
-	for (uint32_t x = 0; x < dd->cmd_list_len; x++) {
-		MTY_CmdList *cmd = &dd->cmd_list[x];
+	for (uint32_t x = 0; x < dd->cmdListLength; x++) {
+		MTY_CmdList *cmd = &dd->cmdList[x];
 		MTY_CmdList pcmd = *cmd;
 		ImDrawList *icmd = idd->CmdLists[x];
 
 		// Index Buffer
-		if ((uint32_t) icmd->IdxBuffer.Size > cmd->idx_max_len) {
+		if ((uint32_t) icmd->IdxBuffer.Size > pcmd.idxLength)
 			cmd->idx = (uint16_t *) realloc(cmd->idx, icmd->IdxBuffer.Size * sizeof(uint16_t));
-			cmd->idx_max_len = icmd->IdxBuffer.Size;
-		}
-		cmd->idx_len = icmd->IdxBuffer.Size;
+		cmd->idxLength = icmd->IdxBuffer.Size;
 
-		for (uint32_t y = 0; y < cmd->idx_len; y++) {
+		for (uint32_t y = 0; y < cmd->idxLength; y++) {
 			diff = diff || cmd->idx[y] != icmd->IdxBuffer[y];
 			cmd->idx[y] = icmd->IdxBuffer[y];
 		}
 
 		// Vertex Buffer
-		if ((uint32_t) icmd->VtxBuffer.Size > cmd->vtx_max_len) {
+		if ((uint32_t) icmd->VtxBuffer.Size > pcmd.vtxLength)
 			cmd->vtx = (MTY_Vtx *) realloc(cmd->vtx, icmd->VtxBuffer.Size * sizeof(MTY_Vtx));
-			cmd->vtx_max_len = icmd->VtxBuffer.Size;
-		}
-		cmd->vtx_len = icmd->VtxBuffer.Size;
+		cmd->vtxLength = icmd->VtxBuffer.Size;
 
-		for (uint32_t y = 0; y < cmd->vtx_len; y++) {
+		for (uint32_t y = 0; y < cmd->vtxLength; y++) {
 			MTY_Vtx *vtx = &cmd->vtx[y];
 			MTY_Vtx pvtx = *vtx;
 			ImDrawVert *ivtx = &icmd->VtxBuffer[y];
@@ -190,25 +185,23 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 		}
 
 		// Command Buffer
-		if ((uint32_t) icmd->CmdBuffer.Size > cmd->cmd_max_len) {
+		if ((uint32_t) icmd->CmdBuffer.Size > pcmd.cmdLength)
 			cmd->cmd = (MTY_Cmd *) realloc(cmd->cmd, icmd->CmdBuffer.Size * sizeof(MTY_Cmd));
-			cmd->cmd_max_len = icmd->CmdBuffer.Size;
-		}
-		cmd->cmd_len = icmd->CmdBuffer.Size;
+		cmd->cmdLength = icmd->CmdBuffer.Size;
 
-		for (uint32_t y = 0; y < cmd->cmd_len; y++) {
+		for (uint32_t y = 0; y < cmd->cmdLength; y++) {
 			MTY_Cmd *ccmd = &cmd->cmd[y];
 			MTY_Cmd pccmd = *ccmd;
 			ImDrawCmd *iccmd = &icmd->CmdBuffer[y];
 
-			ccmd->texture_id = iccmd->TextureId; // XXX This must have meaning to graphics context
-			ccmd->vtx_offset = iccmd->VtxOffset;
-			ccmd->idx_offset = iccmd->IdxOffset;
-			ccmd->elem_count = iccmd->ElemCount;
-			ccmd->clip_rect.x = iccmd->ClipRect.x;
-			ccmd->clip_rect.y = iccmd->ClipRect.y;
-			ccmd->clip_rect.z = iccmd->ClipRect.z;
-			ccmd->clip_rect.w = iccmd->ClipRect.w;
+			ccmd->texture = iccmd->TextureId; // XXX This must have meaning to graphics context
+			ccmd->vtxOffset = iccmd->VtxOffset;
+			ccmd->idxOffset = iccmd->IdxOffset;
+			ccmd->elemCount = iccmd->ElemCount;
+			ccmd->clip.x = iccmd->ClipRect.x;
+			ccmd->clip.y = iccmd->ClipRect.y;
+			ccmd->clip.z = iccmd->ClipRect.z;
+			ccmd->clip.w = iccmd->ClipRect.w;
 
 			diff = diff || memcmp(ccmd, &pccmd, sizeof(MTY_Cmd));
 		}
