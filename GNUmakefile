@@ -40,9 +40,6 @@ LD_FLAGS = \
 ############
 ifdef WASM
 
-OBJS := $(OBJS) \
-	src/app/deps/imgui/impl/im-gl.o
-
 DEFS := $(DEFS) \
 	-DMTY_GL_EXTERNAL \
 	-DGL_ES
@@ -66,9 +63,6 @@ else
 #############
 ifeq ($(UNAME_S), Linux)
 
-OBJS := $(OBJS) \
-	src/app/deps/imgui/impl/im-gl.o
-
 LIBS = \
 	-ldl \
 	-lpthread \
@@ -86,9 +80,6 @@ endif
 ifeq ($(UNAME_S), Darwin)
 
 export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
-
-OBJS := $(OBJS) \
-	src/app/deps/imgui/impl/im-mtl.o
 
 LIBS = \
 	-lc \
