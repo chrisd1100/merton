@@ -28,6 +28,7 @@ struct main {
 	MTY_Window *window;
 	MTY_Audio *audio;
 	struct config cfg;
+	float prev_scale;
 	bool running;
 	bool paused;
 	bool loaded;
@@ -433,14 +434,24 @@ static bool main_loop(void *opaque)
 			main_nes_video(NULL, ctx);
 		}
 
-		MTY_Device *device = MTY_WindowGetDevice(ctx->window);
-		MTY_Context *context = MTY_WindowGetContext(ctx->window);
-		MTY_Texture *back_buffer = MTY_WindowGetBackBuffer(ctx->window);
-
-		if (im_begin(MTY_WindowGetDPIScale(ctx->window), device, context, back_buffer)) {
-			im_draw(main_im_root, ctx);
-			im_render(!NES_CartLoaded(ctx->nes));
+		float scale = MTY_WindowGetDPIScale(ctx->window);
+		if (scale != ctx->prev_scale) {
+			int32_t width = 0;
+			int32_t height = 0;
+			void *font = im_get_font(anonymous_compressed_data, anonymous_compressed_size,
+				16.0f, scale, &width, &height);
+			MTY_WindowSetUIFont(ctx->window, font, width, height);
+			MTY_Free(font);
+			ctx->prev_scale = scale;
 		}
+
+		uint32_t window_width = 0;
+		uint32_t window_height = 0;
+		MTY_WindowGetSize(ctx->window, &window_width, &window_height);
+
+		void *font_res = MTY_WindowGetUIFontResource(ctx->window);
+		const MTY_DrawData *dd = im_draw(window_width, window_height, scale, font_res, main_im_root, ctx);
+		MTY_WindowDrawUI(ctx->window, dd);
 
 		double wait = floor(1000.0 / 60.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;
 		MTY_WindowPresent(ctx->window, main_sync_to_60(ctx));
@@ -474,7 +485,7 @@ int32_t main(int32_t argc, char **argv)
 	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
 
-	im_create(anonymous_compressed_data, anonymous_compressed_size, 16.0f);
+	im_create();
 
 	if (argc >= 2)
 		ctx.loaded = main_load_rom_file(&ctx, argv[1]);

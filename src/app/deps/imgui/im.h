@@ -130,14 +130,14 @@ enum ImGuiWindowFlags_
 };
 
 // Framework
-void im_create(const void *font, size_t font_size, float font_height);
+void im_create(void);
 void im_destroy(void);
 void im_input(const MTY_Msg *wmsg);
-bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Texture *texture);
-void im_draw(void (*callback)(void *opaque), const void *opaque);
-void im_render(bool clear);
+void *im_get_font(const void *font, size_t size, float lheight, float scale, int32_t *width, int32_t *height);
+const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
+	void *font_res, void (*callback)(void *opaque), const void *opaque);
 
-float im_dpi_scale(void);
+float im_scale(void);
 float im_display_x(void);
 float im_display_y(void);
 bool im_key(MTY_Scancode key);
@@ -149,7 +149,7 @@ void im_end_menu(void);
 bool im_menu_item(const char *name, const char *key, bool checked);
 bool im_begin_window(const char *name, uint32_t flags);
 void im_end_window(void);
-bool im_begin_frame(uint32_t id, float width, float height,  uint32_t flags);
+bool im_begin_frame(uint32_t id, float width, float height, uint32_t flags);
 void im_end_frame(void);
 void im_separator(void);
 bool im_begin_main_menu(void);

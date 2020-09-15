@@ -10,8 +10,7 @@ OBJS = \
 	src\nes\ppu.obj \
 	src\app\main.obj \
 	src\app\ui.obj \
-	src\app\deps\imgui\im.obj \
-	src\app\deps\imgui\impl\im-dx11.obj
+	src\app\deps\imgui\im.obj
 
 RESOURCES = \
 	assets\$(OS)\icon.res \

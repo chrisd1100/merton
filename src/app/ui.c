@@ -21,7 +21,7 @@
 #define COLOR_MSG_BG  0xD1333333
 #define COLOR_HOVER   0xF7777777
 
-#define X(v) (im_dpi_scale() * (float) lrint(v))
+#define X(v) (im_scale() * (float) lrint(v))
 
 #define PACK_ASPECT(x, y) (((x) << 8) | (y))
 

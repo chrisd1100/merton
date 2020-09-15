@@ -4,13 +4,8 @@
 #include "imgui_widgets.cpp"
 #include "imgui.cpp"
 
-#if defined(_WIN32)
-	#include "impl/im-dx11.h"
-#elif defined(__APPLE__)
-	#include "impl/im-mtl.h"
-#else
-	#include "impl/im-gl.h"
-#endif
+#include "matoya.h"
+
 
 using namespace ImGui;
 
@@ -19,37 +14,16 @@ using namespace ImGui;
 
 static struct im {
 	bool init;
-	bool impl_init;
 	int64_t ts;
-	#if defined(_WIN32)
-	struct im_dx11 *dx11;
-	#elif defined(__APPLE__)
-	struct im_mtl *mtl;
-	#else
-	struct im_gl *gl;
-	#endif
-	struct im_draw_data draw_data;
-	MTY_Device *device;
-	MTY_Context *context;
-	MTY_Texture *texture;
-	float dpi_scale;
-	float width;
-	float height;
+	MTY_DrawData dd;
+	float scale;
 	bool mouse[3];
-	void *font;
-	size_t font_size;
-	float font_height;
 } IM;
 
-void im_create(const void *font, size_t font_size, float font_height)
+void im_create(void)
 {
 	if (IM.init)
 		return;
-
-	IM.font = malloc(font_size);
-	memcpy(IM.font, font, font_size);
-	IM.font_size = font_size;
-	IM.font_height = font_height;
 
 	CreateContext();
 	ImGuiIO &io = GetIO();
@@ -136,95 +110,25 @@ void im_input(const MTY_Msg *wmsg)
 	}
 }
 
-static void im_impl_destroy(void)
-{
-	#if defined(_WIN32)
-		im_dx11_destroy(&IM.dx11);
-	#elif defined(__APPLE__)
-		im_mtl_destroy(&IM.mtl);
-	#else
-		im_gl_destroy(&IM.gl);
-	#endif
-}
-
-static bool im_impl_init(MTY_Device *device, MTY_Context *context)
+void *im_get_font(const void *font, size_t size, float lheight, float scale, int32_t *width, int32_t *height)
 {
 	ImGuiIO &io = GetIO();
+	io.Fonts->AddFontFromMemoryCompressedTTF(font, (int32_t) size, scale * lheight);
 
 	uint8_t *pixels = NULL;
-	int32_t width = 0, height = 0;
-	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+	io.Fonts->GetTexDataAsRGBA32(&pixels, width, height);
 
-	#if defined(_WIN32)
-		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
-		bool r = device && context &&
-			im_dx11_create((ID3D11Device *) device, pixels, width, height, &IM.dx11);
-	#elif defined(__APPLE__)
-		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+	void *rgba = MTY_Alloc(*width * *height, 4);
+	memcpy(rgba, pixels, *width * *height * 4);
 
-		bool r = device && im_mtl_create((MTL_Device *) device, pixels, width, height, &IM.mtl);
-	#else
-		#if defined(GL_ES)
-			const char *version = "#version 100";
-		#else
-			const char *version = "#version 110";
-		#endif
+	io.Fonts->ClearTexData();
 
-		bool r = im_gl_create(version, pixels, width, height, &IM.gl);
-	#endif
-
-	if (!r) {
-		im_impl_destroy();
-		r = false;
-	}
-
-	return r;
+	return rgba;
 }
 
-bool im_begin(float dpi_scale, MTY_Device *device, MTY_Context *context, MTY_Texture *texture)
+static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 {
-	if (!IM.impl_init || device != IM.device || context != IM.context || dpi_scale != IM.dpi_scale) {
-		if (IM.impl_init) {
-			im_impl_destroy();
-			IM.impl_init = false;
-		}
-
-		IM.dpi_scale = dpi_scale;
-
-		IM.device = NULL;
-		IM.context = NULL;
-
-		ImGuiIO &io = GetIO();
-		io.Fonts->AddFontFromMemoryCompressedTTF(IM.font, (int32_t) IM.font_size,
-			im_dpi_scale() * IM.font_height);
-
-		if (!im_impl_init(device, context))
-			return false;
-
-		io.Fonts->ClearTexData();
-		IM.impl_init = true;
-		IM.device = device;
-		IM.context = context;
-	}
-
-	IM.texture = texture;
-
-	#if defined(_WIN32)
-		im_dx11_texture_size((ID3D11Texture2D *) texture, &IM.width, &IM.height);
-
-	#elif defined(__APPLE__)
-		im_mtl_texture_size((MTL_Texture *) IM.texture, &IM.width, &IM.height);
-
-	#else
-		im_gl_texture_size(IM.gl, (GL_Uint) (size_t) texture, &IM.width, &IM.height);
-	#endif
-
-	return true;
-}
-
-static bool im_copy_draw_data(struct im_draw_data *dd, ImDrawData *idd)
-{
-	struct im_draw_data pdd = *dd;
+	MTY_DrawData pdd = *dd;
 
 	dd->vtx_len = idd->TotalVtxCount;
 	dd->idx_len = idd->TotalIdxCount;
@@ -238,18 +142,18 @@ static bool im_copy_draw_data(struct im_draw_data *dd, ImDrawData *idd)
 
 	// Command Lists
 	if ((uint32_t) idd->CmdListsCount > dd->cmd_list_max_len) {
-		dd->cmd_list = (struct im_cmd_list *) realloc(dd->cmd_list, idd->CmdListsCount * sizeof(struct im_cmd_list));
+		dd->cmd_list = (MTY_CmdList *) realloc(dd->cmd_list, idd->CmdListsCount * sizeof(MTY_CmdList));
 		memset(dd->cmd_list + dd->cmd_list_max_len, 0,
-			(idd->CmdListsCount - dd->cmd_list_max_len) * sizeof(struct im_cmd_list));
+			(idd->CmdListsCount - dd->cmd_list_max_len) * sizeof(MTY_CmdList));
 		dd->cmd_list_max_len = idd->CmdListsCount;
 	}
 	dd->cmd_list_len = idd->CmdListsCount;
 
-	bool diff = memcmp(dd, &pdd, sizeof(struct im_draw_data));
+	bool diff = memcmp(dd, &pdd, sizeof(MTY_DrawData));
 
 	for (uint32_t x = 0; x < dd->cmd_list_len; x++) {
-		struct im_cmd_list *cmd = &dd->cmd_list[x];
-		struct im_cmd_list pcmd = *cmd;
+		MTY_CmdList *cmd = &dd->cmd_list[x];
+		MTY_CmdList pcmd = *cmd;
 		ImDrawList *icmd = idd->CmdLists[x];
 
 		// Index Buffer
@@ -266,14 +170,14 @@ static bool im_copy_draw_data(struct im_draw_data *dd, ImDrawData *idd)
 
 		// Vertex Buffer
 		if ((uint32_t) icmd->VtxBuffer.Size > cmd->vtx_max_len) {
-			cmd->vtx = (struct im_vtx *) realloc(cmd->vtx, icmd->VtxBuffer.Size * sizeof(struct im_vtx));
+			cmd->vtx = (MTY_Vtx *) realloc(cmd->vtx, icmd->VtxBuffer.Size * sizeof(MTY_Vtx));
 			cmd->vtx_max_len = icmd->VtxBuffer.Size;
 		}
 		cmd->vtx_len = icmd->VtxBuffer.Size;
 
 		for (uint32_t y = 0; y < cmd->vtx_len; y++) {
-			struct im_vtx *vtx = &cmd->vtx[y];
-			struct im_vtx pvtx = *vtx;
+			MTY_Vtx *vtx = &cmd->vtx[y];
+			MTY_Vtx pvtx = *vtx;
 			ImDrawVert *ivtx = &icmd->VtxBuffer[y];
 
 			vtx->pos.x = ivtx->pos.x;
@@ -282,19 +186,19 @@ static bool im_copy_draw_data(struct im_draw_data *dd, ImDrawData *idd)
 			vtx->uv.y = ivtx->uv.y;
 			vtx->col = ivtx->col;
 
-			diff = diff || memcmp(vtx, &pvtx, sizeof(struct im_vtx));
+			diff = diff || memcmp(vtx, &pvtx, sizeof(MTY_Vtx));
 		}
 
 		// Command Buffer
 		if ((uint32_t) icmd->CmdBuffer.Size > cmd->cmd_max_len) {
-			cmd->cmd = (struct im_cmd *) realloc(cmd->cmd, icmd->CmdBuffer.Size * sizeof(struct im_cmd));
+			cmd->cmd = (MTY_Cmd *) realloc(cmd->cmd, icmd->CmdBuffer.Size * sizeof(MTY_Cmd));
 			cmd->cmd_max_len = icmd->CmdBuffer.Size;
 		}
 		cmd->cmd_len = icmd->CmdBuffer.Size;
 
 		for (uint32_t y = 0; y < cmd->cmd_len; y++) {
-			struct im_cmd *ccmd = &cmd->cmd[y];
-			struct im_cmd pccmd = *ccmd;
+			MTY_Cmd *ccmd = &cmd->cmd[y];
+			MTY_Cmd pccmd = *ccmd;
 			ImDrawCmd *iccmd = &icmd->CmdBuffer[y];
 
 			ccmd->texture_id = iccmd->TextureId; // XXX This must have meaning to graphics context
@@ -306,27 +210,21 @@ static bool im_copy_draw_data(struct im_draw_data *dd, ImDrawData *idd)
 			ccmd->clip_rect.z = iccmd->ClipRect.z;
 			ccmd->clip_rect.w = iccmd->ClipRect.w;
 
-			diff = diff || memcmp(ccmd, &pccmd, sizeof(struct im_cmd));
+			diff = diff || memcmp(ccmd, &pccmd, sizeof(MTY_Cmd));
 		}
 
-		diff = diff || memcmp(cmd, &pcmd, sizeof(struct im_cmd_list));
+		diff = diff || memcmp(cmd, &pcmd, sizeof(MTY_CmdList));
 	}
 
 	return diff;
 }
 
-void im_draw(void (*callback)(void *opaque), const void *opaque)
+const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
+	void *font_res, void (*callback)(void *opaque), const void *opaque)
 {
 	ImGuiIO &io = GetIO();
-	io.DisplaySize = ImVec2(IM.width, IM.height);
-
-	#if defined(_WIN32)
-		io.Fonts->TexID = im_dx11_font_texture(IM.dx11);
-	#elif defined(__APPLE__)
-		io.Fonts->TexID = im_mtl_font_texture(IM.mtl);
-	#else
-		io.Fonts->TexID = (void *) im_gl_font_texture(IM.gl);
-	#endif
+	io.DisplaySize = ImVec2((float) width, (float) height);
+	io.Fonts->TexID = font_res;
 
 	int64_t now = MTY_Timestamp();
 
@@ -334,12 +232,13 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 		io.DeltaTime = (float) MTY_TimeDiff(IM.ts, now) / 1000.0f;
 
 	IM.ts = now;
+	IM.scale = scale;
 
 	NewFrame();
 	callback((void *) opaque);
 	Render();
 
-	im_copy_draw_data(&IM.draw_data, GetDrawData());
+	im_copy_draw_data(&IM.dd, GetDrawData());
 
 	io.MouseDown[0] = IM.mouse[0];
 	io.MouseDown[1] = IM.mouse[1];
@@ -349,29 +248,8 @@ void im_draw(void (*callback)(void *opaque), const void *opaque)
 		io.KeysDown[x] = false;
 
 	io.Fonts->TexID = NULL;
-}
 
-void im_render(bool clear)
-{
-	#if defined(_WIN32)
-		if (!IM.device || !IM.context || !IM.texture)
-			return;
-
-		im_dx11_render(IM.dx11, &IM.draw_data, clear,
-			(ID3D11Device *) IM.device, (ID3D11DeviceContext *) IM.context, (ID3D11Texture2D *) IM.texture);
-
-	#elif defined(__APPLE__)
-		if (!IM.context || !IM.texture)
-			return;
-
-		im_mtl_render(IM.mtl, &IM.draw_data, clear, (MTL_CommandQueue *) IM.context, (MTL_Texture *) IM.texture);
-
-	#else
-		if (!IM.texture)
-			return;
-
-		im_gl_render(IM.gl, &IM.draw_data, clear, (GL_Uint) (size_t) IM.texture);
-	#endif
+	return &IM.dd;
 }
 
 void im_destroy(void)
@@ -379,16 +257,14 @@ void im_destroy(void)
 	if (!IM.init)
 		return;
 
-	im_impl_destroy();
 	DestroyContext();
-	free(IM.font);
 
 	memset(&IM, 0, sizeof(struct im));
 }
 
-float im_dpi_scale(void)
+float im_scale(void)
 {
-	return IM.dpi_scale;
+	return IM.scale;
 }
 
 float im_display_x(void)
