@@ -50,7 +50,6 @@ LOCAL_SRC_FILES := \
 	src/nes/ppu.c \
 	src/app/main.c \
 	src/app/ui.c \
-	src/app/deps/imgui/im.cpp \
-	src/app/deps/imgui/impl/im-gl.c
+	src/app/deps/imgui/im.cpp
 
 include $(BUILD_SHARED_LIBRARY)

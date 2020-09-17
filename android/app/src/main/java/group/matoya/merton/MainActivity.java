@@ -23,8 +23,6 @@ class MainSurface extends SurfaceView implements SurfaceHolder.Callback {
 	native void mty_set_surface(Surface surface);
 	native void mty_surface_dims(int w, int h);
 	native void mty_unset_surface();
-	native void mty_surface_lock();
-	native void mty_surface_unlock();
 
 	public MainSurface(Context context) {
 		super(context);
@@ -32,21 +30,15 @@ class MainSurface extends SurfaceView implements SurfaceHolder.Callback {
 	}
 
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
-		mty_surface_lock();
 		mty_surface_dims(w, h);
-		mty_surface_unlock();
     }
 
     public void surfaceCreated(SurfaceHolder holder) {
-		mty_surface_lock();
 		mty_set_surface(holder.getSurface());
-		mty_surface_unlock();
     }
 
     public void surfaceDestroyed(SurfaceHolder holder) {
-		mty_surface_lock();
 		mty_unset_surface();
-		mty_surface_unlock();
     }
 }
 

@@ -435,7 +435,8 @@ static bool main_loop(void *opaque)
 		}
 
 		float scale = MTY_WindowGetDPIScale(ctx->window);
-		if (scale != ctx->prev_scale) {
+		void *font_res = MTY_WindowGetUIFontResource(ctx->window);
+		if (scale != ctx->prev_scale || !font_res) {
 			int32_t width = 0;
 			int32_t height = 0;
 			void *font = im_get_font(anonymous_compressed_data, anonymous_compressed_size,
@@ -443,13 +444,13 @@ static bool main_loop(void *opaque)
 			MTY_WindowSetUIFont(ctx->window, font, width, height);
 			MTY_Free(font);
 			ctx->prev_scale = scale;
+			font_res = MTY_WindowGetUIFontResource(ctx->window);
 		}
 
 		uint32_t window_width = 0;
 		uint32_t window_height = 0;
 		MTY_WindowGetSize(ctx->window, &window_width, &window_height);
 
-		void *font_res = MTY_WindowGetUIFontResource(ctx->window);
 		const MTY_DrawData *dd = im_draw(window_width, window_height, scale, font_res,
 			!NES_CartLoaded(ctx->nes), main_im_root, ctx);
 		MTY_WindowDrawUI(ctx->window, dd);

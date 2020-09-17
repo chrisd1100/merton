@@ -155,7 +155,9 @@ ndk:
 	@mkdir -p $(ANDROID_PROJECT)/app/libs
 	@$(ANDROID_NDK)/ndk-build -j4 \
 		NDK_PROJECT_PATH=. \
-		NDK_APPLICATION_MK=Application.mk \
+		APP_BUILD_SCRIPT=Android.mk \
+		APP_OPTIM=release \
+		APP_PLATFORM=android-26 \
 		NDK_OUT=$(ANDROID_PROJECT)/build \
 		NDK_LIBS_OUT=$(ANDROID_PROJECT)/app/libs \
 		--no-print-directory \
