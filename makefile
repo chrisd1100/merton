@@ -62,7 +62,8 @@ LIBS = \
 	bcrypt.lib \
 	shlwapi.lib \
 	opengl32.lib \
-	ws2_32.lib
+	ws2_32.lib \
+	gdi32.lib
 
 !IFDEF DEBUG
 FLAGS = $(FLAGS) /Oy- /Ob0 /Zi
