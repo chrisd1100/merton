@@ -387,6 +387,7 @@ static void main_im_root(void *opaque)
 	args.paused = ctx->paused;
 	args.show_menu = !ctx->loaded;
 	args.fullscreen = MTY_WindowIsFullscreen(ctx->window);
+	args.gfx = MTY_WindowGetGFX(ctx->window);
 	ctx->loaded = true;
 
 	ui_root(&args, main_ui_event, ctx);
@@ -438,12 +439,12 @@ static bool main_loop(void *opaque)
 		}
 
 		float scale = MTY_WindowGetDPIScale(ctx->window);
-		if (MTY_WindowUINeedsFont(ctx->window)) {
+		if (!MTY_WindowGetUITexture(ctx->window, IM_FONT_ID)) {
 			int32_t width = 0;
 			int32_t height = 0;
 			void *font = im_get_font(anonymous_compressed_data, anonymous_compressed_size,
 				16.0f, scale, &width, &height);
-			MTY_WindowSetUIFont(ctx->window, font, width, height);
+			MTY_WindowSetUITexture(ctx->window, IM_FONT_ID, font, width, height);
 			MTY_Free(font);
 		}
 
@@ -518,13 +519,11 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 {
 	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
 
-	/*
 	AllocConsole();
 	AttachConsole(GetCurrentProcessId());
 
 	FILE *f = NULL;
 	freopen_s(&f, "CONOUT$", "w", stdout);
-	*/
 
 	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);

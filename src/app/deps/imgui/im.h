@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+#define IM_FONT_ID 0xFFFFFFFF
+
 // Enumeration for PushStyleColor() / PopStyleColor()
 enum ImGuiCol_
 {

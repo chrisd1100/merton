@@ -196,7 +196,7 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 
 			// This is nothing more than a lookup id for the graphics context.
 			// the textures should be managed by the graphics layer
-			ccmd->texture = (uintptr_t) iccmd->TextureId;
+			ccmd->texture = (uint32_t) (uintptr_t) iccmd->TextureId;
 			ccmd->vtxOffset = iccmd->VtxOffset;
 			ccmd->idxOffset = iccmd->IdxOffset;
 			ccmd->elemCount = iccmd->ElemCount;
@@ -218,7 +218,7 @@ const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
 	bool clear, void (*callback)(void *opaque), const void *opaque)
 {
 	ImGuiIO &io = GetIO();
-	io.Fonts->TexID = (void *) (uintptr_t) 0xFFFFFFFF;
+	io.Fonts->TexID = (void *) (uintptr_t) IM_FONT_ID;
 	io.DisplaySize = ImVec2((float) width, (float) height);
 
 	int64_t now = MTY_Timestamp();

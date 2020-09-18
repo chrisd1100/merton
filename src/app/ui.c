@@ -332,7 +332,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 							api == MTY_GFX_D3D11 ? "D3D11" :
 							api == MTY_GFX_METAL ? "METAL" : "";
 
-						if (im_menu_item(name, "", args->cfg->gfx == api))
+						if (im_menu_item(name, "", args->gfx == api))
 							event->cfg.gfx = api;
 					}
 

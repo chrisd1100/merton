@@ -28,6 +28,7 @@ struct ui_args {
 	bool paused;
 	bool show_menu;
 	bool fullscreen;
+	MTY_GFX gfx;
 	NES *nes;
 };
 
