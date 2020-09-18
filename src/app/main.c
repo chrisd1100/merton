@@ -28,7 +28,6 @@ struct main {
 	MTY_Window *window;
 	MTY_Audio *audio;
 	struct config cfg;
-	float prev_scale;
 	bool running;
 	bool paused;
 	bool loaded;
@@ -349,6 +348,10 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 				event->cfg.fullscreen = MTY_WindowIsFullscreen(ctx->window);
 			}
 
+			// Graphics API change
+			if (event->cfg.gfx != ctx->cfg.gfx)
+				MTY_WindowSetGFX(ctx->window, event->cfg.gfx);
+
 			ctx->cfg = event->cfg;
 			break;
 		case UI_EVENT_QUIT:
@@ -435,24 +438,22 @@ static bool main_loop(void *opaque)
 		}
 
 		float scale = MTY_WindowGetDPIScale(ctx->window);
-		void *font_res = MTY_WindowGetUIFontResource(ctx->window);
-		if (scale != ctx->prev_scale || !font_res) {
+		if (MTY_WindowUINeedsFont(ctx->window)) {
 			int32_t width = 0;
 			int32_t height = 0;
 			void *font = im_get_font(anonymous_compressed_data, anonymous_compressed_size,
 				16.0f, scale, &width, &height);
 			MTY_WindowSetUIFont(ctx->window, font, width, height);
 			MTY_Free(font);
-			ctx->prev_scale = scale;
-			font_res = MTY_WindowGetUIFontResource(ctx->window);
 		}
 
 		uint32_t window_width = 0;
 		uint32_t window_height = 0;
 		MTY_WindowGetSize(ctx->window, &window_width, &window_height);
 
-		const MTY_DrawData *dd = im_draw(window_width, window_height, scale, font_res,
+		const MTY_DrawData *dd = im_draw(window_width, window_height, scale,
 			!NES_CartLoaded(ctx->nes), main_im_root, ctx);
+
 		MTY_WindowDrawUI(ctx->window, dd);
 
 		double wait = floor(1000.0 / 60.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;
@@ -479,7 +480,7 @@ int32_t main(int32_t argc, char **argv)
 	MTY_SetLogCallback(main_mty_log_callback, NULL);
 
 	ctx.window = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
-		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen);
+		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, ctx.cfg.gfx);
 	if (!ctx.window) goto except;
 
 	ctx.audio = MTY_AudioCreate(ctx.cfg.nes.sampleRate);

@@ -12,7 +12,7 @@
 #include "matoya.h"
 #include "nes/nes.h"
 
-#define CONFIG_VERSION 5
+#define CONFIG_VERSION 6
 
 enum config_shader {
 	CONFIG_SHADER_NONE = 0,
@@ -41,6 +41,7 @@ struct config {
 	// Video
 	bool fullscreen;
 	int32_t frame_size;
+	MTY_GFX gfx;
 	MTY_Filter filter;
 	MTY_Effect effect;
 	enum config_shader shader;
@@ -73,6 +74,7 @@ struct config {
 	CONFIG_LOG_TIMEOUT, \
 	false, \
 	3, \
+	MTY_GFX_NONE, \
 	MTY_FILTER_NEAREST, \
 	MTY_EFFECT_NONE, \
 	CONFIG_SHADER_NONE, \

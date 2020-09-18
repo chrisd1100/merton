@@ -318,6 +318,28 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 		}
 
 		if (im_begin_menu("Video", true)) {
+			MTY_GFX apis[MTY_GFX_MAX];
+			uint32_t n = MTY_GetAvailableGFX(apis);
+
+			if (n > 1) {
+				if (im_begin_menu("Graphics", true)) {
+					for (uint32_t x = 0; x < n; x++) {
+						MTY_GFX api = apis[x];
+
+						const char *name =
+							api == MTY_GFX_GL ? "OpenGL" :
+							api == MTY_GFX_D3D9 ? "D3D9" :
+							api == MTY_GFX_D3D11 ? "D3D11" :
+							api == MTY_GFX_METAL ? "METAL" : "";
+
+						if (im_menu_item(name, "", args->cfg->gfx == api))
+							event->cfg.gfx = api;
+					}
+
+					im_end_menu();
+				}
+			}
+
 			if (im_begin_menu("Window", true)) {
 				if (im_menu_item("Fullscreen", "Ctrl+W", args->fullscreen))
 					event->cfg.fullscreen = !event->cfg.fullscreen;

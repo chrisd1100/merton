@@ -194,7 +194,9 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 			MTY_Cmd pccmd = *ccmd;
 			ImDrawCmd *iccmd = &icmd->CmdBuffer[y];
 
-			ccmd->texture = iccmd->TextureId; // XXX This must have meaning to graphics context
+			// This is nothing more than a lookup id for the graphics context.
+			// the textures should be managed by the graphics layer
+			ccmd->texture = (uintptr_t) iccmd->TextureId;
 			ccmd->vtxOffset = iccmd->VtxOffset;
 			ccmd->idxOffset = iccmd->IdxOffset;
 			ccmd->elemCount = iccmd->ElemCount;
@@ -213,11 +215,11 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 }
 
 const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
-	void *font_res, bool clear, void (*callback)(void *opaque), const void *opaque)
+	bool clear, void (*callback)(void *opaque), const void *opaque)
 {
 	ImGuiIO &io = GetIO();
+	io.Fonts->TexID = (void *) (uintptr_t) 0xFFFFFFFF;
 	io.DisplaySize = ImVec2((float) width, (float) height);
-	io.Fonts->TexID = font_res;
 
 	int64_t now = MTY_Timestamp();
 
@@ -240,8 +242,6 @@ const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
 
 	for (uint32_t x = 0; x < IM_ARRAYSIZE(io.KeysDown); x++)
 		io.KeysDown[x] = false;
-
-	io.Fonts->TexID = NULL;
 
 	return &IM.dd;
 }
