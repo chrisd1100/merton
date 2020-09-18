@@ -33,8 +33,8 @@ void im_create(void)
 	io.KeyMap[ImGuiKey_RightArrow] = MTY_SCANCODE_RIGHT;
 	io.KeyMap[ImGuiKey_UpArrow] = MTY_SCANCODE_UP;
 	io.KeyMap[ImGuiKey_DownArrow] = MTY_SCANCODE_DOWN;
-	io.KeyMap[ImGuiKey_PageUp] = MTY_SCANCODE_PAGEUP;
-	io.KeyMap[ImGuiKey_PageDown] = MTY_SCANCODE_PAGEDOWN;
+	io.KeyMap[ImGuiKey_PageUp] = MTY_SCANCODE_PAGE_UP;
+	io.KeyMap[ImGuiKey_PageDown] = MTY_SCANCODE_PAGE_DOWN;
 	io.KeyMap[ImGuiKey_Home] = MTY_SCANCODE_HOME;
 	io.KeyMap[ImGuiKey_End] = MTY_SCANCODE_END;
 	io.KeyMap[ImGuiKey_Insert] = MTY_SCANCODE_INSERT;
@@ -71,8 +71,8 @@ void im_input(const MTY_Msg *wmsg)
 			break;
 
 		case MTY_WINDOW_MSG_MOUSE_BUTTON:
-			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_L)      IM.mouse[0] = wmsg->mouseButton.pressed;
-			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_R)      IM.mouse[1] = wmsg->mouseButton.pressed;
+			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_LEFT)   IM.mouse[0] = wmsg->mouseButton.pressed;
+			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_RIGHT)  IM.mouse[1] = wmsg->mouseButton.pressed;
 			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_MIDDLE) IM.mouse[2] = wmsg->mouseButton.pressed;
 
 			io.MouseDown[0] = io.MouseDown[0] || IM.mouse[0];
@@ -100,7 +100,7 @@ void im_input(const MTY_Msg *wmsg)
 			if (sc == MTY_SCANCODE_LALT || sc == MTY_SCANCODE_RALT)
 				io.KeyAlt = wmsg->keyboard.pressed;
 
-			if (sc == MTY_SCANCODE_LGUI || sc == MTY_SCANCODE_RGUI)
+			if (sc == MTY_SCANCODE_LWIN || sc == MTY_SCANCODE_RWIN)
 				io.KeySuper = wmsg->keyboard.pressed;
 
 			break;

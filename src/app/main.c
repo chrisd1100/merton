@@ -218,8 +218,6 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 		case MTY_WINDOW_MSG_CLOSE:
 			ctx->running = false;
 			break;
-		case MTY_WINDOW_MSG_MOUSE_MOTION:
-			break;
 		case MTY_WINDOW_MSG_MOUSE_BUTTON:
 			MTY_WindowSetRelativeMouse(ctx->window, wmsg->mouseButton.pressed);
 			break;
@@ -521,6 +519,7 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 
 	AllocConsole();
 	AttachConsole(GetCurrentProcessId());
+	SetConsoleOutputCP(CP_UTF8);
 
 	FILE *f = NULL;
 	freopen_s(&f, "CONOUT$", "w", stdout);
