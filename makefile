@@ -53,6 +53,7 @@ LIBS = \
 	kernel32.lib \
 	user32.lib \
 	shell32.lib \
+	d3d9.lib \
 	d3d11.lib \
 	dxguid.lib \
 	ole32.lib \
