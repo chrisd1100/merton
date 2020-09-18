@@ -132,7 +132,6 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 
 	dd->vtxTotalLength = idd->TotalVtxCount;
 	dd->idxTotalLength = idd->TotalIdxCount;
-
 	dd->displaySize.x = idd->DisplaySize.x;
 	dd->displaySize.y = idd->DisplaySize.y;
 
