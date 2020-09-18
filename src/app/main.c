@@ -227,6 +227,12 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 			ui_close_menu();
 			break;
 		case MTY_WINDOW_MSG_KEYBOARD: {
+			if (wmsg->keyboard.scancode == MTY_SCANCODE_X)
+				MTY_WindowSetVisible(ctx->window, false);
+
+			if (wmsg->keyboard.scancode == MTY_SCANCODE_Y)
+				MTY_WindowSetVisible(ctx->window, true);
+
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 			if (button != 0)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
