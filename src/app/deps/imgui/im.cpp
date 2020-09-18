@@ -135,8 +135,6 @@ static bool im_copy_draw_data(MTY_DrawData *dd, ImDrawData *idd)
 
 	dd->displaySize.x = idd->DisplaySize.x;
 	dd->displaySize.y = idd->DisplaySize.y;
-	dd->displayPos.x = idd->DisplayPos.x;
-	dd->displayPos.y = idd->DisplayPos.y;
 
 	// Command Lists
 	if ((uint32_t) idd->CmdListsCount > pdd.cmdListLength) {
