@@ -218,7 +218,7 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 		case MTY_WINDOW_MSG_CLOSE:
 			ctx->running = false;
 			break;
-		case MTY_WINDOW_MSG_CLIPBOARD:
+		case MTY_WINDOW_MSG_HOTKEY:
 			break;
 		case MTY_WINDOW_MSG_MOUSE_BUTTON:
 			MTY_WindowSetRelativeMouse(ctx->window, wmsg->mouseButton.pressed);
@@ -229,12 +229,6 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 			ui_close_menu();
 			break;
 		case MTY_WINDOW_MSG_KEYBOARD: {
-			if (wmsg->keyboard.scancode == MTY_SCANCODE_X)
-				MTY_WindowSetVisible(ctx->window, false);
-
-			if (wmsg->keyboard.scancode == MTY_SCANCODE_Y)
-				MTY_WindowSetVisible(ctx->window, true);
-
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 			if (button != 0)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
@@ -434,7 +428,7 @@ static bool main_loop(void *opaque)
 	int64_t ts = MTY_Timestamp();
 	MTY_WindowPoll(ctx->window);
 
-	if (MTY_WindowIsForeground(ctx->window) || !ctx->cfg.bg_pause) {
+	if (MTY_WindowIsActive(ctx->window) || !ctx->cfg.bg_pause) {
 		main_audio_adjustment(ctx);
 
 		if (!ctx->paused) {
