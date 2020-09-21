@@ -222,7 +222,7 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 		case MTY_WINDOW_MSG_HOTKEY:
 			break;
 		case MTY_WINDOW_MSG_MOUSE_BUTTON:
-			MTY_WindowSetRelativeMouse(ctx->window, wmsg->mouseButton.pressed);
+			MTY_AppSetRelativeMouse(ctx->window, wmsg->mouseButton.pressed);
 			break;
 		case MTY_WINDOW_MSG_DROP:
 			main_save_sram(ctx);
@@ -485,7 +485,7 @@ int32_t main(int32_t argc, char **argv)
 		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, ctx.cfg.gfx);
 	if (!ctx.window) goto except;
 
-	MTY_WindowSetPNGCursor(ctx.window, CURSOR, sizeof(CURSOR), 1, 0);
+	MTY_AppSetPNGCursor(ctx.window, CURSOR, sizeof(CURSOR), 1, 0);
 
 	ctx.audio = MTY_AudioCreate(ctx.cfg.nes.sampleRate);
 
