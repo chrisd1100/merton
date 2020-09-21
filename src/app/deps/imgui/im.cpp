@@ -66,8 +66,7 @@ void im_input(const MTY_Msg *wmsg)
 
 	switch (wmsg->type) {
 		case MTY_WINDOW_MSG_MOUSE_WHEEL:
-			if (wmsg->mouseWheel.y > 0) io.MouseWheel += 1;
-			if (wmsg->mouseWheel.y < 0) io.MouseWheel -= 1;
+			io.MouseWheel += wmsg->mouseWheel.y / 120.0f;
 			break;
 
 		case MTY_WINDOW_MSG_MOUSE_BUTTON:
