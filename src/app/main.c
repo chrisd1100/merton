@@ -21,6 +21,7 @@
 
 #include "assets/db/nes20db.h"
 #include "assets/font/anonymous.h"
+#include "assets/cursor.h"
 
 struct main {
 	NES *nes;
@@ -483,6 +484,8 @@ int32_t main(int32_t argc, char **argv)
 	ctx.window = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
 		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, ctx.cfg.gfx);
 	if (!ctx.window) goto except;
+
+	MTY_WindowSetPNGCursor(ctx.window, CURSOR, sizeof(CURSOR), 1, 0);
 
 	ctx.audio = MTY_AudioCreate(ctx.cfg.nes.sampleRate);
 
