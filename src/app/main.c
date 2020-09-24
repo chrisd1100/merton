@@ -221,6 +221,9 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 			break;
 		case MTY_WINDOW_MSG_HOTKEY:
 			break;
+		case MTY_WINDOW_MSG_DISCONNECT:
+			printf("DISCONNECT: %u\n", wmsg->controller.id);
+			break;
 		case MTY_WINDOW_MSG_MOUSE_BUTTON:
 			MTY_AppSetRelativeMouse(ctx->window, wmsg->mouseButton.pressed);
 			break;
@@ -233,6 +236,21 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 			if (button != 0)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
+			break;
+		}
+		case MTY_WINDOW_MSG_CONTROLLER: {
+			uint8_t state = 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_A] ? NES_BUTTON_A : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_B] ? NES_BUTTON_B : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_X] ? NES_BUTTON_B : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_BACK] ? NES_BUTTON_SELECT : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_START] ? NES_BUTTON_START : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_UP] ? NES_BUTTON_UP : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_DOWN] ? NES_BUTTON_DOWN : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_LEFT] ? NES_BUTTON_LEFT : 0;
+			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_RIGHT] ? NES_BUTTON_RIGHT : 0;
+
+			NES_ControllerState(ctx->nes, 0, state);
 			break;
 		}
 		default:

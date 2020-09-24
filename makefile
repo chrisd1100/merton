@@ -64,6 +64,7 @@ LIBS = \
 	shlwapi.lib \
 	opengl32.lib \
 	ws2_32.lib \
+	xinput.lib \
 	gdi32.lib
 
 !IFDEF DEBUG
