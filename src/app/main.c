@@ -21,12 +21,14 @@
 
 #include "assets/db/nes20db.h"
 #include "assets/font/anonymous.h"
-#include "assets/cursor.h"
+
+#define PCM_MIN_BUFFER 100
+#define PCM_MAX_BUFFER 150
 
 struct main {
 	NES *nes;
 	uint32_t crc32;
-	MTY_Window *window;
+	MTY_Window window;
 	MTY_Audio *audio;
 	struct config cfg;
 	bool running;
@@ -152,7 +154,9 @@ static bool main_load_rom(struct main *ctx, const char *name, const uint8_t *rom
 		NES_LoadCart(ctx->nes, rom, rom_size, sram, sram_size, found_in_db ? &desc : NULL);
 		MTY_Free(sram);
 
-		MTY_WindowSetTitle(ctx->window, APP_NAME, MTY_GetFileName(name, false));
+		char title[256];
+		snprintf(title, 256, "%s - %s", APP_NAME, MTY_GetFileName(name, false));
+		MTY_WindowSetTitle(ctx->window, title);
 
 		return true;
 	}
@@ -221,12 +225,6 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 			break;
 		case MTY_WINDOW_MSG_HOTKEY:
 			break;
-		case MTY_WINDOW_MSG_DISCONNECT:
-			printf("DISCONNECT: %u\n", wmsg->controller.id);
-			break;
-		case MTY_WINDOW_MSG_MOUSE_BUTTON:
-			MTY_AppSetRelativeMouse(ctx->window, wmsg->mouseButton.pressed);
-			break;
 		case MTY_WINDOW_MSG_DROP:
 			main_save_sram(ctx);
 			main_load_rom(ctx, wmsg->drop.name, wmsg->drop.data, wmsg->drop.size);
@@ -245,10 +243,10 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 			state |= wmsg->controller.buttons[MTY_CBUTTON_X] ? NES_BUTTON_B : 0;
 			state |= wmsg->controller.buttons[MTY_CBUTTON_BACK] ? NES_BUTTON_SELECT : 0;
 			state |= wmsg->controller.buttons[MTY_CBUTTON_START] ? NES_BUTTON_START : 0;
-			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_UP] ? NES_BUTTON_UP : 0;
-			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_DOWN] ? NES_BUTTON_DOWN : 0;
-			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_LEFT] ? NES_BUTTON_LEFT : 0;
-			state |= wmsg->controller.buttons[MTY_CBUTTON_DPAD_RIGHT] ? NES_BUTTON_RIGHT : 0;
+			state |= MTY_DPAD_UP(&wmsg->controller) ? NES_BUTTON_UP : 0;
+			state |= MTY_DPAD_DOWN(&wmsg->controller) ? NES_BUTTON_DOWN : 0;
+			state |= MTY_DPAD_LEFT(&wmsg->controller) ? NES_BUTTON_LEFT : 0;
+			state |= MTY_DPAD_RIGHT(&wmsg->controller) ? NES_BUTTON_RIGHT : 0;
 
 			NES_ControllerState(ctx->nes, 0, state);
 			break;
@@ -256,52 +254,6 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 		default:
 			break;
 	}
-}
-
-
-// Audio / video timing & synchronization
-
-static const uint8_t PATTERN_60[]  = {1};
-static const uint8_t PATTERN_75[]  = {1, 1, 1, 2, 1, 1, 1, 2};
-static const uint8_t PATTERN_85[]  = {1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1};
-static const uint8_t PATTERN_100[] = {1, 2, 2};
-static const uint8_t PATTERN_120[] = {2};
-static const uint8_t PATTERN_144[] = {2, 3, 2, 3, 2};
-
-static uint32_t main_sync_to_60(struct main *ctx)
-{
-	uint32_t rr = MTY_WindowGetRefreshRate(ctx->window);
-
-	const uint8_t *pattern = PATTERN_60;
-	size_t pattern_len = sizeof(PATTERN_60);
-
-	switch (rr) {
-		case 75:
-			pattern = PATTERN_75;
-			pattern_len = sizeof(PATTERN_75);
-			break;
-		case 85:
-			pattern = PATTERN_85;
-			pattern_len = sizeof(PATTERN_85);
-			break;
-		case 100:
-			pattern = PATTERN_100;
-			pattern_len = sizeof(PATTERN_100);
-			break;
-		case 120:
-			pattern = PATTERN_120;
-			pattern_len = sizeof(PATTERN_120);
-			break;
-		case 144:
-			pattern = PATTERN_144;
-			pattern_len = sizeof(PATTERN_144);
-			break;
-	}
-
-	if (++ctx->sync >= pattern_len)
-		ctx->sync = 0;
-
-	return pattern[ctx->sync];
 }
 
 static void main_audio_adjustment(struct main *ctx)
@@ -352,24 +304,16 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			// Audio device must be reset on sample rate changes
 			if (event->cfg.nes.sampleRate != ctx->cfg.nes.sampleRate) {
 				MTY_AudioDestroy(&ctx->audio);
-				ctx->audio = MTY_AudioCreate(event->cfg.nes.sampleRate);
+				ctx->audio = MTY_AudioCreate(event->cfg.nes.sampleRate, PCM_MIN_BUFFER, PCM_MAX_BUFFER);
 			}
 
 			// Fullscreen/windowed transitions
-			if (event->cfg.fullscreen != ctx->cfg.fullscreen) {
-				if (MTY_WindowIsFullscreen(ctx->window)) {
-					MTY_WindowSetSize(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
-
-				} else {
-					MTY_WindowSetFullscreen(ctx->window);
-				}
-
-				event->cfg.fullscreen = MTY_WindowIsFullscreen(ctx->window);
-			}
+			if (event->cfg.fullscreen != ctx->cfg.fullscreen)
+				MTY_WindowEnableFullscreen(ctx->window, event->cfg.fullscreen);
 
 			// Graphics API change
 			if (event->cfg.gfx != ctx->cfg.gfx)
-				MTY_WindowSetGFX(ctx->window, event->cfg.gfx);
+				MTY_WindowSetGFX(ctx->window, event->cfg.gfx, true);
 
 			ctx->cfg = event->cfg;
 			break;
@@ -384,11 +328,10 @@ static void main_ui_event(struct ui_event *event, void *opaque)
 			main_load_rom_file(ctx, event->rom_name);
 			break;
 		case UI_EVENT_UNLOAD_ROM:
-			MTY_WindowSetTitle(ctx->window, APP_NAME, NULL);
+			MTY_WindowSetTitle(ctx->window, APP_NAME);
 			break;
 		case UI_EVENT_RESET:
-			MTY_WindowSetSize(ctx->window, ctx->cfg.window.w, ctx->cfg.window.h);
-			ctx->cfg.fullscreen = MTY_WindowIsFullscreen(ctx->window);
+			// TODO can't explicity set size
 			break;
 		default:
 			break;
@@ -445,7 +388,6 @@ static bool main_loop(void *opaque)
 	struct main *ctx = (struct main *) opaque;
 
 	int64_t ts = MTY_Timestamp();
-	MTY_WindowPoll(ctx->window);
 
 	if (MTY_WindowIsActive(ctx->window) || !ctx->cfg.bg_pause) {
 		main_audio_adjustment(ctx);
@@ -457,7 +399,7 @@ static bool main_loop(void *opaque)
 			main_nes_video(NULL, ctx);
 		}
 
-		float scale = MTY_WindowGetDPIScale(ctx->window);
+		float scale = MTY_WindowGetScale(ctx->window);
 		if (!MTY_WindowGetUITexture(ctx->window, IM_FONT_ID)) {
 			int32_t width = 0;
 			int32_t height = 0;
@@ -476,15 +418,16 @@ static bool main_loop(void *opaque)
 
 		MTY_WindowDrawUI(ctx->window, dd);
 
-		double wait = floor(1000.0 / 60.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;
-		MTY_WindowPresent(ctx->window, main_sync_to_60(ctx));
+		// TODO This assumes 120 Hz! Need to guess refresh rate based on interval between MTY_WindowPresent
+		double wait = floor(1000.0 / 120.0 - MTY_TimeDiff(ts, MTY_Timestamp())) - 1.0;
+		MTY_WindowPresent(ctx->window, 2);
 
 		if (ctx->cfg.reduce_latency && wait > 0.0)
 			MTY_Sleep(lrint(wait));
 
 	} else {
 		ctx->ts = 0;
-		MTY_Sleep(16);
+		MTY_Sleep(8);
 	}
 
 	return ctx->running;
@@ -496,21 +439,28 @@ int32_t main(int32_t argc, char **argv)
 	ctx.cfg = main_load_config();
 	ctx.running = true;
 
+	im_create();
+	MTY_AppCreate();
+
 	MTY_SetTimerResolution(1);
 	MTY_SetLogCallback(main_mty_log_callback, NULL);
 
-	ctx.window = MTY_WindowCreate(APP_NAME, main_window_msg_func, &ctx,
-		ctx.cfg.window.w, ctx.cfg.window.h, ctx.cfg.fullscreen, ctx.cfg.gfx);
-	if (!ctx.window) goto except;
+	MTY_WindowDesc desc = {0};
+	desc.width = ctx.cfg.window.w;
+	desc.height = ctx.cfg.window.h;
+	desc.creationHeight = 0.85f;
+	desc.fullscreen = ctx.cfg.fullscreen;
 
-	MTY_AppSetPNGCursor(ctx.window, CURSOR, sizeof(CURSOR), 1, 0);
+	ctx.window = MTY_WindowCreate(APP_NAME, &desc, main_window_msg_func, &ctx);
+	if (ctx.window == -1)
+		goto except;
 
-	ctx.audio = MTY_AudioCreate(ctx.cfg.nes.sampleRate);
+	MTY_WindowSetGFX(ctx.window, MTY_GFX_D3D11, true);
+
+	ctx.audio = MTY_AudioCreate(ctx.cfg.nes.sampleRate, PCM_MIN_BUFFER, PCM_MAX_BUFFER);
 
 	NES_Create(&ctx.cfg.nes, &ctx.nes);
 	NES_SetLogCallback(main_nes_log);
-
-	im_create();
 
 	if (argc >= 2)
 		ctx.loaded = main_load_rom_file(&ctx, argv[1]);
@@ -523,11 +473,11 @@ int32_t main(int32_t argc, char **argv)
 	except:
 
 	ui_destroy();
-	im_destroy();
 	NES_Destroy(&ctx.nes);
 	MTY_AudioDestroy(&ctx.audio);
-	MTY_WindowDestroy(&ctx.window);
 	MTY_RevertTimerResolution(1);
+	MTY_AppDestroy();
+	im_destroy();
 
 	return 0;
 }

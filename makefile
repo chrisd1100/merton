@@ -65,7 +65,8 @@ LIBS = \
 	opengl32.lib \
 	ws2_32.lib \
 	xinput.lib \
-	gdi32.lib
+	gdi32.lib \
+	hid.lib
 
 !IFDEF DEBUG
 FLAGS = $(FLAGS) /Oy- /Ob0 /Zi
