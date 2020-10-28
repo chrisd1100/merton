@@ -262,15 +262,12 @@ static void main_audio_adjustment(struct main *ctx)
 	if (!ctx->audio)
 		return;
 
-	uint32_t queued = MTY_AudioGetQueuedFrames(ctx->audio);
-	uint32_t audio_buffer = lrint((float) PCM_MIN_BUFFER * ((float) ctx->cfg.nes.sampleRate / 1000.0f));
-
 	if (++ctx->frames % 120 == 0) {
 		int64_t now = MTY_Timestamp();
 
 		if (ctx->ts != 0) {
 			uint32_t cycles_sec = lrint(((double) ctx->cycles * 1000.0) / MTY_TimeDiff(ctx->ts, now));
-			NES_APUClockDrift(ctx->nes, cycles_sec, queued >= audio_buffer);
+			NES_APUClockDrift(ctx->nes, cycles_sec, MTY_AudioGetQueuedMs(ctx->audio) >= PCM_MIN_BUFFER);
 		}
 
 		ctx->cycles = 0;
