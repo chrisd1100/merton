@@ -66,6 +66,7 @@ LIBS = \
 	ws2_32.lib \
 	xinput.lib \
 	gdi32.lib \
+	imm32.lib \
 	hid.lib
 
 !IFDEF DEBUG

@@ -263,15 +263,7 @@ static void main_audio_adjustment(struct main *ctx)
 		return;
 
 	uint32_t queued = MTY_AudioGetQueuedFrames(ctx->audio);
-
-	uint32_t audio_start = 100 * (ctx->cfg.nes.sampleRate / 1000);
-	uint32_t audio_buffer = 50 * (ctx->cfg.nes.sampleRate / 1000);
-
-	if (queued >= audio_start && !MTY_AudioIsPlaying(ctx->audio))
-		MTY_AudioPlay(ctx->audio);
-
-	if (queued == 0 && MTY_AudioIsPlaying(ctx->audio))
-		MTY_AudioStop(ctx->audio);
+	uint32_t audio_buffer = lrint((float) PCM_MIN_BUFFER * ((float) ctx->cfg.nes.sampleRate / 1000.0f));
 
 	if (++ctx->frames % 120 == 0) {
 		int64_t now = MTY_Timestamp();
