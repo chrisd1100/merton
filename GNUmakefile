@@ -32,9 +32,6 @@ INCLUDES = \
 DEFS = \
 	-D_POSIX_C_SOURCE=200112L
 
-LD_FLAGS = \
-	-nodefaultlibs
-
 ############
 ### WASM ###
 ############
@@ -47,6 +44,7 @@ DEFS := $(DEFS) \
 WASI_SDK = $(HOME)/wasi-sdk-11.0
 
 LD_FLAGS := \
+	-nodefaultlibs \
 	-Wl,--allow-undefined \
 	-Wl,--export-table \
 	-Wl,-z,stack-size=$$((8 * 1024 * 1024))
@@ -62,6 +60,9 @@ else
 ### LINUX ###
 #############
 ifeq ($(UNAME_S), Linux)
+
+LD_FLAGS = \
+	-nodefaultlibs
 
 LIBS = \
 	-ldl \
@@ -79,8 +80,6 @@ endif
 #############
 ifeq ($(UNAME_S), Darwin)
 
-export SDKROOT=$(shell xcrun --sdk macosx --show-sdk-path)
-
 LIBS = \
 	-lc \
 	-framework AppKit \
@@ -94,6 +93,11 @@ endif
 endif
 
 LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
+
+FLAGS := $(FLAGS) \
+	-mmacosx-version-min=10.11 \
+	-isysroot $(shell xcrun --sdk macosx --show-sdk-path) \
+	-arch x86_64
 
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
