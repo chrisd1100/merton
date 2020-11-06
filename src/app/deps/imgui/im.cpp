@@ -65,11 +65,11 @@ void im_input(const MTY_Msg *wmsg)
 	ImGuiIO &io = GetIO();
 
 	switch (wmsg->type) {
-		case MTY_WINDOW_MSG_MOUSE_WHEEL:
+		case MTY_MSG_MOUSE_WHEEL:
 			io.MouseWheel += wmsg->mouseWheel.y / 120.0f;
 			break;
 
-		case MTY_WINDOW_MSG_MOUSE_BUTTON:
+		case MTY_MSG_MOUSE_BUTTON:
 			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_LEFT)   IM.mouse[0] = wmsg->mouseButton.pressed;
 			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_RIGHT)  IM.mouse[1] = wmsg->mouseButton.pressed;
 			if (wmsg->mouseButton.button == MTY_MOUSE_BUTTON_MIDDLE) IM.mouse[2] = wmsg->mouseButton.pressed;
@@ -79,12 +79,12 @@ void im_input(const MTY_Msg *wmsg)
 			io.MouseDown[2] = io.MouseDown[2] || IM.mouse[2];
 			break;
 
-		case MTY_WINDOW_MSG_MOUSE_MOTION:
+		case MTY_MSG_MOUSE_MOTION:
 			if (!wmsg->mouseMotion.relative)
 				io.MousePos = ImVec2((float) wmsg->mouseMotion.x, (float) wmsg->mouseMotion.y);
 			break;
 
-		case MTY_WINDOW_MSG_KEYBOARD: {
+		case MTY_MSG_KEYBOARD: {
 			MTY_Scancode sc = wmsg->keyboard.scancode;
 
 			if (wmsg->keyboard.pressed && sc < IM_ARRAYSIZE(io.KeysDown))

@@ -221,23 +221,23 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 	im_input(wmsg);
 
 	switch (wmsg->type) {
-		case MTY_WINDOW_MSG_CLOSE:
+		case MTY_MSG_CLOSE:
 			ctx->running = false;
 			break;
-		case MTY_WINDOW_MSG_HOTKEY:
+		case MTY_MSG_HOTKEY:
 			break;
-		case MTY_WINDOW_MSG_DROP:
+		case MTY_MSG_DROP:
 			main_save_sram(ctx);
 			main_load_rom(ctx, wmsg->drop.name, wmsg->drop.data, wmsg->drop.size);
 			ui_close_menu();
 			break;
-		case MTY_WINDOW_MSG_KEYBOARD: {
+		case MTY_MSG_KEYBOARD: {
 			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
 			if (button != 0)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
 			break;
 		}
-		case MTY_WINDOW_MSG_CONTROLLER: {
+		case MTY_MSG_CONTROLLER: {
 			uint8_t state = 0;
 			state |= wmsg->controller.buttons[MTY_CBUTTON_A] ? NES_BUTTON_A : 0;
 			state |= wmsg->controller.buttons[MTY_CBUTTON_B] ? NES_BUTTON_B : 0;
