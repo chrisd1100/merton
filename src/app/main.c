@@ -438,7 +438,6 @@ int32_t main(int32_t argc, char **argv)
 	MTY_WindowDesc desc = {0};
 	desc.width = ctx.cfg.window.w;
 	desc.height = ctx.cfg.window.h;
-	desc.creationHeight = 0.85f;
 	desc.fullscreen = ctx.cfg.fullscreen;
 
 	ctx.window = MTY_WindowCreate(ctx.app, APP_NAME, &desc);

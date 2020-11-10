@@ -86,6 +86,7 @@ LIBS = \
 	-framework QuartzCore \
 	-framework OpenGL \
 	-framework Metal \
+	-framework IOKit \
 	-framework AudioToolbox
 
 OS = macosx
