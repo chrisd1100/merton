@@ -84,6 +84,7 @@ LIBS = \
 	-lc \
 	-framework AppKit \
 	-framework QuartzCore \
+	-framework Carbon \
 	-framework OpenGL \
 	-framework Metal \
 	-framework IOKit \
