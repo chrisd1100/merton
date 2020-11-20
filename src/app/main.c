@@ -444,7 +444,7 @@ int32_t main(int32_t argc, char **argv)
 	if (ctx.window == -1)
 		goto except;
 
-	MTY_WindowSetGFX(ctx.app, ctx.window, MTY_GFX_METAL, true);
+	MTY_WindowSetGFX(ctx.app, ctx.window, MTY_GFX_GL, true);
 
 	ctx.audio = MTY_AudioCreate(ctx.cfg.nes.sampleRate, PCM_MIN_BUFFER, PCM_MAX_BUFFER);
 

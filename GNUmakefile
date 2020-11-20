@@ -91,15 +91,15 @@ LIBS = \
 	-framework AudioToolbox
 
 OS = macosx
-endif
-endif
-
-LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
 
 FLAGS := $(FLAGS) \
 	-mmacosx-version-min=10.11 \
 	-isysroot $(shell xcrun --sdk macosx --show-sdk-path) \
 	-arch x86_64
+endif
+endif
+
+LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
 
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
