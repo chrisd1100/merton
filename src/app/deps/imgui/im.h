@@ -142,7 +142,7 @@ const MTY_DrawData *im_draw(uint32_t width, uint32_t height, float scale,
 float im_scale(void);
 float im_display_x(void);
 float im_display_y(void);
-bool im_key(MTY_Scancode key);
+bool im_key(MTY_Key key);
 bool im_ctrl(void);
 
 // Drawing

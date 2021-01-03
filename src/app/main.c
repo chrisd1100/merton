@@ -203,15 +203,15 @@ static void main_save_sram(struct main *ctx)
 
 // Window message / input handling
 
-static const NES_Button NES_KEYBOARD_MAP[MTY_SCANCODE_MAX] = {
-	[MTY_SCANCODE_SEMICOLON] = NES_BUTTON_A,
-	[MTY_SCANCODE_L]         = NES_BUTTON_B,
-	[MTY_SCANCODE_LSHIFT]    = NES_BUTTON_SELECT,
-	[MTY_SCANCODE_SPACE]     = NES_BUTTON_START,
-	[MTY_SCANCODE_W]         = NES_BUTTON_UP,
-	[MTY_SCANCODE_S]         = NES_BUTTON_DOWN,
-	[MTY_SCANCODE_A]         = NES_BUTTON_LEFT,
-	[MTY_SCANCODE_D]         = NES_BUTTON_RIGHT,
+static const NES_Button NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
+	[MTY_KEY_SEMICOLON] = NES_BUTTON_A,
+	[MTY_KEY_L]         = NES_BUTTON_B,
+	[MTY_KEY_LSHIFT]    = NES_BUTTON_SELECT,
+	[MTY_KEY_SPACE]     = NES_BUTTON_START,
+	[MTY_KEY_W]         = NES_BUTTON_UP,
+	[MTY_KEY_S]         = NES_BUTTON_DOWN,
+	[MTY_KEY_A]         = NES_BUTTON_LEFT,
+	[MTY_KEY_D]         = NES_BUTTON_RIGHT,
 };
 
 static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
@@ -232,7 +232,7 @@ static void main_window_msg_func(const MTY_Msg *wmsg, void *opaque)
 			ui_close_menu();
 			break;
 		case MTY_MSG_KEYBOARD: {
-			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.scancode];
+			NES_Button button = NES_KEYBOARD_MAP[wmsg->keyboard.key];
 			if (button != 0)
 				NES_ControllerButton(ctx->nes, 0, button, wmsg->keyboard.pressed);
 			break;

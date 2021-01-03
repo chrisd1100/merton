@@ -28,27 +28,27 @@ void im_create(void)
 	CreateContext();
 	ImGuiIO &io = GetIO();
 
-	io.KeyMap[ImGuiKey_Tab] = MTY_SCANCODE_TAB;
-	io.KeyMap[ImGuiKey_LeftArrow] = MTY_SCANCODE_LEFT;
-	io.KeyMap[ImGuiKey_RightArrow] = MTY_SCANCODE_RIGHT;
-	io.KeyMap[ImGuiKey_UpArrow] = MTY_SCANCODE_UP;
-	io.KeyMap[ImGuiKey_DownArrow] = MTY_SCANCODE_DOWN;
-	io.KeyMap[ImGuiKey_PageUp] = MTY_SCANCODE_PAGE_UP;
-	io.KeyMap[ImGuiKey_PageDown] = MTY_SCANCODE_PAGE_DOWN;
-	io.KeyMap[ImGuiKey_Home] = MTY_SCANCODE_HOME;
-	io.KeyMap[ImGuiKey_End] = MTY_SCANCODE_END;
-	io.KeyMap[ImGuiKey_Insert] = MTY_SCANCODE_INSERT;
-	io.KeyMap[ImGuiKey_Delete] = MTY_SCANCODE_DELETE;
-	io.KeyMap[ImGuiKey_Backspace] = MTY_SCANCODE_BACKSPACE;
-	io.KeyMap[ImGuiKey_Space] = MTY_SCANCODE_ENTER;
-	io.KeyMap[ImGuiKey_Enter] = MTY_SCANCODE_ENTER;
-	io.KeyMap[ImGuiKey_Escape] = MTY_SCANCODE_ESCAPE;
-	io.KeyMap[ImGuiKey_A] = MTY_SCANCODE_A;
-	io.KeyMap[ImGuiKey_C] = MTY_SCANCODE_C;
-	io.KeyMap[ImGuiKey_V] = MTY_SCANCODE_V;
-	io.KeyMap[ImGuiKey_X] = MTY_SCANCODE_X;
-	io.KeyMap[ImGuiKey_Y] = MTY_SCANCODE_Y;
-	io.KeyMap[ImGuiKey_Z] = MTY_SCANCODE_Z;
+	io.KeyMap[ImGuiKey_Tab] = MTY_KEY_TAB;
+	io.KeyMap[ImGuiKey_LeftArrow] = MTY_KEY_LEFT;
+	io.KeyMap[ImGuiKey_RightArrow] = MTY_KEY_RIGHT;
+	io.KeyMap[ImGuiKey_UpArrow] = MTY_KEY_UP;
+	io.KeyMap[ImGuiKey_DownArrow] = MTY_KEY_DOWN;
+	io.KeyMap[ImGuiKey_PageUp] = MTY_KEY_PAGE_UP;
+	io.KeyMap[ImGuiKey_PageDown] = MTY_KEY_PAGE_DOWN;
+	io.KeyMap[ImGuiKey_Home] = MTY_KEY_HOME;
+	io.KeyMap[ImGuiKey_End] = MTY_KEY_END;
+	io.KeyMap[ImGuiKey_Insert] = MTY_KEY_INSERT;
+	io.KeyMap[ImGuiKey_Delete] = MTY_KEY_DELETE;
+	io.KeyMap[ImGuiKey_Backspace] = MTY_KEY_BACKSPACE;
+	io.KeyMap[ImGuiKey_Space] = MTY_KEY_ENTER;
+	io.KeyMap[ImGuiKey_Enter] = MTY_KEY_ENTER;
+	io.KeyMap[ImGuiKey_Escape] = MTY_KEY_ESCAPE;
+	io.KeyMap[ImGuiKey_A] = MTY_KEY_A;
+	io.KeyMap[ImGuiKey_C] = MTY_KEY_C;
+	io.KeyMap[ImGuiKey_V] = MTY_KEY_V;
+	io.KeyMap[ImGuiKey_X] = MTY_KEY_X;
+	io.KeyMap[ImGuiKey_Y] = MTY_KEY_Y;
+	io.KeyMap[ImGuiKey_Z] = MTY_KEY_Z;
 
 	io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
 	io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
@@ -85,21 +85,21 @@ void im_input(const MTY_Msg *wmsg)
 			break;
 
 		case MTY_MSG_KEYBOARD: {
-			MTY_Scancode sc = wmsg->keyboard.scancode;
+			MTY_Key sc = wmsg->keyboard.key;
 
 			if (wmsg->keyboard.pressed && sc < IM_ARRAYSIZE(io.KeysDown))
 				io.KeysDown[sc] = true;
 
-			if (sc == MTY_SCANCODE_LSHIFT || sc == MTY_SCANCODE_RSHIFT)
+			if (sc == MTY_KEY_LSHIFT || sc == MTY_KEY_RSHIFT)
 				io.KeyShift = wmsg->keyboard.pressed;
 
-			if (sc == MTY_SCANCODE_LCTRL || sc == MTY_SCANCODE_RCTRL)
+			if (sc == MTY_KEY_LCTRL || sc == MTY_KEY_RCTRL)
 				io.KeyCtrl =  wmsg->keyboard.pressed;
 
-			if (sc == MTY_SCANCODE_LALT || sc == MTY_SCANCODE_RALT)
+			if (sc == MTY_KEY_LALT || sc == MTY_KEY_RALT)
 				io.KeyAlt = wmsg->keyboard.pressed;
 
-			if (sc == MTY_SCANCODE_LWIN || sc == MTY_SCANCODE_RWIN)
+			if (sc == MTY_KEY_LWIN || sc == MTY_KEY_RWIN)
 				io.KeySuper = wmsg->keyboard.pressed;
 
 			break;
@@ -267,7 +267,7 @@ float im_display_y(void)
 	return GetIO().DisplaySize.y;
 }
 
-bool im_key(MTY_Scancode key)
+bool im_key(MTY_Key key)
 {
 	return GetIO().KeysDown[key];
 }

@@ -524,7 +524,7 @@ static void ui_menu(const struct ui_args *args, struct ui_event *event)
 
 static void ui_hotkeys(const struct ui_args *args, struct ui_event *event)
 {
-	if (im_key(MTY_SCANCODE_ESCAPE)) {
+	if (im_key(MTY_KEY_ESCAPE)) {
 		CMP.ts = 0;
 
 		if (CMP.nav & NAV_OPEN_ROM) {
@@ -535,29 +535,29 @@ static void ui_hotkeys(const struct ui_args *args, struct ui_event *event)
 		}
 	}
 
-	if (im_key(MTY_SCANCODE_W) && im_ctrl())
+	if (im_key(MTY_KEY_W) && im_ctrl())
 		event->cfg.fullscreen = !event->cfg.fullscreen;
 
-	if (im_key(MTY_SCANCODE_O) && im_ctrl())
+	if (im_key(MTY_KEY_O) && im_ctrl())
 		CMP.nav ^= NAV_OPEN_ROM;
 
-	if (im_key(MTY_SCANCODE_P) && im_ctrl())
+	if (im_key(MTY_KEY_P) && im_ctrl())
 		event->type = UI_EVENT_PAUSE;
 
-	if (im_key(MTY_SCANCODE_R) && im_ctrl())
+	if (im_key(MTY_KEY_R) && im_ctrl())
 		NES_Reset(args->nes, false);
 
-	if (im_key(MTY_SCANCODE_T) && im_ctrl())
+	if (im_key(MTY_KEY_T) && im_ctrl())
 		NES_Reset(args->nes, true);
 
-	if (im_key(MTY_SCANCODE_M) && im_ctrl())
+	if (im_key(MTY_KEY_M) && im_ctrl())
 		event->cfg.mute = !event->cfg.mute;
 
 	for (uint8_t x = 0; x < 8; x++) {
-		if (im_key(MTY_SCANCODE_1 + x) && im_ctrl()) {
+		if (im_key(MTY_KEY_1 + x) && im_ctrl()) {
 			ui_load_state(args->nes, args->crc32, x + 1);
 
-		} else if (im_key(MTY_SCANCODE_1 + x)) {
+		} else if (im_key(MTY_KEY_1 + x)) {
 			ui_save_state(args->nes, args->crc32, x + 1);
 		}
 	}
