@@ -37,7 +37,7 @@ DEFS = \
 ############
 ifdef WASM
 
-WASI_SDK = $(HOME)/wasi-sdk-11.0
+WASI_SDK = $(HOME)/wasi-sdk-12.0
 
 LD_FLAGS := \
 	-Wl,--allow-undefined \
