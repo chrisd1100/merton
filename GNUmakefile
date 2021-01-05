@@ -37,14 +37,9 @@ DEFS = \
 ############
 ifdef WASM
 
-DEFS := $(DEFS) \
-	-DMTY_GL_EXTERNAL \
-	-DGL_ES
-
 WASI_SDK = $(HOME)/wasi-sdk-11.0
 
 LD_FLAGS := \
-	-nodefaultlibs \
 	-Wl,--allow-undefined \
 	-Wl,--export-table \
 	-Wl,-z,stack-size=$$((8 * 1024 * 1024))
