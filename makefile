@@ -51,6 +51,7 @@ LIBS = \
 	libucrt.lib \
 	libcmt.lib \
 	kernel32.lib \
+	windowscodecs.lib \
 	user32.lib \
 	shell32.lib \
 	d3d9.lib \
