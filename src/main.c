@@ -22,36 +22,28 @@
 
 #include "assets/font/font.h"
 
-#define PCM_BUFFER  150
+#define PCM_BUFFER  75
 #define SAMPLE_RATE 48000
 
-#if defined(_WIN32)
-	#define SO_SUFFIX "dll"
-
-#elif defined(__APPLE__)
-	#define SO_SUFFIX "dylib"
-
-#else
-	#define SO_SUFFIX "so"
-#endif
+struct main_audio_packet {
+	double fps;
+	uint32_t sample_rate;
+	int16_t data[CORE_SAMPLES_MAX];
+	size_t frames;
+};
 
 struct main {
 	struct core *core;
-	struct rsp *rsp;
 
-	uint32_t sample_rate;
-	uint32_t target_rate;
-	bool correcting_high;
-	bool correcting_low;
 	char *content_name;
 	MTY_App *app;
 	MTY_JSON *systems;
 	MTY_JSON *core_options;
 	MTY_JSON *core_exts;
 	MTY_Window window;
-	MTY_Audio *audio;
 	MTY_Queue *rt_q;
 	MTY_Queue *mt_q;
+	MTY_Queue *a_q;
 	struct config cfg;
 	bool got_frame;
 	bool running;
@@ -294,8 +286,8 @@ static void main_poll_core_fetch(struct main *ctx)
 
 	MTY_Async async = MTY_HttpAsyncPoll(ctx->core_fetch.req, &so, &size, &status);
 
-	if (async == MTY_ASYNC_OK || async == MTY_ASYNC_ERROR) {
-		if (async == MTY_ASYNC_OK && status == 200) {
+	if (async == MTY_ASYNC_OK) {
+		if (status == 200) {
 			const char *base = MTY_JoinPath(MTY_GetProcessDir(), "cores");
 			MTY_Mkdir(base);
 
@@ -350,13 +342,18 @@ static void main_video(const void *buf, uint32_t width, uint32_t height, size_t 
 
 static void main_audio(const int16_t *buf, size_t frames, void *opaque)
 {
-	struct main *ctx = (struct main *) opaque;
+	struct main *ctx = opaque;
 
-	if (ctx->audio && !ctx->cfg.mute) {
-		const int16_t *rsp_buf = rsp_convert(ctx->rsp, ctx->sample_rate,
-			ctx->target_rate, buf, &frames);
+	struct main_audio_packet *pkt = MTY_QueueGetInputBuffer(ctx->a_q);
 
-		MTY_AudioQueue(ctx->audio, rsp_buf, (uint32_t) frames);
+	if (pkt) {
+		pkt->sample_rate = core_get_sample_rate(ctx->core);
+		pkt->fps = core_get_frame_rate(ctx->core);
+		pkt->frames = frames;
+
+		memcpy(pkt->data, buf, frames * 4);
+
+		MTY_QueuePush(ctx->a_q, sizeof(struct main_audio_packet));
 	}
 }
 
@@ -436,7 +433,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 	if (!core)
 		return;
 
-	const char *cname = MTY_SprintfDL("%s.%s", core, SO_SUFFIX);
+	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
 	const char *core_path = MTY_JoinPath(MTY_JoinPath(MTY_GetProcessDir(), "cores"), cname);
 
 	// If core is on the system, try to use it
@@ -568,53 +565,81 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 }
 
 
-// Audio
+// Audio thread
 
-static void main_poll_audio_changes(struct main *ctx)
+static void *main_audio_thread(void *opaque)
 {
-	if (!core_game_is_loaded(ctx->core))
-		return;
+	struct main *ctx = opaque;
 
-	#define TARGET_RATE(rate, fps) \
-		((double) (rate) * (1.0 - ((60.0 - (fps)) / (fps))))
+	MTY_Audio *audio = MTY_AudioCreate(48000, PCM_BUFFER, PCM_BUFFER * 2);
+	if (!audio)
+		return NULL;
 
-	uint32_t sample_rate = core_get_sample_rate(ctx->core);
-	double fps = core_get_frame_rate(ctx->core);
+	struct rsp *rsp = rsp_create();
 
-	// Reinit audio on sample rate changes
-	if (sample_rate != ctx->sample_rate) {
-		rsp_reset(ctx->rsp);
+	uint32_t sample_rate = 0;
+	uint32_t target_rate = 0;
+	bool correct_high = false;
+	bool correct_low = false;
 
-		ctx->sample_rate = sample_rate;
-		ctx->target_rate = lrint(TARGET_RATE(SAMPLE_RATE, fps));
-	}
+	while (ctx->running) {
+		struct main_audio_packet *pkt = NULL;
 
-	// Correct buffer drift by tweaking the output sample rate
-	uint32_t low = PCM_BUFFER / 4;
-	uint32_t mid = PCM_BUFFER / 2;
-	uint32_t high = PCM_BUFFER - low;
-	uint32_t queued = MTY_AudioGetQueued(ctx->audio);
+		while (MTY_QueueGetOutputBuffer(ctx->a_q, 10, (void **) &pkt, NULL)) {
+			#define TARGET_RATE(rate, fps) \
+				((double) (rate) * (1.0 - ((60.0 - (fps)) / (fps))))
 
-	if (ctx->correcting_high && queued <= mid) {
-		ctx->correcting_high = false;
+			// Reset resampler on sample rate changes
+			if (sample_rate != pkt->sample_rate) {
+				rsp_reset(rsp);
 
-	} else if (ctx->correcting_low && queued >= mid) {
-		ctx->correcting_low = false;
-	}
+				sample_rate = pkt->sample_rate;
+				target_rate = lrint(TARGET_RATE(SAMPLE_RATE, pkt->fps));
+				correct_high = correct_low = false;
+			}
 
-	if (!ctx->correcting_high && !ctx->correcting_low) {
-		if (queued >= high) {
-			ctx->correcting_high = true;
-			ctx->target_rate = lrint(TARGET_RATE(SAMPLE_RATE, fps) * 0.99333);
+			// Submit the audio
+			if (!ctx->cfg.mute) {
+				const int16_t *rsp_buf = rsp_convert(rsp, sample_rate, target_rate,
+					pkt->data, &pkt->frames);
 
-		} else if (queued <= low) {
-			ctx->correcting_low = true;
-			ctx->target_rate = lrint(TARGET_RATE(SAMPLE_RATE, fps) * 1.00667);
+				MTY_AudioQueue(audio, rsp_buf, (uint32_t) pkt->frames);
+			}
 
-		} else {
-			ctx->target_rate = lrint(TARGET_RATE(SAMPLE_RATE, fps));
+			// Correct buffer drift by tweaking the output sample rate
+			uint32_t low = PCM_BUFFER / 2;
+			uint32_t mid = PCM_BUFFER;
+			uint32_t high = PCM_BUFFER + low;
+			uint32_t queued = MTY_AudioGetQueued(audio);
+
+			if (queued <= mid)
+				correct_high = false;
+
+			if (queued >= mid)
+				correct_low = false;
+
+			if (!correct_high && !correct_low) {
+				if (queued >= high) {
+					correct_high = true;
+					target_rate = lrint(TARGET_RATE(SAMPLE_RATE, pkt->fps) * 0.995);
+
+				} else if (queued <= low) {
+					correct_low = true;
+					target_rate = lrint(TARGET_RATE(SAMPLE_RATE, pkt->fps) * 1.005);
+
+				} else {
+					target_rate = lrint(TARGET_RATE(SAMPLE_RATE, pkt->fps));
+				}
+			}
+
+			MTY_QueuePop(ctx->a_q);
 		}
 	}
+
+	rsp_destroy(&rsp);
+	MTY_AudioDestroy(&audio);
+
+	return NULL;
 }
 
 
@@ -673,14 +698,10 @@ static void *main_render_thread(void *opaque)
 	MTY_WindowSetGFX(ctx->app, ctx->window, ctx->cfg.gfx, true);
 	MTY_WindowMakeCurrent(ctx->app, ctx->window, true);
 
-	ctx->audio = MTY_AudioCreate(48000, PCM_BUFFER / 2, PCM_BUFFER);
-	ctx->rsp = rsp_create();
-
 	while (ctx->running) {
 		MTY_Time stamp = MTY_GetTime();
 
 		main_poll_app_events(ctx, ctx->rt_q);
-		main_poll_audio_changes(ctx);
 		main_poll_core_fetch(ctx);
 
 		if (MTY_WindowIsActive(ctx->app, ctx->window) || !ctx->cfg.bg_pause) {
@@ -724,9 +745,6 @@ static void *main_render_thread(void *opaque)
 			MTY_Sleep(8);
 		}
 	}
-
-	rsp_destroy(&ctx->rsp);
-	MTY_AudioDestroy(&ctx->audio);
 
 	MTY_WindowSetGFX(ctx->app, ctx->window, MTY_GFX_NONE, false);
 
@@ -838,6 +856,7 @@ int32_t main(int32_t argc, char **argv)
 
 	ctx.rt_q = MTY_QueueCreate(50, sizeof(struct app_event));
 	ctx.mt_q = MTY_QueueCreate(50, sizeof(struct app_event));
+	ctx.a_q = MTY_QueueCreate(5, sizeof(struct main_audio_packet));
 
 	if (argc >= 2) {
 		struct app_event evt = {0};
@@ -861,9 +880,11 @@ int32_t main(int32_t argc, char **argv)
 	if (ctx.window == -1)
 		goto except;
 
-	MTY_Thread *t = MTY_ThreadCreate(main_render_thread, &ctx);
+	MTY_Thread *rt = MTY_ThreadCreate(main_render_thread, &ctx);
+	MTY_Thread *at = MTY_ThreadCreate(main_audio_thread, &ctx);
 	MTY_AppRun(ctx.app);
-	MTY_ThreadDestroy(&t);
+	MTY_ThreadDestroy(&at);
+	MTY_ThreadDestroy(&rt);
 
 	main_save_config(&ctx.cfg, ctx.core_options, ctx.core_exts);
 
@@ -873,6 +894,7 @@ int32_t main(int32_t argc, char **argv)
 	MTY_AppDestroy(&ctx.app);
 	MTY_QueueDestroy(&ctx.rt_q);
 	MTY_QueueDestroy(&ctx.mt_q);
+	MTY_QueueDestroy(&ctx.a_q);
 	MTY_JSONDestroy(&ctx.systems);
 	MTY_JSONDestroy(&ctx.core_options);
 	MTY_JSONDestroy(&ctx.core_exts);
@@ -893,7 +915,6 @@ int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
 
 	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 	return main(__argc, __argv);
 }

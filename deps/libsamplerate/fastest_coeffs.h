@@ -17,7 +17,7 @@
 
 static const struct fastest_coeffs_s
 {	int increment ;
-	coeff_t coeffs [2464] ;
+	double coeffs [2464] ;
 } fastest_coeffs =
 {	128,
 {

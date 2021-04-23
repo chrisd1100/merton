@@ -17,7 +17,7 @@
 
 static const struct slow_mid_qual_coeffs_s
 {	int increment ;
-	coeff_t coeffs [22438] ;
+	double coeffs [22438] ;
 } slow_mid_qual_coeffs =
 {	491,
 {

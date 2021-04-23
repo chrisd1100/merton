@@ -14,22 +14,15 @@
 
 struct rsp {
 	SRC_STATE *state;
-	float *in;
-	float *out;
-	int16_t *out16;
-	size_t in_frames;
+	int16_t *out;
 };
 
 struct rsp *rsp_create(void)
 {
 	struct rsp *ctx = MTY_Alloc(1, sizeof(struct rsp));
 
-	// The in and out buffers NEED to be space in the same allocation
-	int32_t e = -1;
-	ctx->state = src_new(SRC_SINC_FASTEST, 2, &e);
-	ctx->in = MTY_Alloc(BUF_SIZE * 2, sizeof(float));
-	ctx->out16 = MTY_Alloc(BUF_SIZE * 2, sizeof(int16_t));
-	ctx->out = ctx->in + BUF_SIZE;
+	ctx->state = src_new(SRC_SINC_FASTEST);
+	ctx->out = MTY_Alloc(BUF_SIZE, sizeof(int16_t));
 
 	return ctx;
 }
@@ -43,8 +36,7 @@ void rsp_destroy(struct rsp **rsp)
 
 	src_delete(ctx->state);
 
-	MTY_Free(ctx->in);
-	MTY_Free(ctx->out16);
+	MTY_Free(ctx->out);
 
 	MTY_Free(ctx);
 	*rsp = NULL;
@@ -52,31 +44,15 @@ void rsp_destroy(struct rsp **rsp)
 
 const int16_t *rsp_convert(struct rsp *ctx, uint32_t rate_in, uint32_t rate_out, const int16_t *in, size_t *size)
 {
-	src_short_to_float_array(in, ctx->in + ctx->in_frames * 2, (int32_t) *size * 2);
+	double ratio = (double) rate_out / (double) rate_in;
 
-	SRC_DATA data = {0};
-	data.data_in = ctx->in;
-	data.input_frames = (long) ctx->in_frames + (int32_t) *size;
-	data.data_out = ctx->out;
-	data.output_frames = BUF_SIZE;
-	data.src_ratio = (double) rate_out / (double) rate_in;
-
-	if (src_process(ctx->state, &data) != 0)
+	if (src_process(ctx->state, in, *size, ctx->out, BUF_SIZE, ratio, size) != 0)
 		return in;
 
-	ctx->in_frames += *size - data.input_frames_used;
-	*size = data.output_frames_gen;
-
-	src_float_to_short_array(ctx->out, ctx->out16, (int32_t) *size * 2);
-
-	memmove(ctx->in, ctx->in + data.input_frames_used * 2 * sizeof(float),
-		ctx->in_frames * 2 * sizeof(float));
-
-	return ctx->out16;
+	return ctx->out;
 }
 
 void rsp_reset(struct rsp *ctx)
 {
 	src_reset(ctx->state);
-	ctx->in_frames = 0;
 }

@@ -14,7 +14,6 @@
 #include "deps/libretro.h"
 
 #define CORE_VARIABLES_MAX 128
-#define CORE_FRAMES_MAX    4096
 
 struct core {
 	MTY_SO *so;
@@ -80,7 +79,7 @@ static bool CORE_BUTTONS[CORE_PLAYERS_MAX][CORE_BUTTON_MAX];
 static int16_t CORE_AXES[CORE_PLAYERS_MAX][CORE_AXIS_MAX];
 
 static size_t CORE_NUM_FRAMES;
-static int16_t CORE_FRAMES[CORE_FRAMES_MAX * 2];
+static int16_t CORE_FRAMES[CORE_SAMPLES_MAX];
 
 
 // Maps
@@ -366,48 +365,21 @@ static void core_retro_video_refresh(const void *data, unsigned width,
 		CORE_VIDEO(data, width, height, pitch, CORE_VIDEO_OPAQUE);
 }
 
-static void core_retro_audio_samples(const int16_t *data, size_t frames)
-{
-	if (CORE_AUDIO) {
-		size_t trigger = lrint(RETRO_SYSTEM_TIMING.sample_rate / 500.0);
-
-		if (trigger > CORE_FRAMES_MAX)
-			trigger = CORE_FRAMES_MAX;
-
-		// In case of on the fly sample rate adjustment
-		if (trigger < CORE_NUM_FRAMES)
-			CORE_NUM_FRAMES = 0;
-
-		while (frames > 0) {
-			size_t rem = trigger - CORE_NUM_FRAMES;
-			size_t addtl = frames > rem ? rem : frames;
-
-			memcpy(CORE_FRAMES + CORE_NUM_FRAMES * 2, data, addtl * 4);
-			CORE_NUM_FRAMES += addtl;
-
-			if (CORE_NUM_FRAMES == trigger) {
-				CORE_AUDIO(CORE_FRAMES, trigger, CORE_AUDIO_OPAQUE);
-				CORE_NUM_FRAMES = 0;
-			}
-
-			frames -= addtl;
-			data += addtl * 2;
-		}
-	}
-}
-
 static void core_retro_audio_sample(int16_t left, int16_t right)
 {
-	int16_t data[2];
-	data[0] = left;
-	data[1] = right;
-
-	core_retro_audio_samples(data, 1);
+	if (CORE_NUM_FRAMES + 1 <= CORE_FRAMES_MAX) {
+		CORE_FRAMES[CORE_NUM_FRAMES * 2] = left;
+		CORE_FRAMES[CORE_NUM_FRAMES * 2 + 1] = right;
+		CORE_NUM_FRAMES++;
+	}
 }
 
 static size_t core_retro_audio_sample_batch(const int16_t *data, size_t frames)
 {
-	core_retro_audio_samples(data, frames);
+	if (CORE_NUM_FRAMES + frames <= CORE_FRAMES_MAX) {
+		memcpy(CORE_FRAMES + CORE_NUM_FRAMES * 2, data, frames * 4);
+		CORE_NUM_FRAMES += frames;
+	}
 
 	return frames;
 }
@@ -553,11 +525,10 @@ void core_unload(struct core **core)
 	CORE_LOG_OPAQUE = NULL;
 	CORE_AUDIO_OPAQUE = NULL;
 	CORE_VIDEO_OPAQUE = NULL;
+	CORE_NUM_FRAMES = 0;
 
 	memset(CORE_BUTTONS, 0, sizeof(bool) * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 	memset(CORE_AXES, 0, sizeof(int16_t) * CORE_PLAYERS_MAX * CORE_AXIS_MAX);
-	memset(CORE_FRAMES, 0, sizeof(int16_t) * CORE_FRAMES_MAX);
-	CORE_NUM_FRAMES = 0;
 
 	MTY_Free(ctx);
 	*core = NULL;
@@ -630,6 +601,11 @@ void core_run_frame(struct core *ctx)
 		return;
 
 	ctx->retro_run();
+
+	if (CORE_AUDIO) {
+		CORE_AUDIO(CORE_FRAMES, CORE_NUM_FRAMES, CORE_AUDIO_OPAQUE);
+		CORE_NUM_FRAMES = 0;
+	}
 }
 
 enum core_color_format core_get_color_format(struct core *ctx)
