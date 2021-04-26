@@ -135,7 +135,7 @@ static struct config main_load_config(MTY_JSON **core_options, MTY_JSON **core_e
 		MTY_JSONObjSetString(*core_exts, "genesis", "gen|md|smd");
 		MTY_JSONObjSetString(*core_exts, "ms", "sms");
 		MTY_JSONObjSetString(*core_exts, "n64", "n64|v64|z64");
-		MTY_JSONObjSetString(*core_exts, "nes", "nes|fds|unf|unif");
+		MTY_JSONObjSetString(*core_exts, "nes", "nes|fds|qd|unf|unif");
 		MTY_JSONObjSetString(*core_exts, "ps", "cue");
 		MTY_JSONObjSetString(*core_exts, "snes", "smc|sfc|bs");
 	}
