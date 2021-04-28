@@ -302,6 +302,26 @@ static void ui_menu(const struct ui_args *args, struct app_event *event)
 				event->rt = true;
 			}
 
+			if (core_has_disk_interface(args->core)) {
+				if (im_begin_menu("Disks", true)) {
+					uint8_t n = core_get_num_disks(args->core);
+					int8_t disk = core_get_disk(args->core);
+
+					if (im_begin_menu("Insert", true)) {
+						for (uint8_t x = 0; x < n; x++) {
+							char nstr[8];
+							snprintf(nstr, 8, "%u", x);
+
+							if (im_menu_item(nstr, "", x == disk))
+								core_set_disk(args->core, x);
+						}
+
+						im_end_menu();
+					}
+					im_end_menu();
+				}
+			}
+
 			uint32_t vlen = 0;
 			const struct core_variable *vars = core_get_variables(args->core, &vlen);
 

@@ -75,6 +75,11 @@ void core_set_button(struct core *ctx, uint8_t player, enum core_button button, 
 void core_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16_t value);
 void *core_get_state(struct core *ctx, size_t *size);
 bool core_set_state(struct core *ctx, const void *state, size_t size);
+bool core_has_disk_interface(struct core *ctx);
+uint8_t core_get_num_disks(struct core *ctx);
+int8_t core_get_disk(struct core *ctx);
+bool core_set_disk(struct core *ctx, int8_t disk);
+bool core_load_disk(struct core *ctx, uint8_t disk, const char *path);
 void *core_get_sram(struct core *ctx, size_t *size);
 bool core_set_sram(struct core *ctx, const void *sram, size_t size);
 const char *core_get_save_dir(struct core *ctx);

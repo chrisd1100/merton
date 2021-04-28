@@ -58,12 +58,14 @@ struct core {
 static enum retro_pixel_format RETRO_PIXEL_FORMAT = RETRO_PIXEL_FORMAT_0RGB1555;
 static struct retro_game_geometry RETRO_GAME_GEOMETRY;
 static struct retro_system_timing RETRO_SYSTEM_TIMING;
+static struct retro_disk_control_callback RETRO_DISK_CONTROL_CALLBACK;
 static unsigned RETRO_REGION;
 
 static uint32_t CORE_NUM_VARIABLES;
 static struct core_variable CORE_VARIABLES[CORE_VARIABLES_MAX];
 static MTY_Hash *CORE_OPTS;
 static bool CORE_OPT_SET;
+static bool CORE_HAS_DISK_INTERFACE;
 
 static CORE_LOG_FUNC CORE_LOG;
 static CORE_AUDIO_FUNC CORE_AUDIO;
@@ -297,6 +299,13 @@ static bool core_retro_environment(unsigned cmd, void *data)
 
 			return true;
 		}
+		case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: {
+			const struct retro_disk_control_callback *arg = data;
+			RETRO_DISK_CONTROL_CALLBACK = *arg;
+			CORE_HAS_DISK_INTERFACE = true;
+
+			return true;
+		}
 
 		// TODO
 		case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK:
@@ -319,9 +328,6 @@ static bool core_retro_environment(unsigned cmd, void *data)
 			break;
 		case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
 			printf("RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS\n");
-			break;
-		case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE:
-			printf("RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE\n");
 			break;
 		case RETRO_ENVIRONMENT_GET_PERF_INTERFACE:
 			printf("RETRO_ENVIRONMENT_GET_PERF_INTERFACE\n");
@@ -511,6 +517,7 @@ void core_unload(struct core **core)
 	RETRO_PIXEL_FORMAT = RETRO_PIXEL_FORMAT_0RGB1555;
 	memset(&RETRO_GAME_GEOMETRY, 0, sizeof(struct retro_game_geometry));
 	memset(&RETRO_SYSTEM_TIMING, 0, sizeof(struct retro_system_timing));
+	memset(&RETRO_DISK_CONTROL_CALLBACK, 0, sizeof(struct retro_disk_control_callback));
 	RETRO_REGION = 0;
 
 	CORE_NUM_VARIABLES = 0;
@@ -526,6 +533,7 @@ void core_unload(struct core **core)
 	CORE_AUDIO_OPAQUE = NULL;
 	CORE_VIDEO_OPAQUE = NULL;
 	CORE_NUM_FRAMES = 0;
+	CORE_HAS_DISK_INTERFACE = false;
 
 	memset(CORE_BUTTONS, 0, sizeof(bool) * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 	memset(CORE_AXES, 0, sizeof(int16_t) * CORE_PLAYERS_MAX * CORE_AXIS_MAX);
@@ -691,6 +699,65 @@ bool core_set_state(struct core *ctx, const void *state, size_t size)
 		return false;
 
 	return ctx->retro_unserialize(state, size);
+}
+
+bool core_has_disk_interface(struct core *ctx)
+{
+	return CORE_HAS_DISK_INTERFACE;
+}
+
+uint8_t core_get_num_disks(struct core *ctx)
+{
+	if (!ctx || !ctx->game_loaded)
+		return 0;
+
+	if (RETRO_DISK_CONTROL_CALLBACK.get_num_images)
+		return (uint8_t) RETRO_DISK_CONTROL_CALLBACK.get_num_images();
+
+	return 0;
+}
+
+int8_t core_get_disk(struct core *ctx)
+{
+	if (!ctx || !ctx->game_loaded)
+		return 0;
+
+	if (RETRO_DISK_CONTROL_CALLBACK.get_eject_state)
+		if (RETRO_DISK_CONTROL_CALLBACK.get_eject_state())
+			return -1;
+
+	if (RETRO_DISK_CONTROL_CALLBACK.get_image_index)
+		return (int8_t) RETRO_DISK_CONTROL_CALLBACK.get_image_index();
+
+	return -1;
+}
+
+bool core_set_disk(struct core *ctx, int8_t disk)
+{
+	if (!ctx || !ctx->game_loaded)
+		return false;
+
+	if (disk < 0) {
+		if (RETRO_DISK_CONTROL_CALLBACK.set_eject_state)
+			RETRO_DISK_CONTROL_CALLBACK.set_eject_state(true);
+
+	} else if (RETRO_DISK_CONTROL_CALLBACK.set_image_index) {
+		bool r = RETRO_DISK_CONTROL_CALLBACK.set_image_index((unsigned) disk);
+
+		if (RETRO_DISK_CONTROL_CALLBACK.set_eject_state)
+			RETRO_DISK_CONTROL_CALLBACK.set_eject_state(false);
+
+		return r;
+	}
+
+	return false;
+}
+
+bool core_load_disk(struct core *ctx, uint8_t disk, const char *path)
+{
+	// TODO This is where we would load PSX disks
+
+	return false;
 }
 
 void *core_get_sram(struct core *ctx, size_t *size)
